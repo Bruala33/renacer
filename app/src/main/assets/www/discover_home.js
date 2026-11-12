@@ -18,6 +18,7 @@
   const STORAGE_KEY_DNA = 'piano_user_music_dna_v1';
   const STORAGE_KEY_GRAPH_CACHE = 'piano_music_graph_cache_v1';
   const STORAGE_KEY_PLAYER_STATE = 'piano_continuous_player_state_v1';
+  const STORAGE_KEY_LYRIC_OFFSETS = 'piano_karaoke_user_offsets_v1';
   const THREE_MONTHS_COOLDOWN_MS = 90 * 24 * 60 * 60 * 1000;
 
   const _NORM_TITLE_CACHE = new Map();
@@ -112,6 +113,97 @@
       return true;
     }
     return false;
+  }
+
+  const CANONICAL_YT_VIDEO_OWNERS = {
+    v2AC41dglnM: 'back in black',
+    fJ9rUzIMcZQ: 'bohemian rhapsody',
+    'CD-E-LDc384': 'enter sandman',
+    hTWKbfoikeg: 'smells like teen spirit',
+    eVTXPUF4Oz4: 'in the end',
+    CSvFpBOe8eY: 'chop suey',
+    '3YxaaGgTQYM': 'bring me to life',
+    'Soa3gO7tL-c': 'boulevard of broken dreams',
+    YlUKcNNmywk: 'californication',
+    '6fVE8kSM43I': 'duality',
+    DelhLppPSxY: 'hail to the king',
+    SBjQ9tuuTJQ: 'the pretender',
+    kXYiU_JCYtU: 'numb',
+    'TUVcZfQe-Kw': 'levitating',
+    '4NRXx6U8ABQ': 'blinding lights',
+    '09R8_2nJtjg': 'sugar',
+    'CwkzK-F0Y00': 'gurenge',
+    'wDGhu8-4N-4': 'megalovania',
+    QHRuTYtSbJQ: 'bfg division',
+    UOxkGD8qRB4: 'pop stars',
+    '1tk1pqwrOys': 'kaikai kitan',
+    'CID-sYQNCew': 'guren no yumiya',
+    aBkTkxKDduc: 'sweden'
+  };
+
+  let _curatedCanonicalCache = null;
+  let _curatedCanonicalKeyCount = 0;
+
+  function resolveCuratedTrackMeta(rawVid, title, artist) {
+    const vid = String(rawVid || '').replace(/^magic_yt_|^yt_/, '').trim();
+    const db = (typeof window !== 'undefined' && window.CURATED_PLAYLIST_DATABASE) ||
+               (typeof CURATED_PLAYLIST_DATABASE !== 'undefined' ? CURATED_PLAYLIST_DATABASE : null);
+    if (db && (!_curatedCanonicalCache || Object.keys(db).length !== _curatedCanonicalKeyCount)) {
+      _curatedCanonicalCache = new Map();
+      _curatedCanonicalKeyCount = Object.keys(db).length;
+      for (const plData of Object.values(db)) {
+        for (const tr of (plData?.tracks || [])) {
+          if (!tr || !tr.id) continue;
+          if (!_curatedCanonicalCache.has(tr.id)) {
+            _curatedCanonicalCache.set(tr.id, {
+              normTitle: normalizeSongPart(tr.title, false),
+              normArtist: normalizeSongPart(tr.artist, true)
+            });
+          }
+        }
+      }
+    }
+
+    const normTitle = normalizeSongPart(title, false);
+    const normArtist = normalizeSongPart(artist, true);
+    const slug = `${normArtist || 'art'}_${normTitle || 'song'}`.replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 64) || 'track';
+
+    if (!/^[A-Za-z0-9_-]{11}$/.test(vid)) {
+      return {
+        id: `magic_cand_${slug}`,
+        videoId: '',
+        thumbnail: './app_logo.png',
+        isPlaceholder: !vid ? false : true
+      };
+    }
+
+    const ownerFromDb = _curatedCanonicalCache ? _curatedCanonicalCache.get(vid) : null;
+    const ownerHint = ownerFromDb?.normTitle || CANONICAL_YT_VIDEO_OWNERS[vid] || '';
+    let isPlaceholder = false;
+    if (ownerHint && normTitle) {
+      const hintNorm = normalizeSongPart(ownerHint, false);
+      if (hintNorm && !normTitle.includes(hintNorm) && !hintNorm.includes(normTitle)) {
+        isPlaceholder = true;
+      }
+    }
+
+    if (isPlaceholder) {
+      return {
+        id: `magic_cand_${slug}`,
+        videoId: '',
+        thumbnail: './app_logo.png',
+        isPlaceholder: true
+      };
+    }
+    return {
+      id: `magic_yt_${vid}`,
+      videoId: vid,
+      thumbnail: `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`,
+      isPlaceholder: false
+    };
+  }
+  if (typeof window !== 'undefined') {
+    window.resolveCuratedTrackMeta = resolveCuratedTrackMeta;
   }
 
   function buildTrackListLookupIndex(list) {
@@ -1607,7 +1699,7 @@
   ];
 
   // =========================================================================
-  // 3B. KARAOKE LYRICS SERVICE (SINCRONIZACIÓN EN TIEMPO REAL ESTILO KARAOKE)
+  // 3B. KARAOKE LYRICS SERVICE (SISTEMA INFALIBLE DE SINCRONIZACIÓN Y SEEK)
   // =========================================================================
   class KaraokeLyricsService {
     constructor() {
@@ -1618,22 +1710,108 @@
       this.knownLeadingSilenceMap = new Map();
       this.studioReferenceMap = new Map();
       this.audioWaveformProfiles = new Map();
+      this.topVocalOnsetsMap = new Map();
       this.inflight = new Map();
+      this.trackCalibrationState = new Map();
+      this.dspEnvelopeCache = typeof WeakMap !== 'undefined' ? new WeakMap() : new Map();
+      this.previewEnvCache = new Map();
       this.currentLyrics = [];
       this.currentTrack = null;
       this.currentTrackKey = '';
       this.activeLineIndex = -1;
       this.timeOffsetSec = 0;
       this.autoLeadingSilenceSec = 0;
+      this.userOffsetsMap = this._loadUserOffsets();
       this._isUserManualScrolling = false;
       this._userManualScrollUntil = 0;
+      this._userScrollingUntil = 0;
+      this._programmaticScrolling = false;
+      this._programmaticScrollTimer = null;
+      this._lastRenderedTrackKey = '';
+      this._lastSyncAudioSec = 0;
       this.showTranslation = localStorage.getItem('piano_karaoke_translate') === 'true';
     }
 
+    _loadUserOffsets() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY_LYRIC_OFFSETS);
+        if (!raw) return {};
+        const parsed = JSON.parse(raw);
+        return (parsed && typeof parsed === 'object') ? parsed : {};
+      } catch (_) {
+        return {};
+      }
+    }
+
+    _saveUserOffsets() {
+      try {
+        const entries = Object.entries(this.userOffsetsMap || {}).slice(-200);
+        const compact = {};
+        for (const [k, v] of entries) {
+          if (Number.isFinite(v) && Math.abs(v) > 0.01) compact[k] = +v.toFixed(2);
+        }
+        this.userOffsetsMap = compact;
+        localStorage.setItem(STORAGE_KEY_LYRIC_OFFSETS, JSON.stringify(compact));
+      } catch (_) {}
+    }
+
+    getUserOffsetSec(trackKey = this.currentTrackKey) {
+      if (!trackKey) return 0;
+      const val = Number(this.userOffsetsMap?.[trackKey]);
+      return Number.isFinite(val) ? Math.max(-30, Math.min(30, val)) : 0;
+    }
+
+    setUserOffsetSec(trackKey, offsetSec) {
+      if (!trackKey) return 0;
+      const clamped = Math.max(-30, Math.min(30, +(Number(offsetSec) || 0).toFixed(2)));
+      if (Math.abs(clamped) < 0.05) {
+        delete this.userOffsetsMap[trackKey];
+      } else {
+        this.userOffsetsMap[trackKey] = clamped;
+      }
+      this._saveUserOffsets();
+      if (trackKey === this.currentTrackKey) {
+        this.timeOffsetSec = Math.abs(clamped) < 0.05 ? 0 : clamped;
+        this._userScrollingUntil = 0;
+        this._userManualScrollUntil = 0;
+        this._syncToolbarUI();
+        if (Array.isArray(this.currentLyrics) && this.currentLyrics.length > 0) {
+          this.renderLinesToDom();
+        }
+        const curSec = (typeof dualStreamEngine !== 'undefined' && dualStreamEngine)
+          ? dualStreamEngine.getCurrentSongTimeSec()
+          : (this._lastSyncAudioSec || 0);
+        this.activeLineIndex = -1;
+        this.syncTime(curSec, { forceScroll: true });
+      }
+      return this.timeOffsetSec;
+    }
+
+    adjustOffset(deltaSec = 0) {
+      if (!this.currentTrackKey) return 0;
+      const cur = this.getUserOffsetSec(this.currentTrackKey);
+      return this.setUserOffsetSec(this.currentTrackKey, cur + (Number(deltaSec) || 0));
+    }
+
+    nudgeOffset(deltaSec = 0) {
+      return this.adjustOffset(deltaSec);
+    }
+
+    resetOffset() {
+      if (!this.currentTrackKey) return 0;
+      return this.setUserOffsetSec(this.currentTrackKey, 0);
+    }
+
+    resetUserOffset() {
+      return this.resetOffset();
+    }
+
     _makeKey(track) {
+      const idPart = String(track?.id || '').trim().toLowerCase();
       const t = String(track?.title || '').toLowerCase().trim();
       const a = String(track?.artist || '').toLowerCase().trim();
-      return `${t}__${a}`;
+      if (t || a) return `${t}__${a}`;
+      return idPart || 'unknown';
     }
 
     getTargetAppLang() {
@@ -1659,9 +1837,12 @@
           ? (lang === 'en' ? 'Traducción (EN)' : 'Traducción (ES)')
           : 'Traducir letra';
       }
+      const off = this.currentTrackKey
+        ? this.getUserOffsetSec(this.currentTrackKey)
+        : Number(this.timeOffsetSec || 0);
+
       const badge = document.getElementById('npKaraokeOffsetBadge');
       if (badge) {
-        const off = Number(this.timeOffsetSec || 0);
         if (Math.abs(off) < 0.05) {
           badge.textContent = '0.0s';
           badge.classList.remove('active');
@@ -1671,38 +1852,30 @@
           badge.classList.add('active');
         }
       }
-    }
-
-    adjustOffset(deltaSec) {
-      const curOff = Number(this.timeOffsetSec || 0);
-      this.timeOffsetSec = +(curOff + (Number(deltaSec) || 0)).toFixed(2);
-      this._userManualScrollUntil = 0;
-      this._syncToolbarUI();
-      if (typeof dualStreamEngine !== 'undefined' && dualStreamEngine) {
-        this.activeLineIndex = -1;
-        this.syncTime(dualStreamEngine.getCurrentSongTimeSec(), true);
+      const compatBadge = document.getElementById('npKaraokeSyncOffsetBadge');
+      if (compatBadge) {
+        if (Math.abs(off) < 0.05) {
+          compatBadge.textContent = 'Sincro Auto';
+          compatBadge.classList.remove('adjusted');
+        } else {
+          compatBadge.textContent = `Sincro ${off > 0 ? '+' : ''}${off.toFixed(1)}s`;
+          compatBadge.classList.add('adjusted');
+        }
       }
     }
 
-    resetOffset() {
-      this.timeOffsetSec = 0;
-      this._userManualScrollUntil = 0;
+    _syncTranslateBtnUI() {
       this._syncToolbarUI();
-      if (typeof dualStreamEngine !== 'undefined' && dualStreamEngine) {
-        this.activeLineIndex = -1;
-        this.syncTime(dualStreamEngine.getCurrentSongTimeSec(), true);
-      }
+    }
+
+    _renderSyncControlsUI() {
+      this._syncToolbarUI();
     }
 
     syncLineToCurrentAudio(lineIdx) {
-      const line = this.currentLyrics?.[lineIdx];
-      if (!line || typeof dualStreamEngine === 'undefined' || !dualStreamEngine) return;
-      const curAudioSec = Math.max(0, Number(dualStreamEngine.getCurrentSongTimeSec()) || 0);
-      this.timeOffsetSec = +(Number(line.timeSec || 0) - curAudioSec).toFixed(2);
-      this._userManualScrollUntil = 0;
-      this._syncToolbarUI();
-      this.activeLineIndex = -1;
-      this.syncTime(curAudioSec, true);
+      if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.seekToKaraokeLine === 'function') {
+        return window.DiscoverHomeApp.seekToKaraokeLine(lineIdx);
+      }
     }
 
     async toggleTranslation() {
@@ -1715,7 +1888,7 @@
       this.renderLinesToDom();
       this.activeLineIndex = -1;
       if (typeof dualStreamEngine !== 'undefined' && dualStreamEngine) {
-        this.syncTime(dualStreamEngine.getCurrentSongTimeSec(), true);
+        this.syncTime(dualStreamEngine.getCurrentSongTimeSec(), { forceScroll: true });
       }
     }
 
@@ -1797,7 +1970,6 @@
         .replace(/VEVO$/i, '')
         .trim();
       if (!cleaned) return '';
-      // Preservar dúos y bandas cuyo nombre oficial contiene "y" o "&"
       if (/\b(fito\s+y\s+fitipaldis|jesse\s*(?:&|y)\s*joy|andy\s*(?:&|y)\s*lucas|wisin\s*(?:&|y)\s*yandel|cali\s+y\s+el\s+dandee|chino\s*(?:&|y)\s*nacho|zion\s*(?:&|y)\s*lennox|platero\s+y\s+t[uú]|alaska\s+y\s+dinarama|alaska\s+y\s+los\s+pegamoides|mau\s+y\s+ricky|v[ií]ctor\s+y\s+leo|simon\s*(?:&|and)\s*garfunkel|hall\s*(?:&|and)\s*oates|earth\s*,\s*wind\s*(?:&|and)\s*fire|guns\s+n'?\s*roses|ac\/dc)\b/i.test(cleaned)) {
         return cleaned;
       }
@@ -1821,42 +1993,256 @@
         .trim();
     }
 
-    parseLrc(lrcText) {
-      const lines = String(lrcText || '').split(/\r?\n/);
+    _formatMmSs(sec) {
+      const s = Math.max(0, Math.floor(Number(sec) || 0));
+      const m = Math.floor(s / 60);
+      const r = String(s % 60).padStart(2, '0');
+      return `${m}:${r}`;
+    }
+
+    _isCreditOrMetadataLine(cleanText, timeSec = 0, track = null) {
+      const s = String(cleanText || '').trim();
+      if (!s) return true;
+      if (/^[\s♪♫▲●•*~_\-—–.=+()\[\]{}\/\\|:]+$/.test(s)) return true;
+      if (/^(?:instrumental|music|interlude|intro|outro|solo)$/i.test(s.replace(/[\[\]\(\)~*\s]/g, ''))) return true;
+      if (/^(?:作[词詞曲]|编曲|編曲|制作人|製作人|监制|監製|混音|母带|母帶|出品|发行|發行|词[：:\s]|曲[：:\s]|唱[：:\s]|和[声聲]|吉他|贝斯|鼓[手:]|钢琴|鋼琴|录音|錄音|统筹|統籌)/.test(s)) {
+        return true;
+      }
+      if (/^(?:lyrics?|words?|music|composed|arranged|produced|mixed|mastered|recorded|letra|m[uú]sica|compositor|producci[oó]n|synced|lrc|editor|by|offset|al|ar|ti|au|length)\s*(?:by|de|por)?\s*[:：\-]/i.test(s)) {
+        return true;
+      }
+      if (/\b(?:synced by|lrc by|timed by|provided by|qq\s*music|netease)\b/i.test(s)) return true;
+      if (/\bhttps?:\/\/|\bwww\.[a-z0-9.-]+\.[a-z]{2,}\b/i.test(s)) return true;
+
+      if (timeSec < 7.0 && track && (s.includes(' - ') || s.includes(' — '))) {
+        const nLine = this._normMatch(s);
+        const nTitle = this._normMatch(this._cleanSearchTerm(track.title || ''));
+        const nArtist = this._normMatch(this._extractPrimaryArtist(track.artist || ''));
+        if (nTitle && nLine.includes(nTitle) && (!nArtist || nLine.includes(nArtist))) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    parseLrc(lrcText, options = {}) {
+      const track = options.track || null;
+      const rawStr = String(lrcText || '');
+      const lines = rawStr.split(/\r?\n/);
       const parsed = [];
       let headerOffsetSec = 0;
-      const offsetMatch = String(lrcText || '').match(/\[offset:\s*([+-]?\d+)\s*\]/i);
+      const offsetMatch = rawStr.match(/\[offset:\s*([+-]?\d+)\s*\]/i);
       if (offsetMatch) {
-        headerOffsetSec = (parseInt(offsetMatch[1], 10) || 0) / 1000;
+        const rawMs = parseInt(offsetMatch[1], 10) || 0;
+        headerOffsetSec = Math.max(-30, Math.min(30, rawMs / 1000));
+      }
+      let lrcDeclaredLengthSec = 0;
+      const lenMatch = rawStr.match(/\[length:\s*(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\s*\]/i);
+      if (lenMatch) {
+        lrcDeclaredLengthSec = (parseInt(lenMatch[1], 10) || 0) * 60 + (parseInt(lenMatch[2], 10) || 0);
       }
 
-      const timeExp = /\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\]/g;
+      const lineTimeRe = /\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?\]/g;
+      const wordTimeRe = /<(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?>/g;
+
       for (const rawLine of lines) {
-        const matches = [...rawLine.matchAll(timeExp)];
+        const matches = [...rawLine.matchAll(lineTimeRe)];
         if (matches.length === 0) continue;
-        const text = repairSpanishBrokenAccents(rawLine.replace(timeExp, '').trim());
-        if (!text) continue;
+        const afterLineTags = rawLine.replace(lineTimeRe, '').trim();
+        if (!afterLineTags) continue;
+
+        wordTimeRe.lastIndex = 0;
+        const wordTagMatches = [...afterLineTags.matchAll(wordTimeRe)];
+        const cleanText = repairSpanishBrokenAccents(
+          afterLineTags.replace(wordTimeRe, '').replace(/\s+/g, ' ').trim()
+        );
+        if (!cleanText || cleanText.includes('\ufffd') || /[\u0080-\u009f]/.test(cleanText)) continue;
+
+        let parsedWordsTemplate = null;
+        if (wordTagMatches.length >= 1) {
+          parsedWordsTemplate = [];
+          for (let wi = 0; wi < wordTagMatches.length; wi++) {
+            const wm = wordTagMatches[wi];
+            const wMin = parseInt(wm[1], 10) || 0;
+            const wSec = parseInt(wm[2], 10) || 0;
+            const wFrac = String(wm[3] || '0').padEnd(3, '0').slice(0, 3);
+            const wMs = parseInt(wFrac, 10) || 0;
+            const wTSec = Math.max(0, wMin * 60 + wSec + wMs / 1000 - headerOffsetSec);
+            const tokStart = wm.index + wm[0].length;
+            const tokEnd = (wi + 1 < wordTagMatches.length) ? wordTagMatches[wi + 1].index : afterLineTags.length;
+            const segText = repairSpanishBrokenAccents(afterLineTags.slice(tokStart, tokEnd));
+            if (segText.trim() && !segText.includes('\ufffd') && !/[\u0080-\u009f]/.test(segText)) {
+              parsedWordsTemplate.push({
+                timeSec: +wTSec.toFixed(3),
+                text: segText
+              });
+            }
+          }
+          if (parsedWordsTemplate.length === 0) parsedWordsTemplate = null;
+        }
+
         for (const m of matches) {
           const min = parseInt(m[1], 10) || 0;
           const sec = parseInt(m[2], 10) || 0;
-          const msStr = (m[3] || '0').padEnd(3, '0').slice(0, 3);
-          const ms = parseInt(msStr, 10) || 0;
+          const fracStr = String(m[3] || '0').padEnd(3, '0').slice(0, 3);
+          const ms = parseInt(fracStr, 10) || 0;
           const tSec = Math.max(0, min * 60 + sec + ms / 1000 - headerOffsetSec);
-          parsed.push({
+          if (this._isCreditOrMetadataLine(cleanText, tSec, track)) continue;
+
+          const entry = {
             timeSec: +tSec.toFixed(2),
-            text
+            text: cleanText
+          };
+          if (parsedWordsTemplate && matches.length === 1) {
+            entry.words = parsedWordsTemplate.map(w => ({ ...w }));
+          }
+          parsed.push(entry);
+        }
+      }
+
+      parsed.sort((a, b) => a.timeSec - b.timeSec);
+      const deduped = [];
+      for (const item of parsed) {
+        const prev = deduped[deduped.length - 1];
+        if (prev && Math.abs(item.timeSec - prev.timeSec) < 0.08 && item.text === prev.text) continue;
+        deduped.push(item);
+      }
+      for (let i = 0; i < deduped.length; i++) {
+        const nextT = (i + 1 < deduped.length) ? deduped[i + 1].timeSec : (deduped[i].timeSec + 4.2);
+        deduped[i].endTimeSec = +Math.max(deduped[i].timeSec + 0.5, Math.min(deduped[i].timeSec + 6.5, nextT - 0.08)).toFixed(2);
+      }
+      if (lrcDeclaredLengthSec > 0) {
+        deduped._lrcLengthSec = lrcDeclaredLengthSec;
+      }
+      return deduped;
+    }
+
+    convertNativeLyricsArrayToLines(nativeLyrics) {
+      if (!Array.isArray(nativeLyrics) || nativeLyrics.length === 0) return [];
+      const rawJsonCheck = JSON.stringify(nativeLyrics);
+      if (rawJsonCheck.includes('\ufffd') || /[\u0080-\u009f]/.test(rawJsonCheck)) return [];
+
+      const lines = [];
+      for (const verse of nativeLyrics) {
+        if (!Array.isArray(verse) || verse.length === 0) continue;
+        let lineText = '';
+        let firstTimeSec = null;
+        let lastEndSec = 0;
+        const words = [];
+
+        for (const syl of verse) {
+          if (!syl) continue;
+          const rawSec = Number.isFinite(Number(syl.time)) ? Number(syl.time) : 0;
+          const tSec = Math.max(0, rawSec / 1000);
+          const durSec = Math.max(0.12, (Number(syl.dur) || 260) / 1000);
+          const rawT = repairSpanishBrokenAccents(String(syl.text !== undefined && syl.text !== null ? syl.text : ''));
+          const cleanToken = rawT.replace(/~/g, '');
+          if (!cleanToken.trim()) continue;
+          if (firstTimeSec === null) firstTimeSec = tSec;
+          lastEndSec = Math.max(lastEndSec, tSec + durSec);
+          words.push({ timeSec: +tSec.toFixed(3), text: cleanToken });
+          lineText += cleanToken;
+        }
+        const finalTxt = repairSpanishBrokenAccents(lineText.replace(/\s+/g, ' ').trim());
+        if (firstTimeSec !== null && finalTxt && !/^[\s♪♫▲*~.\-]+$/.test(finalTxt)) {
+          lines.push({
+            timeSec: +firstTimeSec.toFixed(2),
+            endTimeSec: +Math.max(firstTimeSec + 0.5, lastEndSec).toFixed(2),
+            text: finalTxt,
+            words: words.length > 1 ? words : undefined,
+            elasticOffsetSec: 0
           });
         }
       }
-      parsed.sort((a, b) => a.timeSec - b.timeSec);
-      return parsed;
+      lines.sort((a, b) => a.timeSec - b.timeSec);
+      for (let i = 0; i < lines.length; i++) {
+        if (i + 1 < lines.length) {
+          lines[i].endTimeSec = +Math.min(lines[i].endTimeSec, Math.max(lines[i].timeSec + 0.4, lines[i + 1].timeSec - 0.08)).toFixed(2);
+        }
+      }
+      return lines;
+    }
+
+    async _tryLoadNativeChartLyrics(track) {
+      if (!track) return null;
+      if (Array.isArray(track.notes) && track.notes.some(n => {
+        const s = String(n?.lyric || n?.text || n?.syllable || '');
+        return s.includes('\ufffd') || /[\u0080-\u009f]/.test(s);
+      })) {
+        return null;
+      }
+
+      const rawId = String(track.id || '').replace(/^top_/, '').replace(/^comm_/, '');
+      let rawLyrics = (Array.isArray(track.lyrics) && track.lyrics.length > 0)
+        ? track.lyrics
+        : (track.chartData && Array.isArray(track.chartData.lyrics) && track.chartData.lyrics.length > 0 ? track.chartData.lyrics : null);
+
+      if (!rawLyrics && typeof window.IndexedDBStorage !== 'undefined' && typeof window.IndexedDBStorage.getChart === 'function') {
+        try {
+          const cached = await window.IndexedDBStorage.getChart(track.id).catch(() => null) ||
+                         await window.IndexedDBStorage.getChart(`top_${rawId}`).catch(() => null) ||
+                         await window.IndexedDBStorage.getChart(rawId).catch(() => null);
+          if (cached && Array.isArray(cached.lyrics) && cached.lyrics.length > 0) {
+            rawLyrics = cached.lyrics;
+          }
+        } catch (_) {}
+      }
+
+      if (!rawLyrics) {
+        const bundledTopCharts = new Set(['david_bustamante_abrazame_muy_fuerte.json']);
+        const baseUrl = typeof window.getApiBaseUrl === 'function' ? window.getApiBaseUrl() : '';
+        if (track.chart_url && bundledTopCharts.has(track.chart_url)) {
+          try {
+            const resp = await fetch(`./songs/${track.chart_url}`);
+            if (resp.ok) {
+              const j = await resp.json();
+              if (j && Array.isArray(j.lyrics) && j.lyrics.length > 0) rawLyrics = j.lyrics;
+            }
+          } catch (_) {}
+        } else if (String(track.id || '').startsWith('comm_') && rawId) {
+          try {
+            const resp = await fetch(`${baseUrl}/songs/${encodeURIComponent(rawId)}/chart.json`);
+            if (resp.ok) {
+              const j = await resp.json();
+              if (j && Array.isArray(j.lyrics) && j.lyrics.length > 0) rawLyrics = j.lyrics;
+            }
+          } catch (_) {}
+        }
+      }
+
+      if (rawLyrics) {
+        const converted = this.convertNativeLyricsArrayToLines(rawLyrics);
+        if (converted.length >= 4) {
+          return converted;
+        }
+      }
+      return null;
+    }
+
+    _estimateChorusSecFromLyrics(lines, totalDurationSec = 195) {
+      if (Array.isArray(lines) && lines.length >= 6) {
+        const counts = new Map();
+        for (const l of lines) {
+          const norm = this._normMatch(l.text);
+          if (norm.split(' ').length < 2) continue;
+          counts.set(norm, (counts.get(norm) || 0) + 1);
+        }
+        const firstChorusLine = lines.find(l => {
+          const norm = this._normMatch(l.text);
+          return l.timeSec >= 18 && l.timeSec <= Math.min(totalDurationSec * 0.65, 110) && (counts.get(norm) || 0) >= 2;
+        });
+        if (firstChorusLine) {
+          return +Math.max(15, firstChorusLine.timeSec).toFixed(1);
+        }
+      }
+      return Math.round(Math.max(26, Math.min(62, totalDurationSec * 0.27)));
     }
 
     buildFallbackSyncedLines(plainText, totalDurationSec = 195, track = null) {
       const rawLines = String(plainText || '')
         .split(/\r?\n/)
         .map(l => repairSpanishBrokenAccents(l.trim()))
-        .filter(Boolean);
+        .filter(l => l && !l.includes('\ufffd') && !/[\u0080-\u009f]/.test(l));
 
       if (rawLines.length > 0) {
         const startOffset = Math.min(12, Math.max(4, totalDurationSec * 0.05));
@@ -1864,6 +2250,7 @@
         const step = usableSpan / Math.max(1, rawLines.length);
         return rawLines.map((text, idx) => ({
           timeSec: +(startOffset + idx * step).toFixed(2),
+          endTimeSec: +(startOffset + (idx + 1) * step - 0.1).toFixed(2),
           text
         }));
       }
@@ -1872,14 +2259,14 @@
       const artist = repairSpanishBrokenAccents(track?.artist || 'Artista');
       const chorusSec = Math.round(Math.max(30, Math.min(62, totalDurationSec * 0.28)));
       return [
-        { timeSec: 0, text: `${title} — ${artist}`, _isFallbackPlaceholder: true },
-        { timeSec: 8, text: 'Introducción instrumental · Siente el pulso del piano', _isFallbackPlaceholder: true },
-        { timeSec: Math.max(16, Math.round(chorusSec * 0.55)), text: 'Desarrollo melódico · Preparando entrada principal', _isFallbackPlaceholder: true },
-        { timeSec: chorusSec, text: `Sección Principal — ${title}`, _isFallbackPlaceholder: true },
-        { timeSec: chorusSec + 18, text: 'Sección rítmica central · Mantén la cadencia', _isFallbackPlaceholder: true },
-        { timeSec: Math.round(totalDurationSec * 0.58), text: 'Puente armónico · Variación de intensidad', _isFallbackPlaceholder: true },
-        { timeSec: Math.round(totalDurationSec * 0.72), text: `Clímax Final — ${title}`, _isFallbackPlaceholder: true },
-        { timeSec: Math.round(totalDurationSec * 0.88), text: 'Coda final y resolución', _isFallbackPlaceholder: true }
+        { timeSec: 0, endTimeSec: 8, text: `${title} — ${artist}`, _isFallbackPlaceholder: true },
+        { timeSec: 8, endTimeSec: Math.max(15, Math.round(chorusSec * 0.55)), text: 'Introducción instrumental · Siente el pulso del piano', _isFallbackPlaceholder: true },
+        { timeSec: Math.max(16, Math.round(chorusSec * 0.55)), endTimeSec: chorusSec, text: 'Desarrollo melódico · Preparando entrada principal', _isFallbackPlaceholder: true },
+        { timeSec: chorusSec, endTimeSec: chorusSec + 18, text: `Sección Principal — ${title}`, _isFallbackPlaceholder: true },
+        { timeSec: chorusSec + 18, endTimeSec: Math.round(totalDurationSec * 0.58), text: 'Sección rítmica central · Mantén la cadencia', _isFallbackPlaceholder: true },
+        { timeSec: Math.round(totalDurationSec * 0.58), endTimeSec: Math.round(totalDurationSec * 0.72), text: 'Puente armónico · Variación de intensidad', _isFallbackPlaceholder: true },
+        { timeSec: Math.round(totalDurationSec * 0.72), endTimeSec: Math.round(totalDurationSec * 0.88), text: `Clímax Final — ${title}`, _isFallbackPlaceholder: true },
+        { timeSec: Math.round(totalDurationSec * 0.88), endTimeSec: totalDurationSec, text: 'Coda final y resolución', _isFallbackPlaceholder: true }
       ];
     }
 
@@ -1910,64 +2297,60 @@
       return phrases;
     }
 
-    _pickBestCandidateLines(candidates, targetDurationSec = 0, track = null) {
-      const hasRealDur = Number.isFinite(targetDurationSec) && targetDurationSec > 38;
-      if (!hasRealDur) targetDurationSec = 195;
-      if (!Array.isArray(candidates) || candidates.length === 0) {
-        return this.buildFallbackSyncedLines('', targetDurationSec, track);
-      }
+    _scoreCandidateItem(item, parsed, targetDurationSec = 195, track = null) {
+      if (!parsed || parsed.length < 3) return { score: -999, titleMatched: false, artistMatched: false };
 
-      const key = track ? this._makeKey(track) : '';
       const repTitle = repairSpanishBrokenAccents(track?.title || '');
-      const cleanTitleNorm = this._normMatch(this._cleanSearchTerm(repTitle));
       const repArtist = repairSpanishBrokenAccents(track?.artist || '');
+      const rawTrackTitleLower = repTitle.toLowerCase();
+      const qCombinedNorm = this._normMatch(`${repTitle} ${repArtist}`);
+      const cleanTitleNorm = this._normMatch(this._cleanSearchTerm(repTitle));
       const primaryArtistNorm = this._normMatch(this._extractPrimaryArtist(repArtist));
       const fullArtistNorm = this._normMatch(this._cleanSearchTerm(repArtist));
       const isSoundtrackArtist = this._isSoundtrackOrGenericArtist(repArtist);
-      const rawTrackTitleLower = repTitle.toLowerCase();
-      const titleWords = cleanTitleNorm.split(' ').filter(w => w.length >= 3);
 
-      const syncedList = [];
-      for (const item of candidates) {
-        if (!item || !item.syncedLyrics || !item.syncedLyrics.includes('[')) continue;
-        const parsed = this.parseLrc(item.syncedLyrics);
-        if (parsed.length < 3) continue;
+      const rawCandTitle = repairSpanishBrokenAccents(item.trackName || item.name || '');
+      const rawCandAlbum = repairSpanishBrokenAccents(item.albumName || '');
+      const candMetaLower = `${rawCandTitle} ${rawCandAlbum}`.toLowerCase();
+      const itemTitleNorm = this._normMatch(rawCandTitle);
+      const cleanCandTitleNorm = this._normMatch(this._cleanSearchTerm(rawCandTitle));
+      const itemArtistNorm = this._normMatch(repairSpanishBrokenAccents(item.artistName || ''));
+      const itemPrimaryArtistNorm = this._normMatch(this._extractPrimaryArtist(item.artistName || ''));
+      const itemAlbumNorm = this._normMatch(rawCandAlbum);
 
-        const rawCandTitle = repairSpanishBrokenAccents(item.trackName || item.name || '');
-        const rawCandAlbum = repairSpanishBrokenAccents(item.albumName || '');
-        const candMetaLower = `${rawCandTitle} ${rawCandAlbum}`.toLowerCase();
-        const itemTitleNorm = this._normMatch(rawCandTitle);
-        const cleanCandTitleNorm = this._normMatch(this._cleanSearchTerm(rawCandTitle));
-        const itemArtistNorm = this._normMatch(repairSpanishBrokenAccents(item.artistName || ''));
-        const itemPrimaryArtistNorm = this._normMatch(this._extractPrimaryArtist(item.artistName || ''));
-        const itemAlbumNorm = this._normMatch(rawCandAlbum);
-        let score = 0;
-        let titleMatched = false;
+      let score = item._isBuiltInCustom ? 220 : 0;
+      let titleMatched = Boolean(item._isBuiltInCustom);
+      let artistMatched = Boolean(item._isBuiltInCustom);
 
-        if (cleanTitleNorm && itemTitleNorm) {
-          if (itemTitleNorm === cleanTitleNorm || cleanCandTitleNorm === cleanTitleNorm) {
-            score += 80;
-            titleMatched = true;
-          } else if (itemTitleNorm.includes(cleanTitleNorm) || cleanTitleNorm.includes(itemTitleNorm) || (cleanCandTitleNorm && (cleanCandTitleNorm.includes(cleanTitleNorm) || cleanTitleNorm.includes(cleanCandTitleNorm)))) {
-            score += 56;
-            titleMatched = true;
-          } else {
-            let matchedWords = 0;
-            for (const tw of titleWords) {
-              if (itemTitleNorm.includes(tw) || (tw.length >= 5 && itemTitleNorm.split(' ').some(iw => Math.abs(iw.length - tw.length) <= 1 && (iw.startsWith(tw.slice(0, 4)) || tw.startsWith(iw.slice(0, 4)))))) {
-                matchedWords++;
-              }
-            }
-            if (matchedWords > 0 && titleWords.length > 0) {
-              score += Math.round((matchedWords / titleWords.length) * 42);
-              if (matchedWords / titleWords.length >= 0.5) titleMatched = true;
-            } else {
-              score -= 45;
+      const titleStop = new Set(['the', 'and', 'for', 'with', 'los', 'las', 'del', 'una', 'por', 'con', 'para', 'de', 'la', 'el', 'en', 'un', 'al', 'lo']);
+      const titleWords = cleanTitleNorm.split(' ').filter(w => w.length >= 2 && !titleStop.has(w));
+      if (!item._isBuiltInCustom && cleanTitleNorm && itemTitleNorm) {
+        if (itemTitleNorm === cleanTitleNorm || cleanCandTitleNorm === cleanTitleNorm) {
+          score += 80;
+          titleMatched = true;
+        } else if (itemTitleNorm.includes(cleanTitleNorm) || cleanTitleNorm.includes(itemTitleNorm) || (cleanCandTitleNorm && (cleanCandTitleNorm.includes(cleanTitleNorm) || cleanTitleNorm.includes(cleanCandTitleNorm)))) {
+          score += 56;
+          titleMatched = true;
+        } else if (titleWords.length > 0) {
+          let matchedWords = 0;
+          for (const tw of titleWords) {
+            if (itemTitleNorm.includes(tw) || (tw.length >= 5 && itemTitleNorm.split(' ').some(iw => Math.abs(iw.length - tw.length) <= 1 && (iw.startsWith(tw.slice(0, 4)) || tw.startsWith(iw.slice(0, 4)))))) {
+              matchedWords++;
             }
           }
+          if (matchedWords > 0) {
+            score += Math.round((matchedWords / titleWords.length) * 42);
+            if (matchedWords / titleWords.length >= 0.5) titleMatched = true;
+          } else {
+            if (!primaryArtistNorm || !itemArtistNorm.includes(primaryArtistNorm)) {
+              return { score: -999, titleMatched: false, artistMatched: false };
+            }
+            score -= 55;
+          }
         }
+      }
 
-        let artistMatched = false;
+      if (!item._isBuiltInCustom) {
         if (isSoundtrackArtist) {
           if (primaryArtistNorm && (itemAlbumNorm.includes(primaryArtistNorm) || itemArtistNorm.includes(primaryArtistNorm) || itemTitleNorm.includes(primaryArtistNorm))) {
             score += 45;
@@ -2010,92 +2393,577 @@
             }
           }
         }
+      }
 
-        const badVersionRe = /\b(remake|remix|rmx|live|en\s*vivo|en\s*directo|ao\s*vivo|cover|karaoke|tribute|parody|sped\s*up|slowed|nightcore|acustico|acoustic)\b/i;
-        if (badVersionRe.test(candMetaLower) && !badVersionRe.test(rawTrackTitleLower)) {
-          score -= 160;
+      const badVersionRe = /\b(remake|remix|rmx|live|en\s*vivo|en\s*directo|ao\s*vivo|cover|karaoke|tribute|parody|sped\s*up|slowed|nightcore|acustico|acoustic|instrumental)\b/i;
+      if (badVersionRe.test(candMetaLower) && !badVersionRe.test(rawTrackTitleLower) && !badVersionRe.test(qCombinedNorm)) {
+        score -= 160;
+      }
+      const liveBanterRe = /\b(con nosotros familia|palmas arriba|todo el mundo cantando|en vivo desde|estadio river|muchas gracias buenas noches|como dice|fuerte el aplauso)\b/i;
+      if (liveBanterRe.test(item.syncedLyrics) && !badVersionRe.test(rawTrackTitleLower)) {
+        score -= 140;
+      }
+
+      const hasRealDur = Number.isFinite(targetDurationSec) && targetDurationSec > 38;
+      const itemDur = Number(item.duration) || Number(parsed._lrcLengthSec) || (parsed[parsed.length - 1].timeSec + 8);
+      if (hasRealDur && Number.isFinite(itemDur) && itemDur > 38) {
+        const durDiff = Math.abs(itemDur - targetDurationSec);
+        if (durDiff <= 1.5) score += 140;
+        else if (durDiff <= 3.0) score += 105;
+        else if (durDiff <= 6.0) score += 55;
+        else if (durDiff <= 12.0) score += 10;
+        else if (durDiff > 15.0) score -= Math.min(220, Math.round(durDiff * 8));
+      }
+
+      if (parsed.length >= 15) score += 6;
+      if (parsed.some(p => Array.isArray(p.words) && p.words.length > 1)) score += 10;
+
+      return { score, titleMatched, artistMatched };
+    }
+
+    _computeEnvelopeFromAudioBuffer(audioBuf) {
+      if (!audioBuf) return null;
+      const sr = Number(audioBuf.sampleRate) || 44100;
+      const ch0 = audioBuf.getChannelData(0);
+      const ch1 = (audioBuf.numberOfChannels > 1) ? audioBuf.getChannelData(1) : null;
+      const dur = Number(audioBuf.duration) || (ch0.length / sr);
+      if (!ch0 || ch0.length < sr * 2 || !Number.isFinite(dur) || dur < 2) return null;
+
+      const FRAME_HZ = 10;
+      const nFrames = Math.max(20, Math.floor(dur * FRAME_HZ));
+      const step = Math.max(1, Math.floor(sr / 11025));
+      const srEff = sr / step;
+
+      // Filtro paso banda vocal (300 Hz - 2600 Hz) en canal central (L+R)/2
+      const dt = 1 / srEff;
+      const rcHp = 1 / (2 * Math.PI * 300);
+      const aHp = rcHp / (rcHp + dt);
+      const rcLp = 1 / (2 * Math.PI * 2600);
+      const aLp = dt / (rcLp + dt);
+
+      let prevIn = 0;
+      let hpOut = 0;
+      let lpOut = 0;
+
+      const rawTotal = new Float32Array(nFrames);
+      const rawVoice = new Float32Array(nFrames);
+      const nonZeroTotal = [];
+      const nonZeroVoice = [];
+
+      for (let f = 0; f < nFrames; f++) {
+        const sStart = Math.floor((f / FRAME_HZ) * sr);
+        const sEnd = Math.min(ch0.length, Math.floor(((f + 1) / FRAME_HZ) * sr));
+        let sumTotal = 0;
+        let sumVoice = 0;
+        let cnt = 0;
+        for (let s = sStart; s < sEnd; s += step) {
+          const mono = ch1 ? 0.5 * (ch0[s] + ch1[s]) : ch0[s];
+          sumTotal += mono * mono;
+          hpOut = aHp * (hpOut + mono - prevIn);
+          prevIn = mono;
+          lpOut = lpOut + aLp * (hpOut - lpOut);
+          sumVoice += lpOut * lpOut;
+          cnt++;
         }
-        const liveBanterRe = /\b(con nosotros familia|palmas arriba|todo el mundo cantando|en vivo desde|estadio river|muchas gracias buenas noches|como dice|fuerte el aplauso)\b/i;
-        if (liveBanterRe.test(item.syncedLyrics) && !badVersionRe.test(rawTrackTitleLower)) {
-          score -= 140;
+        const rmsT = cnt > 0 ? Math.sqrt(sumTotal / cnt) : 0;
+        const rmsV = cnt > 0 ? Math.sqrt(sumVoice / cnt) : 0;
+        rawTotal[f] = rmsT;
+        rawVoice[f] = rmsV;
+        if (rmsT > 0.0005) nonZeroTotal.push(rmsT);
+        if (rmsV > 0.0003) nonZeroVoice.push(rmsV);
+      }
+
+      if (nonZeroTotal.length < 10) return null;
+      nonZeroTotal.sort((a, b) => a - b);
+      nonZeroVoice.sort((a, b) => a - b);
+      const p90T = nonZeroTotal[Math.min(nonZeroTotal.length - 1, Math.floor(nonZeroTotal.length * 0.90))] || 0.1;
+      const p90V = nonZeroVoice[Math.min(nonZeroVoice.length - 1, Math.floor(nonZeroVoice.length * 0.90))] || p90T * 0.5;
+
+      const envTotal = new Float32Array(nFrames);
+      const envVoice = new Float32Array(nFrames);
+      for (let f = 0; f < nFrames; f++) {
+        const lT = Math.min(1.5, rawTotal[Math.max(0, f - 1)] / p90T);
+        const cT = Math.min(1.5, rawTotal[f] / p90T);
+        const rT = Math.min(1.5, rawTotal[Math.min(nFrames - 1, f + 1)] / p90T);
+        envTotal[f] = 0.25 * lT + 0.5 * cT + 0.25 * rT;
+
+        const lV = Math.min(1.5, rawVoice[Math.max(0, f - 1)] / Math.max(1e-5, p90V));
+        const cV = Math.min(1.5, rawVoice[f] / Math.max(1e-5, p90V));
+        const rV = Math.min(1.5, rawVoice[Math.min(nFrames - 1, f + 1)] / Math.max(1e-5, p90V));
+        envVoice[f] = 0.25 * lV + 0.5 * cV + 0.25 * rV;
+      }
+
+      let leadSilenceSec = 0;
+      for (let f = 0; f < nFrames - 3; f++) {
+        if (envTotal[f] >= 0.07 && envTotal[f + 1] >= 0.07 && envTotal[f + 2] >= 0.07) {
+          leadSilenceSec = +(f / FRAME_HZ).toFixed(2);
+          break;
         }
+      }
 
-        const firstVocalLine = parsed.find(l => l.text && !/^[\(\[♪♫]/.test(l.text.trim())) || parsed[0];
-        const firstLineTimeSec = firstVocalLine ? firstVocalLine.timeSec : parsed[0].timeSec;
-        const itemDur = Number(item.duration) || (parsed[parsed.length - 1].timeSec + 8);
+      let musicStartSec = leadSilenceSec;
+      for (let f = 0; f < nFrames - 15; f++) {
+        let avg = 0;
+        for (let k = 0; k < 15; k++) avg += envTotal[f + k];
+        if (avg / 15 >= 0.16) {
+          musicStartSec = +(f / FRAME_HZ).toFixed(2);
+          break;
+        }
+      }
 
-        if (hasRealDur && Number.isFinite(itemDur) && itemDur > 38) {
-          const durDiff = Math.abs(itemDur - targetDurationSec);
-          if (durDiff <= 1.5) {
-            score += 140;
-          } else if (durDiff <= 3.0) {
-            score += 105;
-          } else if (durDiff <= 6.0) {
-            score += 55;
-          } else if (durDiff <= 12.0) {
-            score += 10;
-          } else if (durDiff > 15.0) {
-            score -= Math.min(220, Math.round(durDiff * 8));
+      let musicEndSec = +dur.toFixed(2);
+      for (let f = nFrames - 1; f >= 15; f--) {
+        let avg = 0;
+        for (let k = 0; k < 15; k++) avg += envTotal[f - k];
+        if (avg / 15 >= 0.12) {
+          musicEndSec = +((f + 1) / FRAME_HZ).toFixed(2);
+          break;
+        }
+      }
+
+      return {
+        frameHz: FRAME_HZ,
+        actualDur: +dur.toFixed(2),
+        envTotal,
+        envVoice,
+        leadSilenceSec,
+        musicStartSec,
+        musicEndSec: Math.max(musicStartSec + 10, musicEndSec),
+        activeSpanSec: Math.max(10, +(musicEndSec - musicStartSec).toFixed(2))
+      };
+    }
+
+    async _extractDspEnvelope(blob) {
+      if (!blob || blob.size < 40000 || blob.size > 24 * 1024 * 1024) return null;
+      if (this.dspEnvelopeCache.has(blob)) {
+        return this.dspEnvelopeCache.get(blob);
+      }
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return null;
+        if (!window._lyricsAnalysisAudioCtx) {
+          window._lyricsAnalysisAudioCtx = new AudioCtx();
+        }
+        const ctx = window._lyricsAnalysisAudioCtx;
+        const ab = await blob.slice(0).arrayBuffer();
+        const audioBuf = await ctx.decodeAudioData(ab.slice(0));
+        const env = this._computeEnvelopeFromAudioBuffer(audioBuf);
+        if (env) this.dspEnvelopeCache.set(blob, env);
+        return env;
+      } catch (_) {
+        return null;
+      }
+    }
+
+    _scoreAlignmentOnEnvelope(lines, env, shiftSec, scale = 1.0) {
+      if (!Array.isArray(lines) || lines.length === 0 || !env) return -999;
+      const { frameHz, envTotal, envVoice, musicStartSec, musicEndSec, actualDur } = env;
+      const maxFrame = envTotal.length - 1;
+
+      const sampleWindow = (arr, tStartSec, tEndSec) => {
+        const f0 = Math.max(0, Math.min(maxFrame, Math.floor(tStartSec * frameHz)));
+        const f1 = Math.max(f0, Math.min(maxFrame, Math.ceil(tEndSec * frameHz)));
+        let sum = 0;
+        let cnt = 0;
+        for (let f = f0; f <= f1; f++) {
+          sum += arr[f];
+          cnt++;
+        }
+        return cnt > 0 ? (sum / cnt) : 0;
+      };
+
+      const step = Math.max(1, Math.floor(lines.length / 65));
+      let sungVoiceSum = 0;
+      let onsetSum = 0;
+      let onsetCount = 0;
+      let checked = 0;
+      let outOfBounds = 0;
+      let deadAir = 0;
+
+      for (let i = 0; i < lines.length; i += step) {
+        const l = lines[i];
+        const t = l.timeSec * scale + shiftSec;
+        const tEnd = Math.min(actualDur - 0.1, t + 1.4);
+        checked++;
+
+        if (t < musicStartSec - 0.8 || t > musicEndSec + 0.5) {
+          outOfBounds++;
+        }
+        if (t >= 0 && t < actualDur) {
+          const eTot = sampleWindow(envTotal, t, tEnd);
+          const eVoc = sampleWindow(envVoice, t, tEnd);
+          const blended = 0.72 * eVoc + 0.28 * eTot;
+          sungVoiceSum += blended;
+          if (eTot < 0.055) deadAir++;
+          const prevGapSec = i === 0 ? 1.5 : ((l.timeSec - (lines[i - 1].endTimeSec || lines[i - 1].timeSec)) * scale);
+          if (prevGapSec >= 0.7 && t >= 0.8) {
+            const eBefore = sampleWindow(envVoice, t - 0.75, t - 0.15);
+            onsetSum += (eVoc - eBefore);
+            onsetCount++;
+          }
+        } else {
+          outOfBounds++;
+          deadAir++;
+        }
+      }
+
+      let gapVoiceSum = 0;
+      let gapCount = 0;
+      for (let i = 0; i < lines.length - 1; i++) {
+        const endCur = Number(lines[i].endTimeSec || (lines[i].timeSec + 3.0));
+        const gap = (lines[i + 1].timeSec - endCur) * scale;
+        if (gap >= 5.0) {
+          const mid = ((endCur + lines[i + 1].timeSec) * 0.5) * scale + shiftSec;
+          if (mid >= musicStartSec && mid <= musicEndSec - 1) {
+            gapVoiceSum += sampleWindow(envVoice, mid - 1.0, mid + 1.0);
+            gapCount++;
           }
         }
+      }
 
-        syncedList.push({
+      const sungAvg = checked > 0 ? (sungVoiceSum / checked) : 0;
+      const onsetAvg = onsetCount > 0 ? (onsetSum / onsetCount) : 0;
+      const gapAvg = gapCount > 0 ? (gapVoiceSum / gapCount) : (sungAvg * 0.5);
+      const oobFrac = checked > 0 ? (outOfBounds / checked) : 0;
+      const deadFrac = checked > 0 ? (deadAir / checked) : 0;
+      const shiftPrior = Math.abs(shiftSec) < 0.75 ? 0 : Math.min(0.14, Math.abs(shiftSec) * 0.0014);
+
+      return sungAvg + 0.35 * onsetAvg - 0.35 * gapAvg - 2.4 * oobFrac - 1.2 * deadFrac - shiftPrior;
+    }
+
+    _computeDspAlignment(parsedLines, declaredDur, env) {
+      if (!Array.isArray(parsedLines) || parsedLines.length < 3 || !env) {
+        return { shiftSec: 0, scale: 1.0, score: 0, lines: parsedLines };
+      }
+
+      const firstVocalSec = parsedLines[0].timeSec;
+      const lastVocalSec = parsedLines[parsedLines.length - 1].timeSec;
+      const lrcDur = Number(declaredDur) || (lastVocalSec + 8);
+      const durDiff = env.actualDur - lrcDur;
+      const activeSpanDiff = Math.abs(env.activeSpanSec - lrcDur);
+
+      const objZero = this._scoreAlignmentOnEnvelope(parsedLines, env, 0, 1.0);
+
+      const isCleanMatch = Math.abs(durDiff) <= 4.5 && env.leadSilenceSec < 1.0 && env.musicStartSec <= Math.max(6, firstVocalSec + 2.5);
+      const isTrailingOutroCut = durDiff > 6 && env.musicStartSec < Math.max(4.0, firstVocalSec + 2.0) && activeSpanDiff <= 7.0;
+
+      const minShift = -Math.min(10, Math.max(2.5, firstVocalSec * 0.75));
+      const maxShift = isCleanMatch
+        ? 3.0
+        : (isTrailingOutroCut ? 6.0 : Math.max(12, Math.min(95, env.actualDur - firstVocalSec - 15)));
+
+      let bestShift = 0;
+      let bestScale = 1.0;
+      let bestScore = objZero;
+
+      const peaks = [{ shift: 0, score: objZero }];
+      const coarseStep = isCleanMatch ? 0.15 : 0.25;
+      for (let s = minShift; s <= maxShift; s += coarseStep) {
+        const sc = this._scoreAlignmentOnEnvelope(parsedLines, env, s, 1.0);
+        if (sc > peaks[peaks.length - 1]?.score || peaks.length < 4) {
+          peaks.push({ shift: s, score: sc });
+          peaks.sort((a, b) => b.score - a.score);
+          if (peaks.length > 4) peaks.length = 4;
+        }
+      }
+
+      for (const pk of peaks.slice(0, 3)) {
+        for (let ds = -0.6; ds <= 0.6; ds += 0.05) {
+          const candS = +(pk.shift + ds).toFixed(2);
+          if (candS < minShift || candS > maxShift) continue;
+          const sc = this._scoreAlignmentOnEnvelope(parsedLines, env, candS, 1.0);
+          if (sc > bestScore) {
+            bestScore = sc;
+            bestShift = candS;
+          }
+        }
+      }
+
+      const durRatio = env.actualDur / Math.max(30, lrcDur);
+      const spanRatio = env.activeSpanSec / Math.max(30, lrcDur);
+      const hasDurScaleCue = Math.abs(durRatio - 1.0) >= 0.015 && durRatio >= 0.92 && durRatio <= 1.08;
+      const hasSpanScaleCue = Math.abs(spanRatio - 1.0) >= 0.015 && spanRatio >= 0.92 && spanRatio <= 1.08 && !isTrailingOutroCut;
+      if ((hasDurScaleCue || hasSpanScaleCue) && parsedLines.length >= 8) {
+        let bestTempoScore = bestScore;
+        let chosenTempoScale = 1.0;
+        let chosenTempoShift = bestShift;
+        const shiftAnchors = [0];
+        if (env.leadSilenceSec >= 0.4) shiftAnchors.push(+env.leadSilenceSec.toFixed(2));
+        if (Math.abs(bestShift) >= 1.2) shiftAnchors.push(bestShift);
+        const tryShifts = [];
+        for (const anchor of shiftAnchors) {
+          for (let ds = -1.2; ds <= 1.2; ds += 0.4) {
+            const sVal = +(anchor + ds).toFixed(2);
+            if (!tryShifts.some(x => Math.abs(x - sVal) < 0.15)) tryShifts.push(sVal);
+          }
+        }
+        for (let scRate = 0.95; scRate <= 1.05; scRate += 0.005) {
+          if (Math.abs(scRate - 1.0) < 0.014) continue;
+          for (const tryShift of tryShifts) {
+            const tSc = this._scoreAlignmentOnEnvelope(parsedLines, env, tryShift, scRate);
+            if (tSc > bestTempoScore) {
+              bestTempoScore = tSc;
+              chosenTempoScale = +scRate.toFixed(3);
+              chosenTempoShift = tryShift;
+            }
+          }
+        }
+        if (bestTempoScore > bestScore + 0.045 && Math.abs(chosenTempoScale - 1.0) >= 0.014) {
+          bestScore = bestTempoScore;
+          bestScale = chosenTempoScale;
+          bestShift = chosenTempoShift;
+        }
+      }
+
+      if (isCleanMatch || isTrailingOutroCut) {
+        const margin = env.leadSilenceSec >= 1.2 ? 0.05 : 0.14;
+        if (bestShift !== 0 && bestScore < objZero + margin) {
+          bestShift = 0;
+          bestScale = 1.0;
+          bestScore = objZero;
+        }
+      } else if (Math.abs(bestShift) < 0.35 && Math.abs(bestScale - 1.0) < 0.01) {
+        bestShift = 0;
+        bestScale = 1.0;
+      }
+
+      if (bestShift === 0 && bestScale === 1.0) {
+        return { shiftSec: 0, scale: 1.0, score: objZero, lines: parsedLines.map(l => ({ ...l, elasticOffsetSec: 0 })) };
+      }
+
+      const aligned = parsedLines.map(l => {
+        const newT = Math.max(0, +(l.timeSec * bestScale + bestShift).toFixed(2));
+        const newEnd = Math.max(newT + 0.4, +(Number(l.endTimeSec || (l.timeSec + 3.5)) * bestScale + bestShift).toFixed(2));
+        const out = { timeSec: newT, endTimeSec: newEnd, text: l.text, elasticOffsetSec: 0 };
+        if (Array.isArray(l.words)) {
+          out.words = l.words.map(w => ({
+            timeSec: Math.max(0, +(w.timeSec * bestScale + bestShift).toFixed(3)),
+            text: w.text
+          }));
+        }
+        return out;
+      });
+      return { shiftSec: bestShift, scale: bestScale, score: bestScore, lines: aligned };
+    }
+
+    async _precomputePreviewEnvelope(previewUrl) {
+      if (!previewUrl || !/^https?:\/\//i.test(previewUrl)) return null;
+      if (this.previewEnvCache.has(previewUrl)) return this.previewEnvCache.get(previewUrl);
+      const task = (async () => {
+        try {
+          const ctrl = new AbortController();
+          const tid = setTimeout(() => ctrl.abort(), 3500);
+          const resp = await fetch(previewUrl, { mode: 'cors', signal: ctrl.signal });
+          clearTimeout(tid);
+          if (!resp.ok) return null;
+          const ab = await resp.arrayBuffer();
+          if (!ab || ab.byteLength < 10000) return null;
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (!AudioCtx) return null;
+          if (!window._lyricsAnalysisAudioCtx) window._lyricsAnalysisAudioCtx = new AudioCtx();
+          const audioBuf = await window._lyricsAnalysisAudioCtx.decodeAudioData(ab.slice(0));
+          return this._computeEnvelopeFromAudioBuffer(audioBuf);
+        } catch (_) {
+          return null;
+        }
+      })();
+      this.previewEnvCache.set(previewUrl, task);
+      const res = await task;
+      if (!res) this.previewEnvCache.delete(previewUrl);
+      return res;
+    }
+
+    _correlatePreviewEnvelopes(prevEnv, fullEnv) {
+      if (!prevEnv || !fullEnv || !prevEnv.envTotal || !fullEnv.envTotal) return null;
+      const P_all = prevEnv.envTotal;
+      const F = fullEnv.envTotal;
+      const trimStart = Math.min(8, Math.floor(P_all.length * 0.1));
+      const trimEnd = Math.max(trimStart + 30, P_all.length - 8);
+      const M = Math.min(200, trimEnd - trimStart);
+      if (M < 30 || F.length <= M + 5) return null;
+
+      let sumP = 0;
+      for (let i = 0; i < M; i++) sumP += P_all[trimStart + i];
+      const meanP = sumP / M;
+      let normP = 0;
+      const P = new Float32Array(M);
+      for (let i = 0; i < M; i++) {
+        const d = P_all[trimStart + i] - meanP;
+        P[i] = d;
+        normP += d * d;
+      }
+      if (normP < 1e-4) return null;
+      const sqrtNormP = Math.sqrt(normP);
+
+      const corrAt = (startIdx) => {
+        let sumF = 0;
+        for (let i = 0; i < M; i++) sumF += F[startIdx + i];
+        const meanF = sumF / M;
+        let dot = 0;
+        let normF = 0;
+        for (let i = 0; i < M; i++) {
+          const d = F[startIdx + i] - meanF;
+          dot += d * P[i];
+          normF += d * d;
+        }
+        if (normF < 1e-4) return -1;
+        return dot / (sqrtNormP * Math.sqrt(normF));
+      };
+
+      const maxStart = F.length - M - 1;
+      let bestFrame = 0;
+      let bestR = -1;
+      const scores = new Float32Array(maxStart + 1);
+      for (let f = 0; f <= maxStart; f += 2) {
+        const r = corrAt(f);
+        scores[f] = r;
+        if (r > bestR) {
+          bestR = r;
+          bestFrame = f;
+        }
+      }
+      for (let df = -3; df <= 3; df++) {
+        const f = bestFrame + df;
+        if (f >= 0 && f <= maxStart) {
+          const r = corrAt(f);
+          scores[f] = r;
+          if (r > bestR) {
+            bestR = r;
+            bestFrame = f;
+          }
+        }
+      }
+
+      let secondR = -1;
+      for (let f = 0; f <= maxStart; f += 2) {
+        if (Math.abs(f - bestFrame) >= 25 && scores[f] > secondR) {
+          secondR = scores[f];
+        }
+      }
+
+      const minGap = bestR >= 0.88 ? 0.015 : (bestR >= 0.72 ? 0.04 : 0.06);
+      if (bestR >= 0.48 && ((bestR - secondR) >= minGap || bestR >= 0.90)) {
+        let chosenFrame = bestFrame;
+        if (bestR >= 0.90 && (bestR - secondR) < minGap) {
+          for (let f = 0; f <= maxStart; f += 2) {
+            if (scores[f] >= bestR - 0.015) {
+              chosenFrame = f;
+              break;
+            }
+          }
+        }
+        const matchedTrimSec = chosenFrame / fullEnv.frameHz;
+        const previewStartSec = Math.max(0, +(matchedTrimSec - (trimStart / prevEnv.frameHz)).toFixed(2));
+        return { previewStartSec, confidence: +bestR.toFixed(3) };
+      }
+      return null;
+    }
+
+    async _correlatePreviewOffsetSec(previewUrl, fullTrackBlob) {
+      if (!previewUrl || !fullTrackBlob) return null;
+      const [prevEnv, fullEnv] = await Promise.all([
+        this._precomputePreviewEnvelope(previewUrl),
+        this._extractDspEnvelope(fullTrackBlob)
+      ]);
+      if (!prevEnv || !fullEnv) return null;
+      return this._correlatePreviewEnvelopes(prevEnv, fullEnv);
+    }
+
+    _pickBestCandidateLines(candidates, targetDurationSec = 0, track = null, dspEnvelope = null) {
+      const hasRealDur = Number.isFinite(targetDurationSec) && targetDurationSec > 38;
+      if (!hasRealDur) targetDurationSec = 195;
+      if (!Array.isArray(candidates) || candidates.length === 0) {
+        return this.buildFallbackSyncedLines('', targetDurationSec, track);
+      }
+
+      const key = track ? this._makeKey(track) : '';
+      const scoredPool = [];
+      for (const item of candidates) {
+        if (!item || !item.syncedLyrics || !String(item.syncedLyrics).includes('[')) continue;
+        const parsed = this.parseLrc(item.syncedLyrics, { track });
+        if (parsed.length < 3) continue;
+        const meta = this._scoreCandidateItem(item, parsed, targetDurationSec, track);
+        if (meta.score <= -500) continue;
+        const firstVocalLine = parsed.find(l => l.text && !/^[\(\[♪♫]/.test(l.text.trim())) || parsed[0];
+        const firstLineTimeSec = firstVocalLine ? firstVocalLine.timeSec : parsed[0].timeSec;
+        const itemDur = Number(item.duration) || Number(parsed._lrcLengthSec) || (parsed[parsed.length - 1].timeSec + 8);
+        scoredPool.push({
           item,
           parsed,
           itemDur,
           firstLineTimeSec,
-          titleMatched,
-          artistMatched,
-          score,
+          titleMatched: meta.titleMatched,
+          artistMatched: meta.artistMatched,
+          textScore: meta.score,
           isBuiltInCustom: Boolean(item._isBuiltInCustom)
         });
       }
 
-      if (syncedList.length > 0) {
-        const bothMatched = syncedList.filter(c => c.titleMatched && c.artistMatched && c.score >= 40);
-        const pool = bothMatched.length > 0 ? bothMatched : syncedList;
+      if (scoredPool.length === 0) {
+        const withPlain = candidates.find(item => item && item.plainLyrics);
+        if (withPlain && withPlain.plainLyrics) {
+          return this.buildFallbackSyncedLines(withPlain.plainLyrics, targetDurationSec, track);
+        }
+        return this.buildFallbackSyncedLines('', targetDurationSec, track);
+      }
 
+      const bothMatched = scoredPool.filter(c => c.titleMatched && c.artistMatched && c.textScore >= 40);
+      const pool = bothMatched.length > 0 ? bothMatched : scoredPool;
+      pool.sort((a, b) => (b.textScore + Math.min(18, b.parsed.length * 0.35)) - (a.textScore + Math.min(18, a.parsed.length * 0.35)));
+
+      let outLines = null;
+      let chosenBest = pool[0];
+      let chosenDur = pool[0].itemDur;
+
+      if (dspEnvelope) {
+        let champion = null;
+        for (const cand of pool.slice(0, 6)) {
+          const aligned = this._computeDspAlignment(cand.parsed, cand.itemDur, dspEnvelope);
+          const combinedQuality = (cand.textScore * 0.45) + (aligned.score * 100);
+          if (!champion || combinedQuality > champion.combinedQuality) {
+            champion = { ...aligned, cand, combinedQuality };
+          }
+        }
+        if (champion && Array.isArray(champion.lines) && champion.lines.length >= 3) {
+          outLines = champion.lines;
+          chosenBest = champion.cand;
+          chosenDur = dspEnvelope.actualDur || champion.cand.itemDur;
+        }
+      }
+
+      if (!outLines) {
         let bestCluster = [];
         let bestClusterScore = -999999;
-
         for (const cand of pool) {
           const cluster = pool.filter(o => Math.abs(o.firstLineTimeSec - cand.firstLineTimeSec) <= 1.5 && Math.abs(o.itemDur - cand.itemDur) <= 4.0);
-          const avgMetaScore = cluster.reduce((acc, x) => acc + x.score, 0) / cluster.length;
+          const avgMetaScore = cluster.reduce((acc, x) => acc + x.textScore, 0) / cluster.length;
           const clusterRank = (cluster.length * 36) + avgMetaScore + Math.min(20, cand.parsed.length * 0.4);
           if (clusterRank > bestClusterScore) {
             bestClusterScore = clusterRank;
             bestCluster = cluster;
           }
         }
-
         const chosenPool = bestCluster.length > 0 ? bestCluster : pool;
-        chosenPool.sort((a, b) => (b.score + Math.min(18, b.parsed.length * 0.35)) - (a.score + Math.min(18, a.parsed.length * 0.35)));
-        const best = chosenPool[0];
-        const outLines = best.parsed.map(l => ({ ...l, elasticOffsetSec: 0 }));
-
-        if (key) {
-          const durs = chosenPool.map(c => c.itemDur).filter(d => Number.isFinite(d) && d > 40).sort((a, b) => a - b);
-          const medianStudioDur = durs.length > 0 ? durs[Math.floor(durs.length / 2)] : best.itemDur;
-          this.studioReferenceMap.set(key, {
-            studioDur: medianStudioDur,
-            t0: best.firstLineTimeSec,
-            phrases: this._extractVocalPhrasesFromLines(outLines, 80),
-            parsedLines: outLines,
-            isBuiltInCustom: Boolean(best.isBuiltInCustom)
-          });
-          this.knownLeadingSilenceMap.set(key, 0);
-          if (this.currentTrackKey === key) this.autoLeadingSilenceSec = 0;
-        }
-
-        return outLines;
+        chosenPool.sort((a, b) => (b.textScore + Math.min(18, b.parsed.length * 0.35)) - (a.textScore + Math.min(18, a.parsed.length * 0.35)));
+        chosenBest = chosenPool[0];
+        const durs = chosenPool.map(c => c.itemDur).filter(d => Number.isFinite(d) && d > 40).sort((a, b) => a - b);
+        chosenDur = durs.length > 0 ? durs[Math.floor(durs.length / 2)] : chosenBest.itemDur;
+        outLines = chosenBest.parsed.map(l => ({ ...l, elasticOffsetSec: 0 }));
       }
 
-      const withPlain = candidates.find(item => item && item.plainLyrics);
-      if (withPlain && withPlain.plainLyrics) {
-        return this.buildFallbackSyncedLines(withPlain.plainLyrics, targetDurationSec, track);
+      if (key && Array.isArray(outLines) && outLines.length >= 3) {
+        this.studioReferenceMap.set(key, {
+          studioDur: chosenDur,
+          t0: outLines[0].timeSec,
+          phrases: this._extractVocalPhrasesFromLines(outLines, 80),
+          parsedLines: outLines,
+          isBuiltInCustom: Boolean(chosenBest.isBuiltInCustom)
+        });
+        this.knownLeadingSilenceMap.set(key, 0);
+        if (this.currentTrackKey === key) this.autoLeadingSilenceSec = 0;
       }
 
-      return this.buildFallbackSyncedLines('', targetDurationSec, track);
+      return outLines;
     }
 
     _alignLinesToUltraStarVocalOnsets(lines, vocalOnsetsSec) {
@@ -2172,31 +3040,9 @@
         }
         if (!chartData) return null;
 
-        // Si el chart tiene d.lyrics de UltraStar (>= 4 versos), construir letra sincronizada exacta
         const rawChartLyrics = Array.isArray(chartData.lyrics) ? chartData.lyrics : (chartData.metadata && Array.isArray(chartData.metadata.lyrics) ? chartData.metadata.lyrics : null);
         if (Array.isArray(rawChartLyrics) && rawChartLyrics.length >= 4) {
-          const lines = [];
-          for (let i = 0; i < rawChartLyrics.length; i++) {
-            const verse = rawChartLyrics[i];
-            if (!Array.isArray(verse) || verse.length === 0) continue;
-            const firstSyl = verse.find(s => s && Number.isFinite(Number(s.time)) && String(s.text || '').trim() !== '~') || verse[0];
-            const tSec = +(Math.max(0, Number(firstSyl?.time) || 0) / 1000).toFixed(2);
-            const rawText = verse
-              .map(s => String(s?.text || ''))
-              .join('')
-              .replace(/~/g, '')
-              .replace(/-/g, ' ')
-              .replace(/\s+/g, ' ')
-              .trim();
-            const cleanText = repairSpanishBrokenAccents(rawText);
-            if (cleanText.length > 0) {
-              lines.push({
-                timeSec: tSec,
-                text: cleanText,
-                elasticOffsetSec: 0
-              });
-            }
-          }
+          const lines = this.convertNativeLyricsArrayToLines(rawChartLyrics);
           if (lines.length >= 4) {
             return { type: 'lyrics', lines, duration: Number(chartData.duration) || 195 };
           }
@@ -2636,32 +3482,35 @@
     async ensureAudioAlignedLyricsForGameplay(track, audioBlob = null, totalDurationSec = 0) {
       if (!track) return [];
       const key = this._makeKey(track);
-      const lines = await this.fetchLyricsForTrack(track, totalDurationSec);
-      if (!Array.isArray(lines) || lines.length === 0) return [];
+      const hasBlob = (audioBlob instanceof Blob) && audioBlob.size >= 40000;
 
-      const existingProfile = this.audioWaveformProfiles.get(key);
-      if ((!existingProfile || !existingProfile.isFullPass || (existingProfile.hopSec && existingProfile.hopSec > 0.03)) &&
-          (audioBlob instanceof Blob) &&
-          audioBlob.size >= 40000 &&
-          typeof dualStreamEngine !== 'undefined' &&
-          dualStreamEngine &&
-          typeof dualStreamEngine._decodeAndStoreWaveformProfile === 'function') {
-        try {
-          const maxBytes = Math.min(audioBlob.size, 4718592);
-          const buf = await audioBlob.slice(0, maxBytes).arrayBuffer();
-          await dualStreamEngine._decodeAndStoreWaveformProfile(track, key, buf, 250, true, true);
-        } catch (_) {}
-      }
+      const decodeProfileTask = (async () => {
+        const existingProfile = this.audioWaveformProfiles.get(key);
+        if ((!existingProfile || !existingProfile.isFullPass || (existingProfile.hopSec && existingProfile.hopSec > 0.03)) &&
+            hasBlob &&
+            typeof dualStreamEngine !== 'undefined' &&
+            dualStreamEngine &&
+            typeof dualStreamEngine._decodeAndStoreWaveformProfile === 'function') {
+          try {
+            const maxBytes = Math.min(audioBlob.size, 4718592);
+            const buf = await audioBlob.slice(0, maxBytes).arrayBuffer();
+            await dualStreamEngine._decodeAndStoreWaveformProfile(track, key, buf, 250, true, true);
+          } catch (_) {}
+        }
+      })();
 
-      const studioRef = this.studioReferenceMap.get(key);
-      if (studioRef && studioRef.isBuiltInCustom) {
-        this._computeAcousticSyllablesForLines(key, lines);
-        return lines;
-      }
+      const [calibratedLines] = await Promise.all([
+        this.fetchAndCalibrateLyricsForBlob(track, hasBlob ? audioBlob : null, totalDurationSec),
+        decodeProfileTask
+      ]);
 
-      this._recomputeAudioAlignmentShift(track, key, lines);
-      const updated = this.cache.get(key);
-      const finalLines = Array.isArray(updated) && updated.length >= 4 ? updated : lines;
+      if (!Array.isArray(calibratedLines) || calibratedLines.length === 0) return [];
+      const finalLines = calibratedLines.map(l => ({
+        ...l,
+        elasticOffsetSec: 0,
+        words: Array.isArray(l.words) ? l.words.map(w => ({ ...w })) : undefined
+      }));
+      this._recomputeAudioAlignmentShift(track, key, finalLines);
       this._computeAcousticSyllablesForLines(key, finalLines);
       return finalLines;
     }
@@ -2783,165 +3632,233 @@
       return null;
     }
 
+    async _fetchCandidatesMultiProvider(track, totalDurationSec = 195, vidQueryParam = '') {
+      let rawTitleForSearch = repairSpanishBrokenAccents(String(track?.title || ''));
+      let rawArtistForSearch = repairSpanishBrokenAccents(String(track?.artist || ''));
+      if (/^ultimoscruzados$/i.test(rawArtistForSearch) && rawTitleForSearch.includes(' - ')) {
+        const parts = rawTitleForSearch.split(' - ');
+        rawArtistForSearch = parts[0].trim();
+        rawTitleForSearch = parts.slice(1).join(' - ').trim();
+      }
+      const cleanTitle = this._cleanSearchTerm(rawTitleForSearch);
+      const primaryArtist = this._extractPrimaryArtist(rawArtistForSearch);
+      const fullArtist = this._cleanSearchTerm(rawArtistForSearch);
+      const isSoundtrackArtist = this._isSoundtrackOrGenericArtist(rawArtistForSearch);
+      const baseUrl = typeof window.getApiBaseUrl === 'function' ? window.getApiBaseUrl() : '';
+      const durParam = (Number.isFinite(totalDurationSec) && totalDurationSec > 35) ? Math.round(totalDurationSec) : 0;
+
+      const urlsToTry = [];
+      if (!isSoundtrackArtist && primaryArtist && cleanTitle) {
+        urlsToTry.push(
+          `https://lrclib.net/api/search?track_name=${encodeURIComponent(cleanTitle)}&artist_name=${encodeURIComponent(primaryArtist)}`
+        );
+      }
+      if (cleanTitle || primaryArtist) {
+        urlsToTry.push(
+          `https://lrclib.net/api/search?q=${encodeURIComponent(`${cleanTitle} ${primaryArtist}`.trim())}`
+        );
+      }
+      if (cleanTitle) {
+        urlsToTry.push(
+          `https://lrclib.net/api/search?track_name=${encodeURIComponent(cleanTitle)}`
+        );
+      }
+      if (durParam > 35 && cleanTitle && primaryArtist && !isSoundtrackArtist) {
+        urlsToTry.push(
+          `https://lrclib.net/api/get?track_name=${encodeURIComponent(cleanTitle)}&artist_name=${encodeURIComponent(primaryArtist)}&duration=${durParam}`
+        );
+      }
+      if (fullArtist && fullArtist.toLowerCase() !== primaryArtist.toLowerCase() && !isSoundtrackArtist) {
+        urlsToTry.push(
+          `https://lrclib.net/api/search?track_name=${encodeURIComponent(cleanTitle)}&artist_name=${encodeURIComponent(fullArtist)}`,
+          `https://lrclib.net/api/search?q=${encodeURIComponent(`${cleanTitle} ${fullArtist}`.trim())}`
+        );
+      }
+      if (baseUrl || typeof window.getApiBaseUrl === 'function') {
+        urlsToTry.push(
+          `${baseUrl}/api/v1/lyrics?title=${encodeURIComponent(cleanTitle || track?.title || '')}&artist=${encodeURIComponent(primaryArtist || track?.artist || '')}&duration=${durParam}${vidQueryParam}`,
+          `${baseUrl}/api/v1/lyrics?q=${encodeURIComponent(`${cleanTitle} ${primaryArtist}`.trim())}&duration=${durParam}${vidQueryParam}`
+        );
+      }
+
+      const collected = [];
+      const seenSig = new Set();
+
+      const results = await Promise.allSettled(urlsToTry.map(async (qUrl) => {
+        const ctrl = new AbortController();
+        const tid = setTimeout(() => ctrl.abort(), 3500);
+        try {
+          const resp = await fetch(qUrl, { signal: ctrl.signal });
+          if (!resp || !resp.ok) return [];
+          const data = await resp.json();
+          if (Array.isArray(data)) return data;
+          if (data && (data.syncedLyrics || data.plainLyrics)) return [data];
+          return [];
+        } catch (_) {
+          return [];
+        } finally {
+          clearTimeout(tid);
+        }
+      }));
+
+      for (const r of results) {
+        if (r.status !== 'fulfilled' || !Array.isArray(r.value)) continue;
+        for (const item of r.value) {
+          if (!item) continue;
+          const s = String(item.syncedLyrics || '').trim();
+          const p = String(item.plainLyrics || '').trim();
+          if (!s && !p) continue;
+          const sig = `${Math.round(Number(item.duration) || 0)}|${s.slice(0, 64)}|${s.length}`;
+          if (seenSig.has(sig)) continue;
+          seenSig.add(sig);
+          collected.push(item);
+        }
+      }
+      return collected;
+    }
+
+    _getOrInitTrackState(track) {
+      const key = this._makeKey(track);
+      let st = this.trackCalibrationState.get(key);
+      if (!st) {
+        while (this.trackCalibrationState.size > 60) {
+          const oldestKey = this.trackCalibrationState.keys().next().value;
+          if (!oldestKey || oldestKey === key || oldestKey === this.currentTrackKey) break;
+          this.trackCalibrationState.delete(oldestKey);
+        }
+        st = {
+          key,
+          track,
+          expectedDur: Number(track?.durationSec || 0) || 195,
+          actualDur: null,
+          audioBlob: null,
+          dspEnvelope: null,
+          nativeLyrics: null,
+          nativeChecked: false,
+          candidates: null,
+          candidatesPromise: null,
+          isFallbackOnly: false
+        };
+        this.trackCalibrationState.set(key, st);
+      } else {
+        st.track = track || st.track;
+      }
+      return st;
+    }
+
     async fetchLyricsForTrack(track, totalDurationSec = 0) {
       if (!track) return [];
       track.title = repairSpanishBrokenAccents(track.title || '');
       track.artist = repairSpanishBrokenAccents(track.artist || '');
       const key = this._makeKey(track);
-      if (this.candidatesCache.has(key)) {
-        const cands = this.candidatesCache.get(key);
-        if (Array.isArray(cands) && cands.length > 0) {
-          if (cands[0] && cands[0]._directLines) {
-            return cands[0]._directLines.map(l => ({ ...l }));
-          }
-          const lines = this._pickBestCandidateLines(cands, totalDurationSec, track);
-          this.cache.set(key, lines);
-          return lines;
-        }
+      const st = this._getOrInitTrackState(track);
+      if (Number.isFinite(Number(totalDurationSec)) && Number(totalDurationSec) > 35) {
+        st.expectedDur = Number(totalDurationSec);
+      }
+
+      if (this.cache.has(key) && !st.isFallbackOnly && !st.dspEnvelope) {
+        return this.cache.get(key).map(l => ({ ...l }));
       }
       if (this.inflight.has(key)) return this.inflight.get(key);
 
       const task = (async () => {
-        let rawTitleForSearch = repairSpanishBrokenAccents(String(track.title || ''));
-        let rawArtistForSearch = repairSpanishBrokenAccents(String(track.artist || ''));
-        if (/^ultimoscruzados$/i.test(rawArtistForSearch) && rawTitleForSearch.includes(' - ')) {
-          const parts = rawTitleForSearch.split(' - ');
-          rawArtistForSearch = parts[0].trim();
-          rawTitleForSearch = parts.slice(1).join(' - ').trim();
-        }
-        const cleanTitle = this._cleanSearchTerm(rawTitleForSearch);
-        const primaryArtist = this._extractPrimaryArtist(rawArtistForSearch);
-        const fullArtist = this._cleanSearchTerm(rawArtistForSearch);
-        const isSoundtrackArtist = this._isSoundtrackOrGenericArtist(rawArtistForSearch);
-        const baseUrl = typeof window.getApiBaseUrl === 'function' ? window.getApiBaseUrl() : '';
-
-        let trackVid = String(track.videoId || '').replace(/^magic_yt_|^yt_/, '').trim();
-        if (!/^[A-Za-z0-9_-]{11}$/.test(trackVid)) {
-          const rawId = String(track.id || '').replace(/^magic_yt_|^yt_/, '').trim();
-          if (/^[A-Za-z0-9_-]{11}$/.test(rawId)) trackVid = rawId;
-          else {
-            const mThumb = String(track.thumbnail || track.cover_url || '').match(/(?:\/vi\/|\/vi_webp\/)([A-Za-z0-9_-]{11})(?:\/|$)/);
-            if (mThumb && mThumb[1]) trackVid = mThumb[1];
+        let trackVid = '';
+        if (!track._isPlaceholderVid) {
+          const rawVid = String(track.videoId || '').replace(/^magic_yt_|^yt_/, '').trim();
+          if (/^[A-Za-z0-9_-]{11}$/.test(rawVid)) {
+            trackVid = rawVid;
+          } else {
+            const rawId = String(track.id || '').replace(/^magic_yt_|^yt_/, '').trim();
+            if (/^[A-Za-z0-9_-]{11}$/.test(rawId)) trackVid = rawId;
+            else {
+              const mThumb = String(track.thumbnail || track.cover_url || '').match(/(?:\/vi\/|\/vi_webp\/)([A-Za-z0-9_-]{11})(?:\/|$)/);
+              if (mThumb && mThumb[1]) trackVid = mThumb[1];
+            }
           }
         }
 
+        // Si existe letra curada integrada, añadirla como candidata prioritaria (no como nativeLyrics rígido)
+        // para que el motor DSP pueda re-desplazarla automáticamente si el audio proviene de un videoclip o versión alterna.
         const builtIn = this._findBuiltInCustomSyncedLyrics(track, trackVid);
         if (builtIn && builtIn.syncedLyrics) {
-          const parsedBuiltIn = this.parseLrc(builtIn.syncedLyrics);
-          if (parsedBuiltIn.length >= 3) {
-            this.candidatesCache.set(key, [builtIn]);
-            this.studioReferenceMap.set(key, {
-              studioDur: Number(builtIn.duration) || 195,
-              t0: parsedBuiltIn[0].timeSec,
-              phrases: this._extractVocalPhrasesFromLines(parsedBuiltIn, 12),
-              isBuiltInCustom: true
-            });
-            this.cache.set(key, parsedBuiltIn);
-            return parsedBuiltIn.map(l => ({ ...l }));
+          const baseList = Array.isArray(st.candidates) ? st.candidates : [];
+          if (!baseList.some(c => c && c._isBuiltInCustom)) {
+            st.candidates = [builtIn, ...baseList];
+          }
+          this.candidatesCache.set(key, st.candidates);
+          if (!st.dspEnvelope) {
+            const builtInLines = this._pickBestCandidateLines(
+              st.candidates,
+              st.actualDur || Number(builtIn.duration) || st.expectedDur || 195,
+              track,
+              null
+            );
+            st.isFallbackOnly = false;
+            this.cache.set(key, builtInLines);
+            return builtInLines.map(l => ({ ...l }));
           }
         }
 
-        // Prioridad UltraStar para canciones Top: si tiene chart .json en GitHub Releases con d.lyrics o d.notes vocales,
-        // usar los tiempos vocales humanos exactos hechos para ese MP3.
-        const topChartInfo = await this._fetchTopCatalogChartLyricsOrOnsets(track, key);
-        if (topChartInfo && topChartInfo.type === 'lyrics' && Array.isArray(topChartInfo.lines) && topChartInfo.lines.length >= 4) {
-          const directLines = topChartInfo.lines;
-          this.candidatesCache.set(key, [{ _isBuiltInCustom: true, _directLines: directLines }]);
-          this.studioReferenceMap.set(key, {
-            studioDur: Number(topChartInfo.duration) || 195,
-            t0: directLines[0].timeSec,
-            phrases: this._extractVocalPhrasesFromLines(directLines, 80),
-            parsedLines: directLines,
-            isBuiltInCustom: true
-          });
-          this.knownLeadingSilenceMap.set(key, 0);
-          this.cache.set(key, directLines);
-          return directLines.map(l => ({ ...l }));
+        if (!st.nativeChecked) {
+          st.nativeChecked = true;
+          let nativeLines = await this._tryLoadNativeChartLyrics(track).catch(() => null);
+          if ((!Array.isArray(nativeLines) || nativeLines.length < 4)) {
+            const topChartInfo = await this._fetchTopCatalogChartLyricsOrOnsets(track, key).catch(() => null);
+            if (topChartInfo && topChartInfo.type === 'lyrics' && Array.isArray(topChartInfo.lines) && topChartInfo.lines.length >= 4) {
+              nativeLines = topChartInfo.lines;
+              this.studioReferenceMap.set(key, {
+                studioDur: Number(topChartInfo.duration) || 195,
+                t0: nativeLines[0].timeSec,
+                phrases: this._extractVocalPhrasesFromLines(nativeLines, 80),
+                parsedLines: nativeLines,
+                isBuiltInCustom: true
+              });
+              this.knownLeadingSilenceMap.set(key, 0);
+            }
+          }
+          st.nativeLyrics = nativeLines;
+        }
+        if (Array.isArray(st.nativeLyrics) && st.nativeLyrics.length >= 4) {
+          st.isFallbackOnly = false;
+          this.cache.set(key, st.nativeLyrics);
+          return st.nativeLyrics.map(l => ({ ...l }));
         }
 
-        const vidQueryParam = trackVid ? `&videoId=${encodeURIComponent(trackVid)}` : '';
-
-        const urlsToTry = [];
-        if (!isSoundtrackArtist && primaryArtist) {
-          urlsToTry.push(
-            `https://lrclib.net/api/search?track_name=${encodeURIComponent(cleanTitle)}&artist_name=${encodeURIComponent(primaryArtist)}`
-          );
-        }
-        urlsToTry.push(
-          `https://lrclib.net/api/search?q=${encodeURIComponent(`${cleanTitle} ${primaryArtist}`.trim())}`,
-          `https://lrclib.net/api/search?track_name=${encodeURIComponent(cleanTitle)}`
-        );
-        if (fullArtist && fullArtist.toLowerCase() !== primaryArtist.toLowerCase()) {
-          urlsToTry.push(
-            `https://lrclib.net/api/search?track_name=${encodeURIComponent(cleanTitle)}&artist_name=${encodeURIComponent(fullArtist)}`,
-            `https://lrclib.net/api/search?q=${encodeURIComponent(`${cleanTitle} ${fullArtist}`.trim())}`
-          );
-        }
-        if (baseUrl) {
-          urlsToTry.push(
-            `${baseUrl}/api/v1/lyrics?title=${encodeURIComponent(cleanTitle || track.title || '')}&artist=${encodeURIComponent(primaryArtist || track.artist || '')}${vidQueryParam}`,
-            `${baseUrl}/api/v1/lyrics?q=${encodeURIComponent(`${cleanTitle} ${primaryArtist}`.trim())}${vidQueryParam}`
-          );
-        }
-
-        const collected = [];
-        const seenIds = new Set();
-
-        const queryTasks = urlsToTry.map(async (qUrl) => {
-          const ctrl = new AbortController();
-          const tid = setTimeout(() => ctrl.abort(), 3200);
-          try {
-            const resp = await fetch(qUrl, { signal: ctrl.signal });
-            clearTimeout(tid);
-            if (!resp.ok) throw new Error('HTTP ' + resp.status);
-            const arr = await resp.json();
-            if (!Array.isArray(arr) || arr.length === 0) throw new Error('Empty');
-            let foundSynced = false;
-            for (const item of arr) {
-              const itemId = item.id || `${item.trackName}_${item.artistName}_${item.duration || 0}`;
-              if (item && !seenIds.has(itemId)) {
-                seenIds.add(itemId);
-                collected.push(item);
-                if (item.syncedLyrics && item.syncedLyrics.includes('[')) {
-                  foundSynced = true;
-                }
+        const vidQueryParam = (trackVid && !track._isPlaceholderVid) ? `&videoId=${encodeURIComponent(trackVid)}` : '';
+        if (!st.candidates && !st.candidatesPromise) {
+          const queryDur = st.actualDur ||
+                           this.knownAudioDurations.get(key) ||
+                           (typeof dualStreamEngine !== 'undefined' && dualStreamEngine ? dualStreamEngine.getRealDurationSec(track) : 0) ||
+                           st.expectedDur;
+          st.candidatesPromise = this._fetchCandidatesMultiProvider(track, queryDur, vidQueryParam)
+            .then((list) => {
+              if (Array.isArray(list) && list.length > 0) {
+                st.candidates = builtIn && builtIn.syncedLyrics ? [builtIn, ...list] : list;
+                this.candidatesCache.set(key, st.candidates);
               }
-            }
-            if (collected.length > 0) {
-              this.candidatesCache.set(key, collected);
-            }
-            if (!foundSynced) throw new Error('No synced in batch');
-            return true;
-          } catch (err) {
-            clearTimeout(tid);
-            throw err;
-          }
-        });
-
-        try {
-          await Promise.any(queryTasks);
-        } catch (_) {
-          await Promise.allSettled(queryTasks);
+              return st.candidates || [];
+            })
+            .finally(() => {
+              st.candidatesPromise = null;
+            });
         }
 
-        Promise.allSettled(queryTasks).then(() => {
-          if (collected.length > 0) {
-            this.candidatesCache.set(key, collected);
-            this._refreshCurrentLyrics(track, key);
-          }
-        }).catch(() => {});
+        const cands = st.candidates || (st.candidatesPromise ? await st.candidatesPromise : []);
+        const effDur = st.actualDur ||
+                       this.knownAudioDurations.get(key) ||
+                       (typeof dualStreamEngine !== 'undefined' && dualStreamEngine ? dualStreamEngine.getRealDurationSec(track) : 0) ||
+                       st.expectedDur ||
+                       195;
 
-        if (collected.length > 0) {
-          this.candidatesCache.set(key, collected);
+        const hasSynced = Array.isArray(cands) && cands.some(c => c && c.syncedLyrics && String(c.syncedLyrics).includes('['));
+        const bestLines = this._pickBestCandidateLines(cands, effDur, track, st.dspEnvelope);
+        const newFallbackOnly = !hasSynced || Boolean(bestLines[0] && bestLines[0]._isFallbackPlaceholder);
+        if (newFallbackOnly && this.cache.has(key) && !st.isFallbackOnly) {
+          return this.cache.get(key).map(l => ({ ...l }));
         }
-        const effectiveDur = this.knownAudioDurations.get(key) ||
-                             (typeof dualStreamEngine !== 'undefined' && dualStreamEngine ? dualStreamEngine.getRealDurationSec(track) : 0) ||
-                             totalDurationSec;
-        const bestLines = this._pickBestCandidateLines(collected, effectiveDur, track);
-        if (!bestLines[0] || !bestLines[0]._isFallbackPlaceholder) {
-          this.cache.set(key, bestLines);
-        }
-        return bestLines;
+        st.isFallbackOnly = newFallbackOnly;
+        this.cache.set(key, bestLines);
+        return bestLines.map(l => ({ ...l }));
       })();
 
       this.inflight.set(key, task);
@@ -2954,19 +3871,27 @@
 
     _refreshCurrentLyrics(track, key, durationSec = 0) {
       if (this.currentTrackKey !== key) return;
-      const cands = this.candidatesCache.get(key);
+      const st = this.trackCalibrationState.get(key);
+      const cands = (st && Array.isArray(st.candidates) && st.candidates.length > 0)
+        ? st.candidates
+        : this.candidatesCache.get(key);
       if (!cands || cands.length === 0) return;
       const dur = durationSec ||
+                  (st && st.actualDur) ||
                   this.knownAudioDurations.get(key) ||
                   (typeof dualStreamEngine !== 'undefined' && dualStreamEngine ? dualStreamEngine.getRealDurationSec(track) : 0);
-      const lines = this._pickBestCandidateLines(cands, dur, track);
+      const lines = this._pickBestCandidateLines(cands, dur, track, st ? st.dspEnvelope : null);
       this.cache.set(key, lines);
       const old = this.currentLyrics || [];
-      const same = old.length === lines.length && old.every((l, i) => l.text === lines[i].text && Math.abs(l.timeSec - lines[i].timeSec) < 0.01);
+      const same = old.length === lines.length && old.every((l, i) => l.text === lines[i].text && Math.abs((l.timeSec || 0) - (lines[i].timeSec || 0)) < 0.03);
       if (same) return;
       this.currentLyrics = lines.map(l => ({ ...l }));
       this.activeLineIndex = -1;
       this.renderLinesToDom();
+      const curSec = (typeof dualStreamEngine !== 'undefined' && dualStreamEngine)
+        ? dualStreamEngine.getCurrentSongTimeSec()
+        : (this._lastSyncAudioSec || 0);
+      this.syncTime(curSec, { forceScroll: !this._isUserManualScrolling && Date.now() >= Math.max(this._userScrollingUntil || 0, this._userManualScrollUntil || 0) });
       if (this.showTranslation) {
         this.ensureTranslationsForCurrent(track).then(() => {
           if (this.currentTrackKey === key) this.renderLinesToDom();
@@ -2974,44 +3899,170 @@
       }
     }
 
-    async recalibrateForActualAudio(track, actualDurationSec) {
-      if (!track || !Number.isFinite(actualDurationSec) || actualDurationSec < 35) return;
+    async recalibrateForActualAudio(track, actualDurationSec = 0, audioBlob = null) {
+      if (!track) return null;
       const key = this._makeKey(track);
-      this.knownAudioDurations.set(key, actualDurationSec);
+      const st = this._getOrInitTrackState(track);
+      if (Number.isFinite(actualDurationSec) && actualDurationSec >= 35) {
+        st.actualDur = actualDurationSec;
+        this.knownAudioDurations.set(key, actualDurationSec);
+      }
+      if (audioBlob instanceof Blob && audioBlob.size >= 40000) {
+        st.audioBlob = audioBlob;
+        if (!st.dspEnvelope) {
+          st.dspEnvelope = await this._extractDspEnvelope(audioBlob).catch(() => null);
+          if (st.dspEnvelope && st.dspEnvelope.actualDur > 35) {
+            st.actualDur = st.dspEnvelope.actualDur;
+            this.knownAudioDurations.set(key, st.dspEnvelope.actualDur);
+          }
+        }
+      }
+
       if (this.inflight.has(key)) {
         try { await this.inflight.get(key); } catch (_) {}
       }
-      this._refreshCurrentLyrics(track, key, actualDurationSec);
+
+      if (!st.nativeChecked) {
+        st.nativeChecked = true;
+        let nativeLines = await this._tryLoadNativeChartLyrics(track).catch(() => null);
+        if ((!Array.isArray(nativeLines) || nativeLines.length < 4)) {
+          const topChartInfo = await this._fetchTopCatalogChartLyricsOrOnsets(track, key).catch(() => null);
+          if (topChartInfo && topChartInfo.type === 'lyrics' && Array.isArray(topChartInfo.lines) && topChartInfo.lines.length >= 4) {
+            nativeLines = topChartInfo.lines;
+          }
+        }
+        st.nativeLyrics = nativeLines;
+      }
+
+      if (Array.isArray(st.nativeLyrics) && st.nativeLyrics.length >= 4) {
+        this.cache.set(key, st.nativeLyrics);
+        if (this.currentTrackKey === key) {
+          const old = this.currentLyrics || [];
+          const same = old.length === st.nativeLyrics.length && old.every((l, i) => l.text === st.nativeLyrics[i].text && Math.abs((l.timeSec || 0) - (st.nativeLyrics[i].timeSec || 0)) < 0.03);
+          if (!same) {
+            this.currentLyrics = st.nativeLyrics.map(l => ({ ...l }));
+            this.activeLineIndex = -1;
+            this.renderLinesToDom();
+            const curSec = (typeof dualStreamEngine !== 'undefined' && dualStreamEngine)
+              ? dualStreamEngine.getCurrentSongTimeSec()
+              : (this._lastSyncAudioSec || 0);
+            this.syncTime(curSec, { forceScroll: !this._isUserManualScrolling && Date.now() >= Math.max(this._userScrollingUntil || 0, this._userManualScrollUntil || 0) });
+          }
+        }
+        return st.nativeLyrics;
+      }
+
+      if (!st.candidates) {
+        if (st.candidatesPromise) {
+          await st.candidatesPromise;
+        } else {
+          await this.fetchLyricsForTrack(track, st.actualDur || st.expectedDur || 195);
+        }
+      }
+
+      const cands = st.candidates || this.candidatesCache.get(key);
+      if (!Array.isArray(cands) || cands.length === 0) return null;
+
+      const recalibrated = this._pickBestCandidateLines(
+        cands,
+        st.actualDur || st.expectedDur || 195,
+        track,
+        st.dspEnvelope
+      );
+      this.cache.set(key, recalibrated);
+      this._refreshCurrentLyrics(track, key, st.actualDur || actualDurationSec);
+      return recalibrated;
+    }
+
+    async fetchAndCalibrateLyricsForBlob(track, audioBlob = null, expectedDurSec = 195) {
+      if (!track) return [];
+      const key = this._makeKey(track);
+      const st = this._getOrInitTrackState(track);
+      if (Number(expectedDurSec) > 35) st.expectedDur = Number(expectedDurSec);
+      if (audioBlob instanceof Blob && audioBlob.size >= 40000) {
+        st.audioBlob = audioBlob;
+      }
+
+      const [lines, env] = await Promise.all([
+        this.fetchLyricsForTrack(track, expectedDurSec),
+        (audioBlob instanceof Blob && audioBlob.size >= 40000 && !st.dspEnvelope)
+          ? this._extractDspEnvelope(audioBlob).catch(() => null)
+          : Promise.resolve(st.dspEnvelope)
+      ]);
+      if (env) {
+        st.dspEnvelope = env;
+        if (env.actualDur > 35) {
+          st.actualDur = env.actualDur;
+          this.knownAudioDurations.set(key, env.actualDur);
+        }
+      }
+
+      let finalLines = Array.isArray(lines) ? lines : [];
+      if ((!st.nativeLyrics || st.nativeLyrics.length < 4) && Array.isArray(st.candidates) && st.candidates.length > 0 && st.dspEnvelope) {
+        finalLines = this._pickBestCandidateLines(st.candidates, st.actualDur || expectedDurSec, track, st.dspEnvelope);
+        this.cache.set(key, finalLines);
+      }
+
+      // Aplicar micro-ajuste del usuario SOLO sobre una copia para el gameplay (sin contaminar this.cache)
+      const uOff = this.getUserOffsetSec(key);
+      if (uOff !== 0 && Array.isArray(finalLines) && finalLines.length > 0) {
+        return finalLines.map(l => ({
+          ...l,
+          timeSec: Math.max(0, +(Number(l.timeSec || 0) - uOff).toFixed(2)),
+          endTimeSec: Math.max(0.4, +((Number(l.endTimeSec) || (Number(l.timeSec || 0) + 3.5)) - uOff).toFixed(2)),
+          words: Array.isArray(l.words)
+            ? l.words.map(w => ({ ...w, timeSec: Math.max(0, +(Number(w.timeSec || 0) - uOff).toFixed(3)) }))
+            : undefined
+        }));
+      }
+      return finalLines.map(l => ({
+        ...l,
+        words: Array.isArray(l.words) ? l.words.map(w => ({ ...w })) : undefined
+      }));
     }
 
     getKnownLeadingSilenceForTrack(track) {
-      return 0;
+      if (!track) return 0;
+      const key = this._makeKey(track);
+      return this.knownLeadingSilenceMap.get(key) || 0;
     }
 
     async loadAndRenderTrackLyrics(track, totalDurationSec = 0) {
       if (!track) return;
       const key = this._makeKey(track);
-      if (this.currentTrackKey !== key) {
-        this.timeOffsetSec = 0;
-        this._isUserManualScrolling = false;
-        this._userManualScrollUntil = 0;
-      }
-      this.autoLeadingSilenceSec = 0;
+      const isNewTrack = this.currentTrackKey !== key;
       this.currentTrack = track;
       this.currentTrackKey = key;
+      this.timeOffsetSec = this.getUserOffsetSec(key);
+      if (isNewTrack) {
+        this._isUserManualScrolling = false;
+        this._userManualScrollUntil = 0;
+        this._userScrollingUntil = 0;
+        this._lastRenderedTrackKey = '';
+      }
+      this.autoLeadingSilenceSec = 0;
       this.activeLineIndex = -1;
       this._syncToolbarUI();
 
       const box = document.getElementById('npKaraokeScrollBox');
-      if (box && !this.cache.has(key)) {
-        box.innerHTML = `<p class="np-karaoke-placeholder">Sincronizando letra karaoke...</p>`;
+      if (box) {
+        this._bindKaraokeScrollInteraction(box);
+        if (this.cache.has(key)) {
+          this.currentLyrics = this.cache.get(key).map(l => ({ ...l, elasticOffsetSec: 0 }));
+          this.renderLinesToDom();
+        } else {
+          box.innerHTML = `<p class="np-karaoke-placeholder">Sincronizando letra karaoke...</p>`;
+        }
       }
 
       const lines = await this.fetchLyricsForTrack(track, totalDurationSec);
       if (this.currentTrackKey !== key) return;
       this.currentLyrics = lines.map(l => ({ ...l, elasticOffsetSec: 0 }));
-      // Renderizar inmediatamente la letra sincronizada sin bloquear por la traducción
       this.renderLinesToDom();
+      const curSec = (typeof dualStreamEngine !== 'undefined' && dualStreamEngine)
+        ? dualStreamEngine.getCurrentSongTimeSec()
+        : (this._lastSyncAudioSec || 0);
+      this.syncTime(curSec, { forceScroll: isNewTrack });
       if (this.showTranslation) {
         this.ensureTranslationsForCurrent(track).then(() => {
           if (this.currentTrackKey === key) this.renderLinesToDom();
@@ -3019,123 +4070,153 @@
       }
     }
 
-    _bindManualScrollSync(box) {
-      if (!box || box._manualScrollSyncBound) return;
+    _bindKaraokeScrollInteraction(box) {
+      if (!box || box._karaokeDelegationBound) return;
+      box._karaokeDelegationBound = true;
       box._manualScrollSyncBound = true;
-      let wheelEndTimer = null;
 
-      const findCenteredLineIndex = () => {
-        if (!Array.isArray(this.currentLyrics) || this.currentLyrics.length === 0) return -1;
-        const centerScrollY = box.scrollTop + (box.clientHeight / 2);
-        let bestIdx = -1;
-        let bestDist = Infinity;
-        for (let i = 0; i < this.currentLyrics.length; i++) {
-          const el = document.getElementById(`karaokeLine_${i}`);
-          if (!el) continue;
-          const lineCenter = el.offsetTop + (el.clientHeight / 2);
-          const dist = Math.abs(lineCenter - centerScrollY);
-          if (dist < bestDist) {
-            bestDist = dist;
-            bestIdx = i;
-          }
-        }
-        return bestIdx;
-      };
-
-      const applyUserScrolledPosition = () => {
-        const cIdx = findCenteredLineIndex();
-        if (cIdx < 0 || !this.currentLyrics[cIdx]) return;
-        this.activeLineIndex = cIdx;
-        for (let i = 0; i < this.currentLyrics.length; i++) {
-          const el = document.getElementById(`karaokeLine_${i}`);
-          if (!el) continue;
-          el.classList.toggle('active', i === cIdx);
-          el.classList.toggle('past', i < cIdx);
-        }
-        if (typeof dualStreamEngine !== 'undefined' && dualStreamEngine) {
-          const curAudioSec = Math.max(0, Number(dualStreamEngine.getCurrentSongTimeSec()) || 0);
-          this.timeOffsetSec = +(Number(this.currentLyrics[cIdx].timeSec || 0) - curAudioSec).toFixed(2);
-          this._syncToolbarUI();
+      const markUserScroll = () => {
+        if (!this._programmaticScrolling) {
+          this._userScrollingUntil = Date.now() + 3600;
+          this._userManualScrollUntil = this._userScrollingUntil;
         }
       };
 
-      box.addEventListener('touchstart', () => {
-        this._isUserManualScrolling = true;
-        this._userManualScrollUntil = Date.now() + 8000;
+      box.addEventListener('wheel', markUserScroll, { passive: true });
+      box.addEventListener('touchstart', markUserScroll, { passive: true });
+      box.addEventListener('scroll', () => {
+        if (!this._programmaticScrolling) {
+          this._userScrollingUntil = Date.now() + 3200;
+          this._userManualScrollUntil = this._userScrollingUntil;
+        }
       }, { passive: true });
 
-      box.addEventListener('touchmove', () => {
-        this._isUserManualScrolling = true;
-        this._userManualScrollUntil = Date.now() + 8000;
-        applyUserScrolledPosition();
+      let downX = 0;
+      let downY = 0;
+      let pointerTracked = false;
+
+      box.addEventListener('pointerdown', (e) => {
+        downX = e.clientX ?? 0;
+        downY = e.clientY ?? 0;
+        pointerTracked = true;
+        markUserScroll();
       }, { passive: true });
 
-      const onTouchEnd = () => {
-        if (!this._isUserManualScrolling) return;
-        applyUserScrolledPosition();
-        this._isUserManualScrolling = false;
-        this._userManualScrollUntil = Date.now() + 2200;
-      };
-      box.addEventListener('touchend', onTouchEnd, { passive: true });
-      box.addEventListener('touchcancel', onTouchEnd, { passive: true });
+      box.addEventListener('click', (e) => {
+        const lineEl = e.target && typeof e.target.closest === 'function'
+          ? e.target.closest('.np-karaoke-line[data-line-idx]')
+          : null;
+        if (!lineEl) return;
+        if (pointerTracked) {
+          const dx = (e.clientX ?? downX) - downX;
+          const dy = (e.clientY ?? downY) - downY;
+          pointerTracked = false;
+          if (Math.hypot(dx, dy) > 12) return;
+        }
+        const idx = parseInt(lineEl.getAttribute('data-line-idx'), 10);
+        if (Number.isFinite(idx) && window.DiscoverHomeApp && typeof window.DiscoverHomeApp.seekToKaraokeLine === 'function') {
+          window.DiscoverHomeApp.seekToKaraokeLine(idx);
+        }
+      });
+    }
 
-      box.addEventListener('wheel', () => {
-        this._isUserManualScrolling = true;
-        this._userManualScrollUntil = Date.now() + 3000;
-        applyUserScrolledPosition();
-        if (wheelEndTimer) clearTimeout(wheelEndTimer);
-        wheelEndTimer = setTimeout(() => {
-          applyUserScrolledPosition();
-          this._isUserManualScrolling = false;
-          this._userManualScrollUntil = Date.now() + 1800;
-        }, 320);
-      }, { passive: true });
+    _bindManualScrollSync(box) {
+      return this._bindKaraokeScrollInteraction(box);
     }
 
     renderLinesToDom() {
       const box = document.getElementById('npKaraokeScrollBox');
       if (!box) return;
-      this._bindManualScrollSync(box);
+      this._bindKaraokeScrollInteraction(box);
       this._syncToolbarUI();
       if (!Array.isArray(this.currentLyrics) || this.currentLyrics.length === 0) {
         box.innerHTML = `<p class="np-karaoke-placeholder">Letra no disponible para esta pista.</p>`;
         return;
       }
 
+      const userOff = Number(this.timeOffsetSec || 0);
+      this._lastRenderedTrackKey = this.currentTrackKey;
       box.innerHTML = this.currentLyrics.map((line, idx) => {
+        const effLineSec = Math.max(0, (Number(line.timeSec) || 0) - userOff);
+        let contentHtml = '';
+        if (Array.isArray(line.words) && line.words.length > 1) {
+          contentHtml = line.words.map((w, wi) =>
+            `<span class="np-karaoke-word" data-word-time="${w.timeSec}" data-widx="${wi}">${escapeHtmlSafe(w.text)}</span>`
+          ).join('');
+        } else {
+          contentHtml = `<span class="np-karaoke-line-text">${escapeHtmlSafe(line.text)}</span>`;
+        }
         const origNorm = String(line.text || '').trim().toLowerCase();
         const transNorm = String(line.translatedText || '').trim().toLowerCase();
         const showSub = Boolean(this.showTranslation && line.translatedText && transNorm && transNorm !== origNorm);
         return `
-          <div id="karaokeLine_${idx}" class="np-karaoke-line" onclick="window.DiscoverHomeApp.seekToKaraokeLine(${idx})">
-            <div>${escapeHtmlSafe(line.text)}</div>
+          <div id="karaokeLine_${idx}" class="np-karaoke-line" data-line-idx="${idx}" title="Toca para saltar a ${this._formatMmSs(effLineSec)}">
+            <div class="np-karaoke-main-row">${contentHtml}<span class="np-karaoke-line-time">${this._formatMmSs(effLineSec)}</span></div>
             ${showSub ? `<span class="np-karaoke-subline">${escapeHtmlSafe(line.translatedText)}</span>` : ''}
           </div>
         `;
       }).join('');
     }
 
-    syncTime(currentSec, forceScroll = false) {
+    syncTime(currentSec, options = {}) {
+      const opts = (typeof options === 'boolean')
+        ? { forceScroll: options }
+        : (options && typeof options === 'object' ? options : {});
+      const forceScroll = Boolean(opts.forceScroll);
+      const immediateLineIdx = opts.immediateLineIdx;
+
+      this._lastSyncAudioSec = Math.max(0, Number(currentSec || 0));
       if (!Array.isArray(this.currentLyrics) || this.currentLyrics.length === 0) return;
-      if (!forceScroll && (this._isUserManualScrolling || Date.now() < (this._userManualScrollUntil || 0))) {
-        return;
-      }
-      const cur = Math.max(0, Number(currentSec || 0));
-      const userOff = Number(this.timeOffsetSec || 0);
-      let activeIdx = -1;
-      for (let i = 0; i < this.currentLyrics.length; i++) {
-        const line = this.currentLyrics[i];
-        const effLineSec = Math.max(0, Number(line.timeSec || 0) - userOff);
-        if (cur + 0.10 >= effLineSec) {
-          activeIdx = i;
-        } else {
-          break;
-        }
-      }
-      if (!forceScroll && activeIdx === this.activeLineIndex) return;
-      this.activeLineIndex = activeIdx;
 
       const box = document.getElementById('npKaraokeScrollBox');
+      if (box && this._lastRenderedTrackKey !== this.currentTrackKey) {
+        this.renderLinesToDom();
+      }
+
+      const cur = this._lastSyncAudioSec;
+      const userOff = Number(this.timeOffsetSec || 0);
+      const adjSec = Math.max(0, cur + userOff);
+
+      let activeIdx = -1;
+      if (Number.isFinite(immediateLineIdx) && immediateLineIdx >= 0 && immediateLineIdx < this.currentLyrics.length) {
+        activeIdx = immediateLineIdx;
+      } else {
+        for (let i = 0; i < this.currentLyrics.length; i++) {
+          const line = this.currentLyrics[i];
+          const effLineSec = Math.max(0, Number(line.timeSec || 0) - userOff);
+          if (cur + 0.16 >= effLineSec) {
+            activeIdx = i;
+          } else {
+            break;
+          }
+        }
+      }
+
+      const prevActiveIdx = this.activeLineIndex;
+      if (prevActiveIdx >= 0 && prevActiveIdx !== activeIdx) {
+        const prevEl = document.getElementById(`karaokeLine_${prevActiveIdx}`);
+        if (prevEl && typeof prevEl.querySelectorAll === 'function') {
+          const prevWords = prevEl.querySelectorAll('.np-karaoke-word.sung');
+          for (const pw of prevWords) pw.classList.remove('sung');
+        }
+      }
+
+      if (activeIdx >= 0) {
+        const activeElNow = document.getElementById(`karaokeLine_${activeIdx}`);
+        if (activeElNow && typeof activeElNow.querySelectorAll === 'function') {
+          const wordNodes = activeElNow.querySelectorAll('.np-karaoke-word[data-word-time]');
+          if (wordNodes && wordNodes.length > 0) {
+            for (const wn of wordNodes) {
+              const wt = parseFloat(wn.getAttribute('data-word-time')) || 0;
+              wn.classList.toggle('sung', adjSec + 0.08 >= wt);
+            }
+          }
+        }
+      }
+
+      if (!forceScroll && activeIdx === prevActiveIdx) return;
+      this.activeLineIndex = activeIdx;
+
       if (!box) return;
 
       for (let i = 0; i < this.currentLyrics.length; i++) {
@@ -3145,15 +4226,23 @@
         el.classList.toggle('past', activeIdx >= 0 && i < activeIdx);
       }
 
+      const canAutoScroll = forceScroll || (!this._isUserManualScrolling && Date.now() >= Math.max(this._userScrollingUntil || 0, this._userManualScrollUntil || 0));
+      if (!canAutoScroll || box.offsetParent === null) return;
+
+      this._programmaticScrolling = true;
+      if (this._programmaticScrollTimer) clearTimeout(this._programmaticScrollTimer);
       if (activeIdx >= 0) {
         const activeEl = document.getElementById(`karaokeLine_${activeIdx}`);
-        if (activeEl && box.offsetParent !== null) {
+        if (activeEl) {
           const targetScroll = activeEl.offsetTop - (box.clientHeight / 2) + (activeEl.clientHeight / 2);
           box.scrollTo({ top: Math.max(0, targetScroll), behavior: 'smooth' });
         }
       } else {
         box.scrollTo({ top: 0, behavior: 'smooth' });
       }
+      this._programmaticScrollTimer = setTimeout(() => {
+        this._programmaticScrolling = false;
+      }, 420);
     }
   }
 
@@ -3181,6 +4270,8 @@
       this.fullTrackReady = false;
       this.fullTrackBlob = null;
       this.fullTrackObjectUrl = null;
+      this._fullAudioIsLocalBlob = false;
+      this._currentFullAudioTrackId = '';
 
       this._ytBridgeVideoId = '';
       this._ytBridgeStartWallMs = 0;
@@ -3191,7 +4282,11 @@
       this._ytPendingCue = null;
 
       this.previewBaseOffsetSec = 0;
+      this._correlatedPreviewStartSec = null;
       this.pendingUserSeekSec = null;
+      this._seekGuard = null; // { targetSec, untilMs }
+      this._lastSeekWallMs = 0;
+      this._lastGameplaySeekWallMs = 0;
 
       this.queue = [];
       this.queueIndex = -1;
@@ -3220,7 +4315,7 @@
     }
 
     _extractTrackYoutubeId(track) {
-      if (!track) return '';
+      if (!track || track._isPlaceholderVid) return '';
       const v0 = String(track.videoId || '').replace(/^magic_yt_|^yt_/, '').trim();
       if (/^[A-Za-z0-9_-]{11}$/.test(v0)) {
         track.videoId = v0;
@@ -3297,12 +4392,20 @@
           }
           if (typeof info.currentTime === 'number' && Number.isFinite(info.currentTime) && info.currentTime >= 0) {
             if (this.activeSourceType === 'yt_bridge') {
-              this._ytBridgeBaseSec = info.currentTime;
-              this._ytBridgeStartWallMs = performance.now();
+              const recentlySeeked = this._lastSeekWallMs && (performance.now() - this._lastSeekWallMs) < 1800;
+              const isStaleTick = recentlySeeked && Math.abs(info.currentTime - (this._ytBridgeBaseSec || 0)) > 2.5;
+              if (!isStaleTick) {
+                this._ytBridgeBaseSec = info.currentTime;
+                this._ytBridgeStartWallMs = performance.now();
+              }
             }
             if (this._ytGameplayActive) {
-              this._ytGameplayBaseSec = info.currentTime;
-              this._ytGameplayStartWallMs = performance.now();
+              const recentlyGameplaySeeked = this._lastGameplaySeekWallMs && (performance.now() - this._lastGameplaySeekWallMs) < 1800;
+              const isStaleGameplayTick = recentlyGameplaySeeked && Math.abs(info.currentTime - (this._ytGameplayBaseSec || 0)) > 2.5;
+              if (!isStaleGameplayTick) {
+                this._ytGameplayBaseSec = info.currentTime;
+                this._ytGameplayStartWallMs = performance.now();
+              }
             }
           }
           if (typeof info.duration === 'number' && Number.isFinite(info.duration) && info.duration > 35 && this.currentTrack && this.activeSourceType === 'yt_bridge') {
@@ -3478,9 +4581,10 @@
 
     seekYtBridgeForGameplay(sec = 0) {
       const safe = Math.max(0, Number(sec) || 0);
+      this._lastGameplaySeekWallMs = performance.now();
       this._ytGameplayBaseSec = safe;
       this._ytGameplayStartWallMs = performance.now();
-      this._sendYtBridgeCommand('seekTo', [Math.floor(safe), true]);
+      this._sendYtBridgeCommand('seekTo', [+safe.toFixed(2), true]);
     }
 
     setYtBridgeGameplayVolume(vol = 0.9) {
@@ -3570,15 +4674,53 @@
 
     getChorusOffsetSec(track = this.currentTrack, fullDur = null) {
       const dur = fullDur || this.getTrackFullDurationSec(track);
+      if (Number.isFinite(this._correlatedPreviewStartSec) && this._correlatedPreviewStartSec > 5 && this._correlatedPreviewStartSec < dur - 22) {
+        return this._correlatedPreviewStartSec;
+      }
       if (Number.isFinite(track?.chorusSec) && track.chorusSec > 10 && track.chorusSec < dur - 25) {
         return track.chorusSec;
       }
-      return Math.round(Math.max(28, Math.min(62, dur * 0.27)));
+      if (this.karaokeService && track) {
+        const key = this.karaokeService._makeKey(track);
+        const lines = this.karaokeService.cache.get(key);
+        if (Array.isArray(lines) && lines.length >= 6 && typeof this.karaokeService._estimateChorusSecFromLyrics === 'function') {
+          return this.karaokeService._estimateChorusSecFromLyrics(lines, dur);
+        }
+      }
+      return Math.round(Math.max(26, Math.min(62, dur * 0.27)));
     }
 
     getCurrentSongTimeSec() {
+      if (this._seekGuard && Date.now() < this._seekGuard.untilMs) {
+        let rawCur = 0;
+        if (this.activeSourceType === 'full') {
+          rawCur = Number(this.fullAudio.currentTime) || 0;
+        } else if (this.activeSourceType === 'yt_bridge') {
+          if (this._ytBridgePaused || this._ytBridgePlayerState !== 1) {
+            rawCur = this._ytBridgeBaseSec || 0;
+          } else {
+            const elapsed = Math.max(0, Math.min(1.2, (performance.now() - this._ytBridgeStartWallMs) / 1000));
+            rawCur = (this._ytBridgeBaseSec || 0) + elapsed;
+          }
+        } else if (this.activeSourceType === 'preview') {
+          const base = Number.isFinite(this._correlatedPreviewStartSec)
+            ? this._correlatedPreviewStartSec
+            : (this.previewBaseOffsetSec || 0);
+          rawCur = base + (Number(this.previewAudio.currentTime) || 0);
+        } else {
+          rawCur = this.pendingUserSeekSec !== null ? this.pendingUserSeekSec : (this.previewBaseOffsetSec || 0);
+        }
+        if (Math.abs(rawCur - this._seekGuard.targetSec) <= 2.6) {
+          this._seekGuard = null;
+          return rawCur;
+        }
+        return this._seekGuard.targetSec;
+      }
       if (this.pendingUserSeekSec !== null && !this.fullTrackReady && this.activeSourceType !== 'full' && this.activeSourceType !== 'yt_bridge') {
         return this.pendingUserSeekSec;
+      }
+      if (this.isCrossfading && this.fullAudio && !this.fullAudio.paused && Number.isFinite(this.fullAudio.currentTime)) {
+        return Number(this.fullAudio.currentTime) || 0;
       }
       if (this.activeSourceType === 'full') {
         return Number(this.fullAudio.currentTime) || 0;
@@ -3594,7 +4736,10 @@
       }
       if (this.activeSourceType === 'preview') {
         const fullDur = this.getTrackFullDurationSec(this.currentTrack);
-        return Math.min(fullDur - 1, this.previewBaseOffsetSec + (Number(this.previewAudio.currentTime) || 0));
+        const base = Number.isFinite(this._correlatedPreviewStartSec)
+          ? this._correlatedPreviewStartSec
+          : (this.previewBaseOffsetSec || 0);
+        return Math.min(fullDur - 0.5, base + (Number(this.previewAudio.currentTime) || 0));
       }
       return this.previewBaseOffsetSec || 0;
     }
@@ -3608,11 +4753,9 @@
         const fullDur = this.getTrackFullDurationSec(this.currentTrack);
         const curSongSec = this.getCurrentSongTimeSec();
 
-        // Si el audio completo ya está descargado mientras suena el preview, hacer handoff inmediato
+        // Si el audio completo ya está descargado mientras suena el preview, hacer handoff inmediato correlacionado
         if (this.activeSourceType === 'preview' && this.fullTrackReady && !this.isCrossfading) {
-          const targetSec = this.pendingUserSeekSec !== null ? this.pendingUserSeekSec : 0;
-          this.pendingUserSeekSec = null;
-          this._performTransparentHandoffToFullTrack(targetSec);
+          this._handoffFromPreviewOrPending(this._playRequestId);
         }
 
         this._updatePlayerProgressUI(curSongSec, fullDur);
@@ -3630,6 +4773,23 @@
       });
       this.fullAudio.addEventListener('timeupdate', () => {
         if (this.activeSourceType === 'full') onTimeUpdate();
+      });
+
+      this.fullAudio.addEventListener('seeked', () => {
+        if (this.activeSourceType !== 'full' || !this._seekGuard) return;
+        const guard = this._seekGuard;
+        const actual = Number(this.fullAudio.currentTime) || 0;
+        if (Math.abs(actual - guard.targetSec) <= 3.0) {
+          this._seekGuard = null;
+          this._setLoadingHintVisible(false);
+          return;
+        }
+        // Si un stream HTTP remoto truncó o devolvió currentTime a 0 por falta de Range, descargar Blob completo y saltar exacto
+        if (!this._fullAudioIsLocalBlob && this.currentTrack && Date.now() < guard.untilMs) {
+          this.pendingUserSeekSec = guard.targetSec;
+          this._setLoadingHintVisible(true);
+          this._ensureFullBlobUpgradeAndSeek(this.currentTrack, guard.targetSec, this._playRequestId);
+        }
       });
 
       // En cuanto fullAudio conoce su duración real, recalibrar la letra LRC para que vaya 100% sincronizada
@@ -3664,7 +4824,7 @@
         }
       });
 
-      // Ticker de alta precisión (100ms) para que el resaltado de sílabas/líneas de Karaoke, yt_bridge y el Videoclip no tengan retraso
+      // Ticker de alta precisión (80ms) para que el resaltado de sílabas/líneas de Karaoke, yt_bridge y el Videoclip no tengan retraso
       if (this.karaokeSyncInterval) clearInterval(this.karaokeSyncInterval);
       let ytBridgeTickCounter = 0;
       this.karaokeSyncInterval = setInterval(() => {
@@ -3689,14 +4849,12 @@
             this.nextTrack();
           }
         }
-      }, 100);
+      }, 80);
 
       this.previewAudio.addEventListener('ended', () => {
         if (this.activeSourceType !== 'preview') return;
-        if (this.fullTrackReady && this.fullTrackBlob) {
-          const targetSec = this.pendingUserSeekSec !== null ? this.pendingUserSeekSec : 0;
-          this.pendingUserSeekSec = null;
-          this._performTransparentHandoffToFullTrack(targetSec);
+        if (this.fullTrackReady && (this.fullTrackBlob || this.fullAudio.src)) {
+          this._handoffFromPreviewOrPending(this._playRequestId);
           return;
         }
         if (!this._fullUpgradeExhausted && (this._previewLoopCount || 0) < 1) {
@@ -3723,6 +4881,100 @@
           this.nextTrack();
         }
       });
+    }
+
+    async _ensureFullBlobUpgradeAndSeek(track, targetSec, reqId) {
+      if (!track || reqId !== this._playRequestId) return;
+      try {
+        const blob = (this.fullTrackBlob && this.fullTrackBlob.size >= 60000)
+          ? this.fullTrackBlob
+          : await this.preloadFullTrackInBackground(track);
+        if (reqId !== this._playRequestId || !blob || blob.size < 60000) return;
+        this.fullTrackBlob = blob;
+        if (this.karaokeService) {
+          this.karaokeService.recalibrateForActualAudio(track, this.getTrackFullDurationSec(track), blob).catch(() => {});
+        }
+        await this._upgradeFullAudioToLocalBlob(blob, targetSec, true, reqId);
+      } catch (_) {}
+    }
+
+    async _upgradeFullAudioToLocalBlob(blob, seekTargetSec = null, resumeIfPlaying = true, reqId = this._playRequestId) {
+      if (!blob || blob.size < 60000 || reqId !== this._playRequestId) return false;
+      if (this._fullAudioIsLocalBlob && this.fullTrackBlob === blob) return true;
+      const wasPlaying = resumeIfPlaying || this.isPlaying();
+      const preserveSec = (seekTargetSec !== null && Number.isFinite(seekTargetSec))
+        ? Math.max(0, seekTargetSec)
+        : (this.activeSourceType === 'full' ? (Number(this.fullAudio.currentTime) || 0) : 0);
+
+      if (this.fullTrackObjectUrl) {
+        try { URL.revokeObjectURL(this.fullTrackObjectUrl); } catch (_) {}
+      }
+      this.fullTrackObjectUrl = URL.createObjectURL(blob);
+      this.fullTrackBlob = blob;
+      this._fullAudioIsLocalBlob = true;
+      this.fullTrackReady = true;
+      this._currentFullAudioTrackId = String(this.currentTrack?.id || '');
+      this._seekGuard = { targetSec: preserveSec, untilMs: Date.now() + 2500 };
+
+      this.fullAudio.src = this.fullTrackObjectUrl;
+      const applyAtMeta = () => {
+        if (reqId !== this._playRequestId) return;
+        const dur = Number(this.fullAudio.duration) || 9999;
+        const safePos = Math.max(0, Math.min(dur - 0.5, preserveSec));
+        try { this.fullAudio.currentTime = safePos; } catch (_) {}
+        if (wasPlaying) {
+          this.fullAudio.volume = this._getMasterVolume();
+          this.fullAudio.play().then(() => {
+            if (reqId !== this._playRequestId) return;
+            this.activeSourceType = 'full';
+            this.isPlayingFlag = true;
+            this._syncPlayPauseIcons(true);
+            this._setLoadingHintVisible(false);
+          }).catch(() => {});
+        }
+      };
+
+      if (this.fullAudio.readyState >= 1) {
+        applyAtMeta();
+      } else {
+        this.fullAudio.addEventListener('loadedmetadata', applyAtMeta, { once: true });
+      }
+      this.pendingUserSeekSec = null;
+      return true;
+    }
+
+    async _handoffFromPreviewOrPending(reqId) {
+      if (this.isCrossfading || !this.fullTrackReady || !this.fullAudio.src || reqId !== this._playRequestId) return;
+      if (this.pendingUserSeekSec !== null) {
+        const target = this.pendingUserSeekSec;
+        this.pendingUserSeekSec = null;
+        await this._performTransparentHandoffToFullTrack(target);
+        return;
+      }
+
+      const prevElapsed = Number(this.previewAudio.currentTime) || 0;
+      let targetSec = 0;
+
+      // Correlacionar acústicamente la preview con el audio completo para seguir justo en el estribillo sin saltos
+      const prevUrl = this.previewAudio.src || this.currentTrack?.previewUrl || '';
+      if (this.fullTrackBlob && prevUrl && /^https?:\/\//i.test(prevUrl) && this.karaokeService && prevElapsed >= 0.4 &&
+          typeof this.karaokeService._correlatePreviewOffsetSec === 'function') {
+        try {
+          const match = await Promise.race([
+            this.karaokeService._correlatePreviewOffsetSec(prevUrl, this.fullTrackBlob),
+            new Promise(r => setTimeout(() => r(null), 680))
+          ]);
+          if (reqId !== this._playRequestId || this.isCrossfading) return;
+          if (match && Number.isFinite(match.previewStartSec)) {
+            this._correlatedPreviewStartSec = match.previewStartSec;
+            this.previewBaseOffsetSec = match.previewStartSec;
+            const livePrev = Number(this.previewAudio.currentTime) || prevElapsed;
+            targetSec = Math.max(0, match.previewStartSec + livePrev);
+          }
+        } catch (_) {}
+      }
+      if (reqId !== this._playRequestId) return;
+      await this._performTransparentHandoffToFullTrack(targetSec);
     }
 
     _startListenTracker() {
@@ -3885,7 +5137,7 @@
 
     /**
      * Reproduce SIEMPRE mediante HTML5 <audio> real (nunca iframes ocultos de YouTube que fallan con Error 150 en VEVO/Pepas),
-     * arrancando en <200ms y escalando transparentemente a la pista de estudio completa.
+     * arrancando en <200ms y escalando transparentemente a la pista de estudio completa con calibración DSP y upgrade a Blob local.
      */
     async playTrack(track, options = {}) {
       if (!track) return false;
@@ -3895,8 +5147,12 @@
       this.currentTrack = track;
       this.fullTrackReady = false;
       this.fullTrackBlob = null;
+      this._fullAudioIsLocalBlob = false;
+      this._currentFullAudioTrackId = '';
       this.isCrossfading = false;
       this.pendingUserSeekSec = null;
+      this._seekGuard = null;
+      this._correlatedPreviewStartSec = null;
       this._previewLoopCount = 0;
       this._fullUpgradeExhausted = false;
       this._activeUpgradePromise = null;
@@ -3927,7 +5183,7 @@
 
       const fullDur = this.getTrackFullDurationSec(track);
       const desiredStartSec = typeof options.startOffsetSec === 'number'
-        ? options.startOffsetSec
+        ? Math.max(0, options.startOffsetSec)
         : 0;
 
       this.previewBaseOffsetSec = desiredStartSec;
@@ -3953,31 +5209,52 @@
         }).catch(() => {});
       }
 
+      let lyricsPromise = null;
       if (this.karaokeService) {
-        this.karaokeService.loadAndRenderTrackLyrics(track, this.getRealDurationSec(track)).catch(() => {});
+        lyricsPromise = this.karaokeService.loadAndRenderTrackLyrics(track, this.getRealDurationSec(track)).catch(() => {});
       }
 
       if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncVideoclipIfActive === 'function') {
         window.DiscoverHomeApp.syncVideoclipIfActive(track);
       }
 
-      // 1. Si ya tenemos el Blob completo en caché de memoria, reproducir al instante (0ms)
+      const attachBackgroundDspAndBlobUpgrade = (audioUrlUsed) => {
+        this.preloadFullTrackInBackground(track).then(async (blob) => {
+          if (reqId !== this._playRequestId || !blob || blob.size < 60000) return;
+          this.fullTrackBlob = blob;
+          if (this.karaokeService) {
+            this.karaokeService.recalibrateForActualAudio(track, this.getTrackFullDurationSec(track), blob).catch(() => {});
+          }
+          // Actualizar silenciosamente a Blob local para que cualquier clic futuro en frases sea <5ms sin cortes Range
+          const curPlaying = this.isPlaying();
+          const curSeek = this.pendingUserSeekSec !== null ? this.pendingUserSeekSec : (Number(this.fullAudio.currentTime) || 0);
+          if (!this._seekGuard || this.pendingUserSeekSec !== null) {
+            await this._upgradeFullAudioToLocalBlob(blob, curSeek, curPlaying, reqId);
+          }
+        }).catch(() => {});
+      };
+
+      // 1. Si ya tenemos el Blob completo en caché de memoria, reproducir al instante (0ms) con seek sample-accurate
       const cachedFullBlob = this._getCachedFullBlobForTrack(track);
       if (cachedFullBlob && cachedFullBlob.size >= 80000) {
         this.fullTrackBlob = cachedFullBlob;
         this.fullTrackReady = true;
+        this._fullAudioIsLocalBlob = true;
         this._setLoadingHintVisible(false);
         this._currentFullAudioTrackId = String(track.id || '');
         const startedFull = await this._startChannelWithFadeIn(this.fullAudio, cachedFullBlob, 'full', reqId, desiredStartSec, 120);
         this.isLoadingTrack = false;
         if (startedFull) {
+          if (this.karaokeService) {
+            this.karaokeService.recalibrateForActualAudio(track, this.getTrackFullDurationSec(track), cachedFullBlob).catch(() => {});
+          }
           this._updatePlayerMetadataUI(track);
           this._startListenTracker();
           return true;
         }
       }
 
-      // 2. Si es pista de Comunidad local, reproducir del archivo local del servidor de inmediato
+      // 2. Si es pista de Comunidad local, reproducir del archivo local del servidor de inmediato + recalibración DSP
       const isCommTrack = String(track.id || '').startsWith('comm_');
       if (isCommTrack) {
         const commUrl = this._getDirectFullStreamUrl(track, '3');
@@ -3986,10 +5263,12 @@
           const startedComm = await this._startChannelWithFadeIn(this.fullAudio, commUrl, 'full', reqId, desiredStartSec, 120);
           if (startedComm) {
             this.fullTrackReady = true;
+            this._fullAudioIsLocalBlob = false;
             this.isLoadingTrack = false;
             this._setLoadingHintVisible(false);
             this._updatePlayerMetadataUI(track);
             this._startListenTracker();
+            attachBackgroundDspAndBlobUpgrade(commUrl);
             return true;
           }
         }
@@ -4003,27 +5282,33 @@
       const directStreamUrl = (!isCommTrack) ? this._getDirectFullStreamUrl(track) : '';
       let fastHttpPreviewUrl = (track.previewUrl || track.preview_url || (this.prewarmedPreviewMap.get(String(track.id))?.previewUrl) || '').trim();
 
-      // 3A. Si tiene URL directa en GitHub Releases (Catálogo Top), reproducir el MP3 de estudio al instante
+      // 3A. Si tiene URL directa en GitHub Releases (Catálogo Top), reproducir el MP3 de estudio al instante + Blob upgrade silencioso
       if (directStreamUrl) {
         this._setLoadingHintVisible(true);
         this._currentFullAudioTrackId = String(track.id || '');
+        let usedUrl = directStreamUrl;
         let startedDirect = await this._startChannelWithFadeIn(this.fullAudio, directStreamUrl, 'full', reqId, desiredStartSec, 110);
         if (!startedDirect && reqId === this._playRequestId) {
           for (const fbTag of ['9', '8', '3']) {
             const fbUrl = this._getDirectFullStreamUrl(track, fbTag);
             if (fbUrl && fbUrl !== directStreamUrl) {
               startedDirect = await this._startChannelWithFadeIn(this.fullAudio, fbUrl, 'full', reqId, desiredStartSec, 110);
-              if (startedDirect) break;
+              if (startedDirect) {
+                usedUrl = fbUrl;
+                break;
+              }
             }
           }
         }
         if (reqId !== this._playRequestId) return false;
         if (startedDirect) {
           this.fullTrackReady = true;
+          this._fullAudioIsLocalBlob = false;
           this.isLoadingTrack = false;
           this._setLoadingHintVisible(false);
           this._updatePlayerMetadataUI(track);
           this._startListenTracker();
+          attachBackgroundDspAndBlobUpgrade(usedUrl);
           if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
             window.DiscoverHomeApp.syncActiveVideoclipPlayback('play');
           }
@@ -4033,7 +5318,10 @@
 
       // 3B. Si tiene previewUrl HTTP (osu!, BeatSaver, iTunes, Deezer) y arranca desde 0, reproducir en <100ms mientras se descarga el track completo en segundo plano
       if (/^https?:\/\//i.test(fastHttpPreviewUrl) && desiredStartSec === 0) {
-        this.previewBaseOffsetSec = 0;
+        if (this.karaokeService && typeof this.karaokeService._precomputePreviewEnvelope === 'function') {
+          this.karaokeService._precomputePreviewEnvelope(fastHttpPreviewUrl).catch(() => {});
+        }
+        this.previewBaseOffsetSec = this.getChorusOffsetSec(track, this.getTrackFullDurationSec(track));
         const previewStarted = await this._startChannelWithFadeIn(this.previewAudio, fastHttpPreviewUrl, 'preview', reqId, 0, 95);
         if (reqId !== this._playRequestId) return false;
         if (previewStarted) {
@@ -4041,6 +5329,14 @@
           this._setLoadingHintVisible(false);
           this._updatePlayerMetadataUI(track);
           this._startListenTracker();
+          if (lyricsPromise) {
+            lyricsPromise.then(() => {
+              if (reqId !== this._playRequestId || this.activeSourceType !== 'preview' || this._correlatedPreviewStartSec !== null) return;
+              if (this.pendingUserSeekSec === null) {
+                this.previewBaseOffsetSec = this.getChorusOffsetSec(track, this.getTrackFullDurationSec(track));
+              }
+            }).catch(() => {});
+          }
           this._upgradeActivePreviewToFullTrackInBackground(track, reqId);
           return true;
         }
@@ -4054,7 +5350,10 @@
         if (reqId !== this._playRequestId) return false;
         if (/^https?:\/\//i.test(resolvedPrevUrl)) {
           fastHttpPreviewUrl = resolvedPrevUrl;
-          this.previewBaseOffsetSec = 0;
+          if (this.karaokeService && typeof this.karaokeService._precomputePreviewEnvelope === 'function') {
+            this.karaokeService._precomputePreviewEnvelope(resolvedPrevUrl).catch(() => {});
+          }
+          this.previewBaseOffsetSec = this.getChorusOffsetSec(track, this.getTrackFullDurationSec(track));
           const previewStarted = await this._startChannelWithFadeIn(this.previewAudio, resolvedPrevUrl, 'preview', reqId, 0, 95);
           if (reqId !== this._playRequestId) return false;
           if (previewStarted) {
@@ -4062,10 +5361,22 @@
             this._setLoadingHintVisible(false);
             this._updatePlayerMetadataUI(track);
             this._startListenTracker();
+            if (lyricsPromise) {
+              lyricsPromise.then(() => {
+                if (reqId !== this._playRequestId || this.activeSourceType !== 'preview' || this._correlatedPreviewStartSec !== null) return;
+                if (this.pendingUserSeekSec === null) {
+                  this.previewBaseOffsetSec = this.getChorusOffsetSec(track, this.getTrackFullDurationSec(track));
+                }
+              }).catch(() => {});
+            }
             this._upgradeActivePreviewToFullTrackInBackground(track, reqId);
             return true;
           }
         }
+      }
+
+      if (desiredStartSec > 0 && !this.fullTrackReady) {
+        this.pendingUserSeekSec = desiredStartSec;
       }
 
       // 5. Descarga / stream de pista completa multi-fuente (SoundCloud / Notube / Servidor)
@@ -4073,9 +5384,15 @@
       if (reqId !== this._playRequestId) return false;
       if (fullBlob && fullBlob.size >= 80000) {
         this.fullTrackBlob = fullBlob;
+        this._fullAudioIsLocalBlob = true;
         this.fullTrackReady = true;
         this._currentFullAudioTrackId = String(track.id || '');
-        const startedBlob = await this._startChannelWithFadeIn(this.fullAudio, fullBlob, 'full', reqId, desiredStartSec, 110);
+        if (this.karaokeService) {
+          this.karaokeService.recalibrateForActualAudio(track, this.getTrackFullDurationSec(track), fullBlob).catch(() => {});
+        }
+        const effectiveStart = this.pendingUserSeekSec !== null ? this.pendingUserSeekSec : desiredStartSec;
+        this.pendingUserSeekSec = null;
+        const startedBlob = await this._startChannelWithFadeIn(this.fullAudio, fullBlob, 'full', reqId, effectiveStart, 110);
         if (reqId !== this._playRequestId) return false;
         if (startedBlob) {
           this.isLoadingTrack = false;
@@ -4089,7 +5406,10 @@
       // 6. Respaldo por stream directo del servidor (/api/v1/audio/extract)
       const progressiveExtractUrl = this._buildServerExtractStreamUrl(track);
       this._currentFullAudioTrackId = String(track.id || '');
-      const startedProg = await this._startChannelWithFadeIn(this.fullAudio, progressiveExtractUrl, 'full', reqId, desiredStartSec, 110);
+      this._fullAudioIsLocalBlob = false;
+      const effectiveProgStart = this.pendingUserSeekSec !== null ? this.pendingUserSeekSec : desiredStartSec;
+      this.pendingUserSeekSec = null;
+      const startedProg = await this._startChannelWithFadeIn(this.fullAudio, progressiveExtractUrl, 'full', reqId, effectiveProgStart, 110);
       if (reqId !== this._playRequestId) return false;
       if (startedProg) {
         this.fullTrackReady = true;
@@ -4118,8 +5438,7 @@
 
     /**
      * Analizador acústico de onda y presencia vocal (420-2800 Hz Mid/Side) libre de preflight CORS:
-     * Lee los primeros 768 KB (~50s de audio) mediante ReadableStream simple (sin cabecera Range),
-     * detecta el inicio real de la música y correlaciona las primeras 12 frases y pausas de respiración
+     * Detecta el inicio real de la música y correlaciona frases y pausas de respiración
      * con la letra de estudio consensuada para calcular el desplazamiento exacto al milisegundo.
      */
     async _decodeAndStoreWaveformProfile(track, key, arrayBuf, maxSeconds = 62, isFullPass = false, allowDuringGamePrep = false) {
@@ -4130,7 +5449,8 @@
       if (!OfflineCtx) return false;
       const offCtx = new OfflineCtx(1, 44100 * 2, 44100);
       const decoded = await offCtx.decodeAudioData(arrayBuf.slice(0));
-      if (!decoded || decoded.length < 44100 * 8) return false;
+      const decDur = decoded ? (decoded.duration || (decoded.length / (decoded.sampleRate || 44100))) : 0;
+      if (!decoded || decDur < 8) return false;
 
       const sr = decoded.sampleRate || 44100;
       const maxAnalyzeSamples = Math.min(decoded.length, Math.floor(sr * maxSeconds));
@@ -4188,7 +5508,7 @@
           const mSib = 0.5 * ((hpL - lpL) + (hpR - lpR));
           sumMid += mVoc * mVoc;
           sumSide += sVoc * sVoc;
-          sumSib += mSib;
+          sumSib += mSib * mSib;
         }
 
         const rmsFull = Math.sqrt(sumFull / hopSamples + 1e-12);
@@ -4254,7 +5574,7 @@
         sylOnset,
         thVoc,
         musicStartSec,
-        isFullPass: Boolean(isFullPass || decoded.duration <= maxSeconds + 2)
+        isFullPass: Boolean(isFullPass || decDur <= maxSeconds + 2)
       });
 
       return true;
@@ -4273,22 +5593,30 @@
           if (reqId !== this._playRequestId || !this.currentTrack || this.currentTrack.id !== track.id) return;
           if (blob && blob.size >= 80000) {
             this.fullTrackBlob = blob;
+            this._fullAudioIsLocalBlob = true;
             this.fullTrackReady = true;
             this._currentFullAudioTrackId = String(track.id || '');
+            if (this.fullTrackObjectUrl) {
+              try { URL.revokeObjectURL(this.fullTrackObjectUrl); } catch (_) {}
+            }
+            this.fullTrackObjectUrl = URL.createObjectURL(blob);
+            this.fullAudio.src = this.fullTrackObjectUrl;
+            try { this.fullAudio.load(); } catch (_) {}
+
+            if (this.karaokeService) {
+              await this.karaokeService.recalibrateForActualAudio(track, this.getTrackFullDurationSec(track), blob).catch(() => {});
+            }
+            if (reqId !== this._playRequestId || !this.currentTrack || this.currentTrack.id !== track.id) return;
+
             this._updatePlayerMetadataUI(track);
             if (this.activeSourceType === 'preview') {
-              const targetPos = this.pendingUserSeekSec !== null ? this.pendingUserSeekSec : 0;
-              this.pendingUserSeekSec = null;
               if (this.isPlaying()) {
-                await this._performTransparentHandoffToFullTrack(targetPos);
+                await this._handoffFromPreviewOrPending(reqId);
                 this._setLoadingHintVisible(false);
               } else {
+                const targetPos = this.pendingUserSeekSec !== null ? this.pendingUserSeekSec : 0;
+                this.pendingUserSeekSec = null;
                 try { this.previewAudio.pause(); this.previewAudio.src = ''; } catch (_) {}
-                if (this.fullTrackObjectUrl) {
-                  try { URL.revokeObjectURL(this.fullTrackObjectUrl); } catch (_) {}
-                }
-                this.fullTrackObjectUrl = URL.createObjectURL(blob);
-                this.fullAudio.src = this.fullTrackObjectUrl;
                 this.fullAudio.volume = this._getMasterVolume();
                 this.activeSourceType = 'full';
                 this.isPlayingFlag = false;
@@ -4335,16 +5663,22 @@
         } else if (audioEl.src !== srcOrBlob) {
           audioEl.src = srcOrBlob;
         }
+        if (channelType === 'full') {
+          this._fullAudioIsLocalBlob = (srcOrBlob instanceof Blob) || String(audioEl.src || '').startsWith('blob:');
+        }
 
         const targetVol = this._getMasterVolume();
         audioEl.volume = 0.01;
+        if (startSec > 0) {
+          this._seekGuard = { targetSec: startSec, untilMs: Date.now() + 2400 };
+        }
 
         const applySeek = () => {
           if (reqId !== this._playRequestId) return;
           try {
             if (startSec > 0) {
               const maxDur = Number(audioEl.duration) || 9999;
-              audioEl.currentTime = Math.min(startSec, Math.max(0, maxDur - 2));
+              audioEl.currentTime = Math.min(startSec, Math.max(0, maxDur - 0.8));
             } else {
               audioEl.currentTime = 0;
             }
@@ -4390,39 +5724,105 @@
       }
     }
 
-    async _performTransparentHandoffToFullTrack(targetPositionSec = 0) {
+    async _performTransparentHandoffToFullTrack(targetPositionSec = 0, options = {}) {
       if (this.isCrossfading || !this.currentTrack) return;
       this.isCrossfading = true;
       const reqId = this._playRequestId;
-      this.pendingUserSeekSec = targetPositionSec;
+      let fadeIntervalActive = false;
       try {
+        const fullDur = this.getTrackFullDurationSec(this.currentTrack);
+        const safeSeek = Math.min(Math.max(0, targetPositionSec), Math.max(0, fullDur - 1.5));
+        this._seekGuard = { targetSec: safeSeek, untilMs: Date.now() + 2600 };
+
         const cachedBlob = (this.fullTrackBlob && this.fullTrackBlob.size >= 80000)
           ? this.fullTrackBlob
           : this._getCachedFullBlobForTrack(this.currentTrack);
         if (cachedBlob && cachedBlob.size >= 80000) {
           try { this.previewAudio.pause(); } catch (_) {}
-          await this._startChannelWithFadeIn(this.fullAudio, cachedBlob, 'full', reqId, targetPositionSec, 150);
+          this._fullAudioIsLocalBlob = true;
+          this._currentFullAudioTrackId = String(this.currentTrack.id || '');
+          await this._startChannelWithFadeIn(this.fullAudio, cachedBlob, 'full', reqId, safeSeek, options.instant ? 80 : 150);
           this.fullTrackReady = true;
           this.pendingUserSeekSec = null;
           this._setLoadingHintVisible(false);
+          if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
+            window.DiscoverHomeApp.syncActiveVideoclipPlayback('seek', safeSeek);
+          }
+          return;
+        }
+
+        // Si fullAudio ya contiene una URL blob:/local lista (por ejemplo en _upgradeActivePreviewToFullTrackInBackground o tests)
+        if ((this._fullAudioIsLocalBlob || String(this.fullAudio.src || '').startsWith('blob:')) && this.fullAudio.src) {
+          this._currentFullAudioTrackId = String(this.currentTrack.id || '');
+          if (this.fullAudio.readyState < 1) {
+            await new Promise((resolve) => {
+              const tid = setTimeout(resolve, 1500);
+              this.fullAudio.addEventListener('loadedmetadata', () => { clearTimeout(tid); resolve(); }, { once: true });
+            });
+          }
+          if (reqId !== this._playRequestId) return;
+
+          try { this.fullAudio.currentTime = safeSeek; } catch (_) {}
+          this.fullAudio.volume = 0.01;
+          await this.fullAudio.play();
+          if (reqId !== this._playRequestId) {
+            try { this.fullAudio.pause(); } catch (_) {}
+            return;
+          }
+
+          this.activeSourceType = 'full';
+          this.fullTrackReady = true;
+          this.pendingUserSeekSec = null;
+          this.isPlayingFlag = true;
+          this._syncPlayPauseIcons(true);
+          this._setLoadingHintVisible(false);
+
+          const prevStartVol = Number(this.previewAudio.volume) || 0.85;
+          const targetVol = this._getMasterVolume();
+          const steps = options.instant ? 4 : 10;
+          const stepMs = options.instant ? 18 : 26;
+          let step = 0;
+          fadeIntervalActive = true;
+          const xfTimer = setInterval(() => {
+            step++;
+            if (reqId !== this._playRequestId) {
+              clearInterval(xfTimer);
+              this.isCrossfading = false;
+              return;
+            }
+            const t = Math.min(1, step / steps);
+            this.fullAudio.volume = Math.min(1, targetVol * t);
+            try { this.previewAudio.volume = Math.max(0, prevStartVol * (1 - t)); } catch (_) {}
+            if (step >= steps) {
+              clearInterval(xfTimer);
+              try { this.previewAudio.pause(); } catch (_) {}
+              this.isCrossfading = false;
+            }
+          }, stepMs);
+
+          if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
+            window.DiscoverHomeApp.syncActiveVideoclipPlayback('seek', safeSeek);
+          }
           return;
         }
 
         if (!this.fullAudio.src || this.activeSourceType !== 'full') {
           const directUrl3 = this._getDirectFullStreamUrl(this.currentTrack, '3');
           const streamUrl = directUrl3 || this._buildServerExtractStreamUrl(this.currentTrack);
+          this._currentFullAudioTrackId = String(this.currentTrack.id || '');
           try { this.previewAudio.pause(); } catch (_) {}
-          let ok = await this._startChannelWithFadeIn(this.fullAudio, streamUrl, 'full', reqId, targetPositionSec, 150);
+          let ok = await this._startChannelWithFadeIn(this.fullAudio, streamUrl, 'full', reqId, safeSeek, 150);
           if (!ok && directUrl3 && reqId === this._playRequestId) {
             const directUrl8 = this._getDirectFullStreamUrl(this.currentTrack, '8');
             if (directUrl8) {
-              ok = await this._startChannelWithFadeIn(this.fullAudio, directUrl8, 'full', reqId, targetPositionSec, 150);
+              ok = await this._startChannelWithFadeIn(this.fullAudio, directUrl8, 'full', reqId, safeSeek, 150);
             }
           }
           if (!ok && reqId === this._playRequestId) {
             const blob = await this.preloadFullTrackInBackground(this.currentTrack);
             if (blob && reqId === this._playRequestId) {
-              await this._startChannelWithFadeIn(this.fullAudio, blob, 'full', reqId, targetPositionSec, 150);
+              this._fullAudioIsLocalBlob = true;
+              await this._startChannelWithFadeIn(this.fullAudio, blob, 'full', reqId, safeSeek, 150);
             }
           }
           this.fullTrackReady = true;
@@ -4431,11 +5831,14 @@
           return;
         }
         try {
-          this.fullAudio.currentTime = Math.max(0, targetPositionSec);
+          this.fullAudio.currentTime = safeSeek;
         } catch (_) {}
+        this.pendingUserSeekSec = null;
         this._setLoadingHintVisible(false);
       } finally {
-        this.isCrossfading = false;
+        if (!fadeIntervalActive) {
+          this.isCrossfading = false;
+        }
       }
     }
 
@@ -4533,7 +5936,7 @@
           if (directUrl) {
             const directRaceTask = (async () => {
               const ctrl = new AbortController();
-              const tid = setTimeout(() => ctrl.abort(), 2800);
+              const tid = setTimeout(() => ctrl.abort(), 5000);
               try {
                 const r = await fetch(directUrl, { signal: ctrl.signal });
                 clearTimeout(tid);
@@ -4548,7 +5951,7 @@
                 const fbUrl = this._getDirectFullStreamUrl(track, fbTag);
                 if (fbUrl && fbUrl !== directUrl) {
                   const fbCtrl = new AbortController();
-                  const fbTid = setTimeout(() => fbCtrl.abort(), 2000);
+                  const fbTid = setTimeout(() => fbCtrl.abort(), 3500);
                   try {
                     const fbRes = await fetch(fbUrl, { signal: fbCtrl.signal });
                     clearTimeout(fbTid);
@@ -4655,7 +6058,7 @@
 
     /**
      * Pre-calienta los metadatos, las letras sincronizadas de Karaoke y el audio completo
-     * de las próximas 2 tarjetas del mazo Para Ti para que al deslizar arranquen en 0ms.
+     * de las próximas tarjetas del mazo Para Ti para que al deslizar arranquen en 0ms.
      */
     async prewarmUpcomingCards(tracksSlice = []) {
       if (!Array.isArray(tracksSlice) || tracksSlice.length === 0) return;
@@ -4764,22 +6167,36 @@
       await this.seekToSeconds(targetSec);
     }
 
-    async seekToSeconds(targetSec) {
+    /**
+     * Seek Infalible:
+     *  - Resiste rebote a 0:00 durante buffering o Range requests fallidos (_seekGuard + auto-upgrade a Blob local).
+     *  - Bloquea ticks antiguos de yt_bridge durante 1.8s y soporta precisión decimal.
+     *  - Reanuda reproducción automáticamente si `options.ensurePlay` es true (al tocar una frase del Karaoke).
+     *  - Funciona aunque fullAudio aún esté descargando en segundo plano o esté en modo preview.
+     */
+    async seekToSeconds(targetSec, options = {}) {
       if (!this.currentTrack) return;
+      const opts = (options && typeof options === 'object') ? options : {};
+      const ensurePlay = Boolean(opts.ensurePlay);
       this._lastSeekWallMs = performance.now();
       const fullDur = this.getTrackFullDurationSec(this.currentTrack);
-      const safeTarget = Math.max(0, Math.min(fullDur - 1, Number(targetSec) || 0));
+      const safeTarget = Math.max(0, Math.min(fullDur - 0.5, Number(targetSec) || 0));
 
+      this._seekGuard = { targetSec: safeTarget, untilMs: Date.now() + 2600 };
       this._updatePlayerProgressUI(safeTarget, fullDur);
       if (this.karaokeService) {
-        this.karaokeService.syncTime(safeTarget);
+        this.karaokeService.syncTime(safeTarget, { forceScroll: true, immediateLineIdx: opts.lineIdx });
+      }
+
+      if (ensurePlay && typeof window.pauseMenuAmbientMusic === 'function') {
+        window.pauseMenuAmbientMusic();
       }
 
       if (this.activeSourceType === 'yt_bridge') {
         this._ytBridgeBaseSec = safeTarget;
         this._ytBridgeStartWallMs = performance.now();
-        this._sendYtBridgeCommand('seekTo', [Math.floor(safeTarget), true]);
-        if (this._ytBridgePaused) {
+        this._sendYtBridgeCommand('seekTo', [+safeTarget.toFixed(2), true]);
+        if (ensurePlay || this._ytBridgePaused) {
           this._ytBridgePaused = false;
           this.isPlayingFlag = true;
           this._syncPlayPauseIcons(true);
@@ -4794,37 +6211,80 @@
       if (
         this.activeSourceType === 'full' &&
         this.fullAudio.src &&
-        this._currentFullAudioTrackId === String(this.currentTrack.id || '')
+        (!this._currentFullAudioTrackId || this._currentFullAudioTrackId === String(this.currentTrack.id || ''))
       ) {
-        try {
-          this.fullAudio.currentTime = safeTarget;
-          if (this.fullAudio.paused) {
-            this.fullAudio.play().then(() => {
-              this.isPlayingFlag = true;
-              this._syncPlayPauseIcons(true);
-            }).catch(() => {});
-          }
-        } catch (_) {}
+        const applyFull = () => {
+          try {
+            const realD = Number(this.fullAudio.duration) || fullDur;
+            const bounded = Math.max(0, Math.min(realD - 0.4, safeTarget));
+            this.fullAudio.currentTime = bounded;
+            if (ensurePlay && this.fullAudio.paused) {
+              this.fullAudio.volume = this._getMasterVolume();
+              this.fullAudio.play().then(() => {
+                this.isPlayingFlag = true;
+                this._syncPlayPauseIcons(true);
+              }).catch(() => {});
+            }
+          } catch (_) {}
+        };
+        if (this.fullAudio.readyState >= 1) {
+          applyFull();
+        } else {
+          this.fullAudio.addEventListener('loadedmetadata', applyFull, { once: true });
+        }
         if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
           window.DiscoverHomeApp.syncActiveVideoclipPlayback('seek', safeTarget);
         }
         return;
       }
 
-      if (this.activeSourceType === 'preview' && this.previewAudio.src && safeTarget <= 28) {
-        try {
-          this.previewAudio.currentTime = safeTarget;
-          if (this.previewAudio.paused) {
-            this.previewAudio.play().then(() => {
-              this.isPlayingFlag = true;
-              this._syncPlayPauseIcons(true);
-            }).catch(() => {});
+      if (this.fullTrackReady && this.fullAudio.src) {
+        this.pendingUserSeekSec = null;
+        if (this.isCrossfading) {
+          try {
+            const realD = Number(this.fullAudio.duration) || fullDur;
+            this.fullAudio.currentTime = Math.max(0, Math.min(realD - 0.4, safeTarget));
+          } catch (_) {}
+          if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
+            window.DiscoverHomeApp.syncActiveVideoclipPlayback('seek', safeTarget);
           }
-        } catch (_) {}
+          return;
+        }
+        await this._performTransparentHandoffToFullTrack(safeTarget, { instant: true });
         return;
       }
 
-      // Si no estaba activo el canal completo para esta pista, iniciar la pista actual en el segundo elegido sin cambiar nunca de canción
+      if (this.activeSourceType === 'preview' && this.previewAudio.src) {
+        // Aún descargando pista completa -> encolar seek y asegurar extracción en curso
+        this.pendingUserSeekSec = safeTarget;
+        this.previewBaseOffsetSec = safeTarget;
+        this._setLoadingHintVisible(true);
+        this.preloadFullTrackInBackground(this.currentTrack).catch(() => {});
+
+        const knownWinStart = Number.isFinite(this._correlatedPreviewStartSec)
+          ? this._correlatedPreviewStartSec
+          : this.getChorusOffsetSec(this.currentTrack, fullDur);
+        const diffFromWin = safeTarget - knownWinStart;
+        if (diffFromWin >= 0 && diffFromWin <= 28.5) {
+          try {
+            this.previewAudio.currentTime = Math.max(0, Math.min(28.8, diffFromWin));
+            this.previewBaseOffsetSec = knownWinStart;
+            if (ensurePlay && this.previewAudio.paused) {
+              this.previewAudio.volume = this._getMasterVolume();
+              this.previewAudio.play().then(() => {
+                this.isPlayingFlag = true;
+                this._syncPlayPauseIcons(true);
+              }).catch(() => {});
+            }
+          } catch (_) {}
+        }
+        if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
+          window.DiscoverHomeApp.syncActiveVideoclipPlayback('seek', safeTarget);
+        }
+        return;
+      }
+
+      // Si no estaba activo ningún canal aún para esta pista, iniciar la pista actual en el segundo elegido
       await this.playTrack(this.currentTrack, { startOffsetSec: safeTarget, syncQueue: false });
       if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
         window.DiscoverHomeApp.syncActiveVideoclipPlayback('seek', safeTarget);
@@ -4853,6 +6313,7 @@
       this._stopBothChannelsImmediate();
       this.isLoadingTrack = false;
       this.pendingUserSeekSec = null;
+      this._seekGuard = null;
       this._setLoadingHintVisible(false);
       const miniEl = document.getElementById('spotifyMiniPlayer');
       if (miniEl) {
@@ -5414,6 +6875,7 @@
   window.AnalogDNAEngine = dnaEngine;
   window.UserMusicDNA = dnaEngine;
   window.KaraokeLyricsService = karaokeService;
+  window.UniversalKaraokeService = karaokeService;
   window.DualStreamAudioEngine = dualStreamEngine;
   window.dualStreamEngine = dualStreamEngine;
 
@@ -5525,18 +6987,20 @@
       if (typeof CURATED_PLAYLIST_DATABASE === 'object' && CURATED_PLAYLIST_DATABASE) {
         for (const [, plData] of Object.entries(CURATED_PLAYLIST_DATABASE)) {
           for (const tr of (plData.tracks || [])) {
+            const meta = resolveCuratedTrackMeta(tr.id, tr.title, tr.artist);
             addTrack({
-              id: `magic_yt_${tr.id}`,
-              videoId: tr.id,
+              id: meta.id,
+              videoId: meta.videoId,
+              _isPlaceholderVid: meta.isPlaceholder,
               title: tr.title,
               artist: tr.artist,
               genre: plData.title,
-              source: 'magic_youtube',
+              source: meta.isPlaceholder ? 'magic_candidate' : 'magic_youtube',
               source_name: plData.title,
               _isMagicKey: true,
               stars: 4.2,
-              thumbnail: `https://i.ytimg.com/vi/${tr.id}/hqdefault.jpg`,
-              cover_url: `https://i.ytimg.com/vi/${tr.id}/hqdefault.jpg`
+              thumbnail: meta.thumbnail,
+              cover_url: meta.thumbnail
             });
           }
         }
@@ -6922,9 +8386,15 @@
         if (!dualStreamEngine.currentTrack || dualStreamEngine.currentTrack.id !== tr.id) {
           dualStreamEngine.playTrack(tr);
         }
-        karaokeService.translationEnabled = true;
-        karaokeService._syncTranslateBtnUI();
+        karaokeService.showTranslation = true;
+        try { localStorage.setItem('piano_karaoke_translate', 'true'); } catch (_) {}
+        karaokeService._syncToolbarUI();
         this.openNowPlayingModal('karaoke');
+        karaokeService.ensureTranslationsForCurrent(tr).then(() => {
+          if (karaokeService.currentTrackKey === karaokeService._makeKey(tr)) {
+            karaokeService.renderLinesToDom();
+          }
+        }).catch(() => {});
       } else if (action === 'videoclip') {
         if (!dualStreamEngine.currentTrack || dualStreamEngine.currentTrack.id !== tr.id) {
           dualStreamEngine.playTrack(tr);
@@ -7728,12 +9198,18 @@
       if (typeof window.IndexedDBStorage === 'undefined' || typeof window.IndexedDBStorage.getPlaylist !== 'function') return;
       const pl = await window.IndexedDBStorage.getPlaylist(playlistId).catch(() => null);
       if (!pl) return;
-      const mapped = (pl.tracks || []).map((t, i) => ({
-        ...t,
-        id: t.id || `pl_tr_${Date.now()}_${i}`,
-        videoId: /^[a-zA-Z0-9_-]{11}$/.test(String(t.id || '').replace(/^magic_yt_/, '')) ? String(t.id || '').replace(/^magic_yt_/, '') : (t.videoId || ''),
-        thumbnail: t.thumbnail || t.cover_url || './app_logo.png'
-      }));
+      const mapped = (pl.tracks || []).map((t, i) => {
+        const cleanCandVid = String(t.videoId || '').replace(/^magic_yt_|^yt_/, '').trim() ||
+          (/^(magic_yt_|yt_)?[A-Za-z0-9_-]{11}$/.test(String(t.id || '').trim()) ? String(t.id || '').replace(/^magic_yt_|^yt_/, '').trim() : '');
+        const meta = cleanCandVid ? resolveCuratedTrackMeta(cleanCandVid, t.title, t.artist || 'Artista') : null;
+        return {
+          ...t,
+          id: (meta && meta.isPlaceholder) ? meta.id : (t.id || `pl_tr_${Date.now()}_${i}`),
+          videoId: (meta && meta.isPlaceholder) ? '' : (meta ? meta.videoId : (t.videoId || '')),
+          _isPlaceholderVid: Boolean(meta && meta.isPlaceholder),
+          thumbnail: (meta && meta.isPlaceholder) ? './app_logo.png' : (t.thumbnail || t.cover_url || (meta && meta.thumbnail) || './app_logo.png')
+        };
+      });
       this._openTracksSheetModal({
         title: pl.title || 'Playlist',
         subtitle: `${mapped.length} canciones`,
@@ -8260,15 +9736,19 @@
         if (typeof window.parseYouTubePlaylistClient === 'function') {
           const parsed = await window.parseYouTubePlaylistClient(playlistId);
           if (parsed && Array.isArray(parsed.tracks) && parsed.tracks.length > 0) {
-            const tracks = parsed.tracks.map(t => ({
-              id: `magic_yt_${t.id}`,
-              videoId: t.id,
-              title: t.title,
-              artist: t.artist || 'Artista',
-              thumbnail: t.thumbnail || `https://i.ytimg.com/vi/${t.id}/hqdefault.jpg`,
-              source: 'magic_youtube',
-              _isMagicKey: true
-            }));
+            const tracks = parsed.tracks.map(t => {
+              const meta = resolveCuratedTrackMeta(t.id, t.title, t.artist);
+              return {
+                id: meta.id,
+                videoId: meta.videoId,
+                _isPlaceholderVid: meta.isPlaceholder,
+                title: t.title,
+                artist: t.artist || 'Artista',
+                thumbnail: meta.isPlaceholder ? (t.thumbnail && !/ytimg\.com/.test(t.thumbnail) ? t.thumbnail : './app_logo.png') : (t.thumbnail || meta.thumbnail),
+                source: meta.isPlaceholder ? 'magic_candidate' : 'magic_youtube',
+                _isMagicKey: true
+              };
+            });
             const previewPl = {
               id: `yt_${parsed.id || playlistId}`,
               title: parsed.title || title,
@@ -8361,15 +9841,37 @@
       this.openNowPlayingModal('karaoke');
     },
 
-    seekToKaraokeLine(lineIdx) {
-      if (karaokeService && typeof karaokeService.syncLineToCurrentAudio === 'function') {
-        karaokeService.syncLineToCurrentAudio(lineIdx);
+    async seekToKaraokeLine(lineIdx) {
+      if (!karaokeService || !Array.isArray(karaokeService.currentLyrics)) return;
+      const line = karaokeService.currentLyrics[lineIdx];
+      if (!line || !Number.isFinite(line.timeSec)) return;
+
+      const offsetSec = Number(karaokeService.timeOffsetSec || 0);
+      const targetAudioSec = Math.max(0, +(Number(line.timeSec) - offsetSec - 0.15).toFixed(2));
+      karaokeService._userScrollingUntil = 0;
+      karaokeService._userManualScrollUntil = 0;
+      karaokeService.activeLineIndex = -1;
+
+      if (!dualStreamEngine.currentTrack) {
+        const active = this.getActiveCrateTrack();
+        if (!active) return;
+        karaokeService.syncTime(targetAudioSec, { forceScroll: true, immediateLineIdx: lineIdx });
+        await dualStreamEngine.playTrack(active, { autoPlay: true, startOffsetSec: targetAudioSec });
+        return;
+      }
+
+      await dualStreamEngine.seekToSeconds(targetAudioSec, { ensurePlay: true, lineIdx });
+    },
+
+    adjustKaraokeOffset(deltaSec = 0) {
+      if (karaokeService && typeof karaokeService.adjustOffset === 'function') {
+        karaokeService.adjustOffset(deltaSec);
       }
     },
 
-    adjustKaraokeOffset(deltaSec) {
-      if (karaokeService && typeof karaokeService.adjustOffset === 'function') {
-        karaokeService.adjustOffset(deltaSec);
+    nudgeKaraokeOffset(deltaSec = 0) {
+      if (karaokeService && typeof karaokeService.nudgeOffset === 'function') {
+        karaokeService.nudgeOffset(deltaSec);
       }
     },
 
@@ -8383,7 +9885,7 @@
       const tr = dualStreamEngine.currentTrack || this.getActiveCrateTrack();
       if (!tr) return;
       const chorusSec = dualStreamEngine.getChorusOffsetSec(tr);
-      dualStreamEngine.seekToSeconds(chorusSec);
+      dualStreamEngine.seekToSeconds(chorusSec, { ensurePlay: true });
       if (typeof window.showSuccessToast === 'function') {
         window.showSuccessToast('Saltando al estribillo principal');
       }
