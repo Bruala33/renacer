@@ -6592,7 +6592,37 @@ body {
   align-items: center;
   gap: 2px;
   user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
   -webkit-tap-highlight-color: transparent;
+}
+
+@keyframes npKaraokeHoldFill {
+  0% {
+    background-size: 0% 100%;
+    transform: scale(1);
+  }
+  100% {
+    background-size: 100% 100%;
+    transform: scale(1.03);
+  }
+}
+
+.np-karaoke-line.holding {
+  color: #fde047;
+  background-color: rgba(212, 175, 55, 0.16);
+  background-image: linear-gradient(90deg, rgba(212, 175, 55, 0.34), rgba(253, 224, 71, 0.42));
+  background-repeat: no-repeat;
+  background-size: 0% 100%;
+  box-shadow: 0 0 14px rgba(212, 175, 55, 0.32);
+  animation: npKaraokeHoldFill 0.40s linear 0.08s forwards;
+}
+
+.np-karaoke-line.synced-flash {
+  background: rgba(253, 224, 71, 0.28) !important;
+  box-shadow: 0 0 22px rgba(253, 224, 71, 0.55);
+  color: #fffef0 !important;
+  transform: scale(1.04);
 }
 
 .np-karaoke-main-row {
@@ -6662,6 +6692,51 @@ body {
   font-size: 12px;
   color: rgba(253, 230, 138, 0.92);
   text-shadow: none;
+}
+
+.np-karaoke-hold-tip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  margin: 0 2px 6px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.16), rgba(30, 24, 14, 0.94));
+  border: 1px solid rgba(212, 175, 55, 0.42);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.38);
+  flex-shrink: 0;
+}
+
+.np-karaoke-hold-tip.hidden {
+  display: none !important;
+}
+
+.np-karaoke-hold-tip-text {
+  font-size: 11px;
+  line-height: 1.3;
+  color: #f5ebd0;
+  text-align: left;
+}
+
+.np-karaoke-hold-tip-text strong {
+  color: #fde047;
+}
+
+.np-karaoke-hold-tip-btn {
+  flex-shrink: 0;
+  padding: 4px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(253, 224, 71, 0.55);
+  background: rgba(212, 175, 55, 0.24);
+  color: #fde047;
+  font-size: 10.5px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.np-karaoke-hold-tip-btn:active {
+  transform: scale(0.95);
 }
 
 .np-karaoke-toolbar {

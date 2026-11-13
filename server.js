@@ -4921,8 +4921,17 @@ function writePersistentYtMp3Cache(videoId, resultObj) {
 async function resolveSignedNotubeDownloadUrlServer(videoId, apiHost, webHost, ua) {
   const ytUrl = `https://www.youtube.com/watch?v=${videoId}`;
   const myWorker = (u) => `https://drive-proxi.jocomomolobruno.workers.dev/?url=${encodeURIComponent(u)}`;
+  const cfWorker2 = (u) => `https://tight-breeze-969f.p1822994.workers.dev/?url=${encodeURIComponent(u)}`;
 
   const body1 = new URLSearchParams({ url: ytUrl, format: 'mp3', lang: 'es', subscribed: 'false' });
+  const parseR1 = async (resp) => {
+    if (!resp || !resp.ok) throw new Error('r1_http');
+    const txt1 = await resp.text();
+    if (!txt1 || !txt1.trim().startsWith('{')) throw new Error('r1_json');
+    const parsed = JSON.parse(txt1);
+    if (!parsed || !parsed.token) throw new Error('r1_tok');
+    return parsed;
+  };
   let d1 = null;
   try {
     const directP = fetch(`${apiHost}/recover_weight.php`, {
@@ -4934,29 +4943,24 @@ async function resolveSignedNotubeDownloadUrlServer(videoId, apiHost, webHost, u
         'Referer': `${webHost}/`
       },
       body: body1.toString(),
-      signal: AbortSignal.timeout(12000)
-    }).then(async (r1) => {
-      if (!r1.ok) throw new Error('r1_http');
-      const txt1 = await r1.text();
-      if (!txt1 || !txt1.trim().startsWith('{')) throw new Error('r1_json');
-      const parsed = JSON.parse(txt1);
-      if (!parsed || !parsed.token) throw new Error('r1_tok');
-      return parsed;
-    });
+      signal: AbortSignal.timeout(5200)
+    }).then(parseR1);
 
     const workerP = fetch(myWorker(`${apiHost}/recover_weight.php`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
       body: body1.toString(),
-      signal: AbortSignal.timeout(12000)
-    }).then(async (r1w) => {
-      if (!r1w.ok) throw new Error('r1w_http');
-      const parsed = await r1w.json();
-      if (!parsed || !parsed.token) throw new Error('r1w_tok');
-      return parsed;
-    });
+      signal: AbortSignal.timeout(5200)
+    }).then(parseR1);
 
-    d1 = await Promise.any([directP, workerP]);
+    const worker2P = fetch(cfWorker2(`${apiHost}/recover_weight.php`), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+      body: body1.toString(),
+      signal: AbortSignal.timeout(5200)
+    }).then(parseR1);
+
+    d1 = await Promise.any([directP, workerP, worker2P]);
   } catch (_) {}
   if (!d1 || !d1.token) return null;
 
@@ -4981,42 +4985,47 @@ async function resolveSignedNotubeDownloadUrlServer(videoId, apiHost, webHost, u
     return d2.token;
   };
   try {
-    // Llamada directa a través del worker para evitar el bloqueo Cloudflare Turnstile en recover_file.php
-    finalToken = await fetch(myWorker(`${apiHost}/recover_file.php`), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
-      body: body2.toString(),
-      signal: AbortSignal.timeout(5000)
-    }).then(parseR2Json);
+    // Carrera paralela entre dos workers para evitar el bloqueo Cloudflare Turnstile en recover_file.php
+    finalToken = await Promise.any([
+      fetch(myWorker(`${apiHost}/recover_file.php`), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+        body: body2.toString(),
+        signal: AbortSignal.timeout(4000)
+      }).then(parseR2Json),
+      fetch(cfWorker2(`${apiHost}/recover_file.php`), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+        body: body2.toString(),
+        signal: AbortSignal.timeout(4000)
+      }).then(parseR2Json)
+    ]);
   } catch (_) {}
   if (!finalToken) finalToken = d1.token;
 
   let dlUrl = '';
   const downloadPageUrl = `${webHost}/es/download?token=${encodeURIComponent(finalToken)}`;
+  const extractKeyFromPage = async (pageRes) => {
+    if (!pageRes || !pageRes.ok) throw new Error('page_not_ok');
+    const html = await pageRes.text();
+    const keyMatch = html.match(/https:\/\/s\d+\.notube\.(?:im|net)\/download\.php\?token=[^"'\s>]+&key=[A-Za-z0-9]+/);
+    if (!keyMatch || !keyMatch[0]) throw new Error('page_no_key');
+    return keyMatch[0];
+  };
   try {
-    const pageRes = await fetch(downloadPageUrl, {
-      headers: { 'User-Agent': ua, 'Referer': `${webHost}/` },
-      signal: AbortSignal.timeout(3500)
-    });
-    if (pageRes.ok) {
-      const html = await pageRes.text();
-      const keyMatch = html.match(/https:\/\/s\d+\.notube\.(?:im|net)\/download\.php\?token=[^"'\s>]+&key=[A-Za-z0-9]+/);
-      if (keyMatch && keyMatch[0]) dlUrl = keyMatch[0];
-    }
+    dlUrl = await Promise.any([
+      fetch(downloadPageUrl, {
+        headers: { 'User-Agent': ua, 'Referer': `${webHost}/` },
+        signal: AbortSignal.timeout(2800)
+      }).then(extractKeyFromPage),
+      fetch(myWorker(downloadPageUrl), {
+        signal: AbortSignal.timeout(3800)
+      }).then(extractKeyFromPage),
+      fetch(cfWorker2(downloadPageUrl), {
+        signal: AbortSignal.timeout(3800)
+      }).then(extractKeyFromPage)
+    ]);
   } catch (_) {}
-
-  if (!dlUrl) {
-    try {
-      const pageResW = await fetch(myWorker(downloadPageUrl), {
-        signal: AbortSignal.timeout(4000)
-      });
-      if (pageResW.ok) {
-        const html = await pageResW.text();
-        const keyMatch = html.match(/https:\/\/s\d+\.notube\.(?:im|net)\/download\.php\?token=[^"'\s>]+&key=[A-Za-z0-9]+/);
-        if (keyMatch && keyMatch[0]) dlUrl = keyMatch[0];
-      }
-    } catch (_) {}
-  }
 
   if (!dlUrl) return null;
   return {
@@ -5064,7 +5073,8 @@ async function extractYouTubeFullAudioViaNotubeServer(videoId) {
     const webHost = 'https://notube.im';
     const primaryNodes = [
       NOTUBE_SERVER_NODES[startIdx],
-      NOTUBE_SERVER_NODES[(startIdx + 9) % NOTUBE_SERVER_NODES.length]
+      NOTUBE_SERVER_NODES[(startIdx + 7) % NOTUBE_SERVER_NODES.length],
+      NOTUBE_SERVER_NODES[(startIdx + 15) % NOTUBE_SERVER_NODES.length]
     ];
 
     let streamingStarted = false;
@@ -5076,7 +5086,7 @@ async function extractYouTubeFullAudioViaNotubeServer(videoId) {
       const dlRes = await fetch(resolved.dlUrl, {
         headers: { 'User-Agent': ua, 'Referer': `${webHost}/` },
         redirect: 'follow',
-        signal: AbortSignal.timeout(22000)
+        signal: AbortSignal.timeout(16000)
       });
       if (!dlRes.ok) throw new Error('dl_not_ok');
       const ct = String(dlRes.headers.get('content-type') || '').toLowerCase();
@@ -5679,7 +5689,7 @@ async function tryExtractYouTubeStream(videoId) {
   })();
 
   const pipedPromise = Promise.any(pipedInstances.map(async (apiUrl) => {
-    const r = await fetch(apiUrl, { signal: AbortSignal.timeout(3800) });
+    const r = await fetch(apiUrl, { signal: AbortSignal.timeout(2400) });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const j = await r.json();
     const streams = Array.isArray(j?.audioStreams) ? j.audioStreams : [];
@@ -5687,7 +5697,7 @@ async function tryExtractYouTubeStream(videoId) {
       .filter(s => s && s.url && (!s.mimeType || s.mimeType.includes('audio')))
       .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
     if (!sorted.length) throw new Error('No audioStreams');
-    const dl = await fetchAudioBufferSafe(sorted[0].url, 6500);
+    const dl = await fetchAudioBufferSafe(sorted[0].url, 5500);
     if (!dl || !dl.buffer || dl.buffer.length < 120000) throw new Error('Audio stream too short');
     return {
       ...dl,
@@ -5700,7 +5710,7 @@ async function tryExtractYouTubeStream(videoId) {
   }));
 
   const invidiousPromise = Promise.any(invidiousInstances.map(async (apiUrl) => {
-    const r = await fetch(apiUrl, { signal: AbortSignal.timeout(3800) });
+    const r = await fetch(apiUrl, { signal: AbortSignal.timeout(2400) });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const j = await r.json();
     const adaptive = Array.isArray(j?.adaptiveFormats) ? j.adaptiveFormats : [];
@@ -5708,7 +5718,7 @@ async function tryExtractYouTubeStream(videoId) {
       .filter(f => f && f.url && String(f.type || '').startsWith('audio/'))
       .sort((a, b) => (parseInt(b.bitrate, 10) || 0) - (parseInt(a.bitrate, 10) || 0));
     if (!audioFmts.length) throw new Error('No adaptive audio');
-    const dl = await fetchAudioBufferSafe(audioFmts[0].url, 6500);
+    const dl = await fetchAudioBufferSafe(audioFmts[0].url, 5500);
     if (!dl || !dl.buffer || dl.buffer.length < 120000) throw new Error('Adaptive audio too short');
     return {
       ...dl,
@@ -6489,7 +6499,7 @@ async function resolveYouTubeDirectAudioUrl(videoId) {
     `https://pipedapi.smnz.de/streams/${id}`,
     `https://pipedapi.adminforge.de/streams/${id}`
   ].map(async (apiUrl) => {
-    const r = await fetch(apiUrl, { signal: AbortSignal.timeout(3500) });
+    const r = await fetch(apiUrl, { signal: AbortSignal.timeout(2400) });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const j = await r.json();
     const streams = (Array.isArray(j?.audioStreams) ? j.audioStreams : [])
@@ -6505,7 +6515,7 @@ async function resolveYouTubeDirectAudioUrl(videoId) {
     `https://inv.nadeko.net/api/v1/videos/${id}`,
     `https://invidious.privacyredirect.com/api/v1/videos/${id}`
   ].map(async (apiUrl) => {
-    const r = await fetch(apiUrl, { signal: AbortSignal.timeout(3500) });
+    const r = await fetch(apiUrl, { signal: AbortSignal.timeout(2400) });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const j = await r.json();
     const fmts = (Array.isArray(j?.adaptiveFormats) ? j.adaptiveFormats : [])
@@ -6610,7 +6620,7 @@ function createBufferedLiveStream(cacheKey, contentType = 'audio/mpeg', contentL
   return { live, pushChunk, finish };
 }
 
-async function startRemoteLiveAudioStream(cacheKey, streamUrl, contentTypeHint = 'audio/mpeg', extraHeaders = {}, timeoutMs = 95000, requestHeaders = {}, connectTimeoutMs = 7500) {
+async function startRemoteLiveAudioStream(cacheKey, streamUrl, contentTypeHint = 'audio/mpeg', extraHeaders = {}, timeoutMs = 95000, requestHeaders = {}, connectTimeoutMs = 4800) {
   if (!streamUrl || !/^https?:\/\//i.test(streamUrl)) return null;
   const abortCtrl = new AbortController();
   const totalTid = setTimeout(() => abortCtrl.abort(), timeoutMs);
@@ -6754,7 +6764,7 @@ async function startNotubeLiveStream(cacheKey, videoId, customMeta = {}, expecte
         cleanup();
         resolve(null);
       }
-    }, 13500);
+    }, 9500);
 
     const onStateEvent = (chunk, isDone, isError) => {
       if (!buffered) {
@@ -6808,7 +6818,13 @@ async function startLiveYouTubeStream(cacheKey, p) {
   let videoId = p.rawVideoId;
   let durationSec = p.expectedDur || 0;
   let resolvedTitle = p.rawTitle || '';
-  if (!videoId && p.searchQuery) {
+  if (!videoId && p.sharedYtSearchPromise) {
+    const top = await p.sharedYtSearchPromise.catch(() => null);
+    if (!top || !top.videoId) return null;
+    videoId = top.videoId;
+    durationSec = top.durationSec || durationSec;
+    resolvedTitle = resolvedTitle || top.title || '';
+  } else if (!videoId && p.searchQuery) {
     const ytList = await searchYouTubeCandidatesServer(
       p.rawArtist && p.rawTitle ? `${p.rawArtist} ${p.rawTitle}` : p.searchQuery,
       p.rawTitle, p.rawArtist, p.expectedDur
@@ -6838,11 +6854,11 @@ async function startLiveYouTubeStream(cacheKey, p) {
     },
     95000,
     {},
-    7500
+    4800
   );
 }
 
-function getOrStartLiveStream(cacheKey, params, maxWaitMs = 8000) {
+function getOrStartLiveStream(cacheKey, params, maxWaitMs = 4500) {
   if (LIVE_AUDIO_STREAMS.has(cacheKey)) return Promise.resolve(LIVE_AUDIO_STREAMS.get(cacheKey));
   let p = LIVE_START_PROMISES.get(cacheKey);
   if (!p) {
@@ -6996,8 +7012,17 @@ app.get('/api/v1/audio/extract', async (req, res) => {
     durationSec: expectedDur || 0
   };
 
+  const sharedYtSearchPromise = (!resolvedMeta.videoId && searchQuery)
+    ? searchYouTubeCandidatesServer(
+        rawArtist && rawTitle ? `${rawArtist} ${rawTitle}` : searchQuery,
+        rawTitle,
+        rawArtist,
+        expectedDur
+      ).then(list => (Array.isArray(list) ? (list.find(c => c && c.videoId && (c.authScore || 0) >= 35) || null) : null)).catch(() => null)
+    : null;
+
   const rangeHdr = String(req.headers.range || '');
-  const rangeMatch = rangeHdr ? /bytes=(\d+)-/.exec(rangeHdr) : null;
+  const rangeMatch = rangeHdr ? /bytes=(\d+)-/.exec(String(rangeHdr)) : null;
   const rangeStart = rangeMatch ? parseInt(rangeMatch[1], 10) : 0;
 
   // Si ya existe un live stream activo para esta canción, acoplarse inmediatamente sin duplicar descarga
@@ -7061,20 +7086,36 @@ app.get('/api/v1/audio/extract', async (req, res) => {
         const l = await getOrStartLiveStream(cacheKey, {
           rawVideoId: resolvedMeta.videoId,
           searchQuery,
+          sharedYtSearchPromise,
           rawTitle: resolvedMeta.title,
           rawArtist: resolvedMeta.artist,
           thumbnail: resolvedMeta.thumbnail,
           expectedDur
-        }, 7000);
+        }, 4500);
         const won = tryClaimLive(l);
         if (!won) throw new Error('yt_piped_live_failed');
         return won;
       })());
     }
 
-    if (resolvedMeta.videoId && !scTrackId && !directAudioUrl) {
+    if (!scTrackId && !directAudioUrl && (resolvedMeta.videoId || sharedYtSearchPromise)) {
       liveBranches.push((async () => {
-        const l = await startNotubeLiveStream(cacheKey, resolvedMeta.videoId, resolvedMeta, expectedDur);
+        let targetVid = resolvedMeta.videoId;
+        let targetMeta = resolvedMeta;
+        if (!targetVid && sharedYtSearchPromise) {
+          const topCand = await sharedYtSearchPromise;
+          if (topCand && topCand.videoId) {
+            targetVid = topCand.videoId;
+            targetMeta = {
+              ...resolvedMeta,
+              videoId: targetVid,
+              durationSec: topCand.durationSec || resolvedMeta.durationSec,
+              thumbnail: resolvedMeta.thumbnail || topCand.thumbnail || ''
+            };
+          }
+        }
+        if (!targetVid) throw new Error('notube_no_vid');
+        const l = await startNotubeLiveStream(cacheKey, targetVid, targetMeta, expectedDur);
         const won = tryClaimLive(l);
         if (!won) throw new Error('notube_live_failed');
         return won;
@@ -7184,15 +7225,16 @@ app.get('/api/v1/audio/extract', async (req, res) => {
         }
         throw new Error('yt_direct_failed');
       })());
-    } else if (searchQuery) {
+    } else if (sharedYtSearchPromise || searchQuery) {
       fastRaceBranches.push((async () => {
-        const ytList = await searchYouTubeCandidatesServer(
-          rawArtist && rawTitle ? `${rawArtist} ${rawTitle}` : searchQuery,
-          rawTitle,
-          rawArtist,
-          expectedDur
-        );
-        const topCand = ytList.find(c => c && c.videoId && (c.authScore || 0) >= 35);
+        const topCand = sharedYtSearchPromise
+          ? await sharedYtSearchPromise
+          : ((await searchYouTubeCandidatesServer(
+              rawArtist && rawTitle ? `${rawArtist} ${rawTitle}` : searchQuery,
+              rawTitle,
+              rawArtist,
+              expectedDur
+            )).find(c => c && c.videoId && (c.authScore || 0) >= 35) || null);
         if (!topCand || !topCand.videoId) throw new Error('yt_search_empty');
         if (YOUTUBE_FULL_MP3_LRU.has(topCand.videoId)) {
           const ytCached = YOUTUBE_FULL_MP3_LRU.get(topCand.videoId);

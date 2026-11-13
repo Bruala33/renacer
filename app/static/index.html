@@ -5043,9 +5043,13 @@
             </button>
             <div style="display:flex; align-items:center; gap:4px;">
               <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.adjustKaraokeOffset(-0.5)" class="np-karaoke-tool-btn" style="padding:4px 8px; font-size:11px; font-weight:800;" title="Retrasar letra 0.5s">-0.5s</button>
-              <button id="npKaraokeOffsetBadge" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.resetKaraokeOffset()" class="np-karaoke-tool-btn" style="padding:4px 7px; font-size:10.5px; font-weight:700; min-width:42px; justify-content:center;" title="Toca cualquier frase para saltar · Pulsa aquí para restablecer sincronización (o usa ±0.5s)">0.0s</button>
+              <button id="npKaraokeOffsetBadge" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.resetKaraokeOffset()" class="np-karaoke-tool-btn" style="padding:4px 7px; font-size:10.5px; font-weight:700; min-width:42px; justify-content:center;" title="Toca una frase para saltar · Mantén pulsada una frase cuando suene para sincronizarla · Pulsa aquí para restablecer">0.0s</button>
               <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.adjustKaraokeOffset(0.5)" class="np-karaoke-tool-btn" style="padding:4px 8px; font-size:11px; font-weight:800;" title="Adelantar letra 0.5s">+0.5s</button>
             </div>
+          </div>
+          <div id="npKaraokeHoldTipBanner" class="np-karaoke-hold-tip hidden" role="status">
+            <span class="np-karaoke-hold-tip-text">¿Letra desfasada? <strong>Mantén pulsada</strong> una frase justo cuando suene para sincronizarla · Un toque salta a ella.</span>
+            <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.dismissKaraokeOnboardingTip()" class="np-karaoke-hold-tip-btn">Entendido</button>
           </div>
           <div id="npKaraokeScrollBox" class="np-karaoke-scroll-box">
             <div class="np-karaoke-placeholder">Cargando letra sincronizada...</div>
@@ -12540,6 +12544,7 @@ function stopPianoCameraLoop() {
 
       let reconstructedLines = [];
       let isUniversalLrc = Boolean(beatmap._universalLrcKaraoke);
+      let appliedSavedOffsetInFetch = false;
 
       const notesToUse = (Array.isArray(beatmap.notes) && beatmap.notes.length > 0)
         ? beatmap.notes
@@ -12578,11 +12583,13 @@ function stopPianoCameraLoop() {
 
       if (!reconstructedLines || reconstructedLines.length < 4) {
         let lrcLines = null;
+        let usedEnsureAligned = false;
 
         if (window.KaraokeLyricsService && typeof window.KaraokeLyricsService.fetchLyricsForTrack === 'function') {
           try {
             let kLines = null;
             if (typeof window.KaraokeLyricsService.ensureAudioAlignedLyricsForGameplay === 'function') {
+              usedEnsureAligned = true;
               kLines = await window.KaraokeLyricsService.ensureAudioAlignedLyricsForGameplay(
                 trackMeta,
                 gameplayBlob,
@@ -12618,8 +12625,13 @@ function stopPianoCameraLoop() {
           } catch (_) {}
         }
 
+        if (usedEnsureAligned && Array.isArray(lrcLines) && lrcLines.length >= 4) {
+          appliedSavedOffsetInFetch = true;
+        }
+
         if (!Array.isArray(lrcLines) || lrcLines.length < 4) {
           lrcLines = await fetchUniversalSyncedLyrics(sTitle, sArtist, expectedDurSec);
+          appliedSavedOffsetInFetch = false;
         }
 
         if (Array.isArray(lrcLines) && lrcLines.length > 0) {
@@ -12629,6 +12641,9 @@ function stopPianoCameraLoop() {
             beatmap.lyrics = generatedRawLyrics;
             beatmap._universalLrcKaraoke = true;
             beatmap._audioSyllableAligned = true;
+            beatmap._bakedUserOffsetSec = appliedSavedOffsetInFetch
+              ? (Number(window.KaraokeLyricsService?.getUserOffsetSec?.(trackMeta)) || 0)
+              : 0;
             if (beatmap.metadata) beatmap.metadata.lyrics = generatedRawLyrics;
             isUniversalLrc = true;
             reconstructedLines = parseTopLevelLyrics(generatedRawLyrics);
@@ -12663,6 +12678,63 @@ function stopPianoCameraLoop() {
           }
           if (!Array.isArray(line.verso) && Array.isArray(line.syllables)) {
             line.verso = line.syllables;
+          }
+        }
+
+        if (!appliedSavedOffsetInFetch && window.KaraokeLyricsService && typeof window.KaraokeLyricsService.getUserOffsetSec === 'function') {
+          const curUserOffSec = Number(window.KaraokeLyricsService.getUserOffsetSec(trackMeta)) || 0;
+          const bakedOffSec = Number(beatmap._bakedUserOffsetSec) || 0;
+          const uOffSec = +(curUserOffSec - bakedOffSec).toFixed(2);
+          if (Math.abs(uOffSec) >= 0.05) {
+            const shiftMs = -Math.round(uOffSec * 1000);
+            for (const line of reconstructedLines) {
+              if (!line) continue;
+              if (Number.isFinite(Number(line.timeMs))) {
+                line.timeMs = Math.max(0, Math.round(Number(line.timeMs) + shiftMs));
+              }
+              if (Number.isFinite(Number(line.endTimeMs))) {
+                line.endTimeMs = Math.max((Number(line.timeMs) || 0) + 250, Math.round(Number(line.endTimeMs) + shiftMs));
+              }
+              if (Number.isFinite(Number(line.vocalStartMs))) {
+                line.vocalStartMs = Math.max(0, Math.round(Number(line.vocalStartMs) + shiftMs));
+              }
+              if (Number.isFinite(Number(line.vocalEndMs))) {
+                line.vocalEndMs = Math.max(0, Math.round(Number(line.vocalEndMs) + shiftMs));
+              }
+              if (Array.isArray(line.wordTimestamps)) {
+                line.wordTimestamps = line.wordTimestamps.map(wt => Math.max(0, Math.round((Number(wt) || 0) + shiftMs)));
+              }
+              if (Array.isArray(line.words)) {
+                line.words = line.words.map(w => {
+                  if (!w || typeof w !== 'object') return w;
+                  const cw = { ...w };
+                  if (Number.isFinite(Number(cw.time))) cw.time = Math.max(0, Math.round(Number(cw.time) + shiftMs));
+                  if (Number.isFinite(Number(cw.timeSec))) cw.timeSec = Math.max(0, +(Number(cw.timeSec) - uOffSec).toFixed(3));
+                  return cw;
+                });
+              }
+              const origSyls = Array.isArray(line.syllables) ? line.syllables : null;
+              if (origSyls) {
+                line.syllables = origSyls.map(s => {
+                  if (!s || typeof s !== 'object') return s;
+                  return Number.isFinite(Number(s.time))
+                    ? { ...s, time: Math.max(0, Math.round(Number(s.time) + shiftMs)) }
+                    : { ...s };
+                });
+              }
+              if (Array.isArray(line.verso)) {
+                if (origSyls && line.verso === origSyls) {
+                  line.verso = line.syllables;
+                } else {
+                  line.verso = line.verso.map(s => {
+                    if (!s || typeof s !== 'object') return s;
+                    return Number.isFinite(Number(s.time))
+                      ? { ...s, time: Math.max(0, Math.round(Number(s.time) + shiftMs)) }
+                      : { ...s };
+                  });
+                }
+              }
+            }
           }
         }
       }
@@ -16234,20 +16306,37 @@ function stopPianoCameraLoop() {
 
       const promise = (async () => {
         const myWorker = (u) => `https://drive-proxi.jocomomolobruno.workers.dev/?url=${encodeURIComponent(u)}`;
+        const cfWorker2 = (u) => `https://tight-breeze-969f.p1822994.workers.dev/?url=${encodeURIComponent(u)}`;
         const ytUrl = `https://www.youtube.com/watch?v=${videoId}`;
         const startNode = preferredNode || NOTUBE_FAST_NODES[(_notubeNodeRoundRobin++) % NOTUBE_FAST_NODES.length];
         const orderedNodes = [startNode, ...NOTUBE_FAST_NODES.filter(n => n !== startNode)];
+
+        const fetchWorkerFast = (proxiedUrl, opts = {}, timeoutMs = 3400) => {
+          const ctrl = new AbortController();
+          const tid = setTimeout(() => ctrl.abort(), timeoutMs);
+          return fetch(proxiedUrl, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(tid));
+        };
+
+        const raceWorkersOk = (targetUrl, opts = {}, timeoutMs = 3400) => Promise.any([
+          fetchWorkerFast(myWorker(targetUrl), opts, timeoutMs).then(r => {
+            if (!r || !r.ok) throw new Error('w1');
+            return r;
+          }),
+          fetchWorkerFast(cfWorker2(targetUrl), opts, timeoutMs).then(r => {
+            if (!r || !r.ok) throw new Error('w2');
+            return r;
+          })
+        ]);
 
         const trySingleNode = async (node) => {
           const apiHost = `https://${node}.notube.im`;
           const webHost = 'https://notube.im';
           const body1 = new URLSearchParams({ url: ytUrl, format: 'mp3', lang: 'es', subscribed: 'false' });
-          const r1 = await fetch(myWorker(`${apiHost}/recover_weight.php`), {
+          const r1 = await raceWorkersOk(`${apiHost}/recover_weight.php`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
             body: body1.toString()
-          });
-          if (!r1.ok) throw new Error('r1 fail');
+          }, 3400);
           const d1 = await r1.json();
           if (!d1 || !d1.token) throw new Error('no token');
 
@@ -16264,32 +16353,28 @@ function stopPianoCameraLoop() {
             ab: '128'
           });
           let finalToken = d1.token;
-          const r2 = await fetch(myWorker(`${apiHost}/recover_file.php`), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
-            body: body2.toString()
-          });
-          if (r2.ok) {
-            try {
-              const d2 = await r2.json();
-              if (d2 && d2.token) finalToken = d2.token;
-              if (d2 && d2.retour && d2.retour !== 'OK' && d2.retour !== 'HS') {
-                throw new Error('notube retour ' + d2.retour);
-              }
-            } catch (e) {
-              if (String(e.message || '').startsWith('notube retour')) throw e;
+          try {
+            const r2 = await raceWorkersOk(`${apiHost}/recover_file.php`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+              body: body2.toString()
+            }, 3400);
+            const d2 = await r2.json();
+            if (d2 && d2.token) finalToken = d2.token;
+            if (d2 && d2.retour && d2.retour !== 'OK' && d2.retour !== 'HS') {
+              throw new Error('notube retour ' + d2.retour);
             }
+          } catch (e) {
+            if (String(e?.message || '').startsWith('notube retour')) throw e;
           }
 
           // SIEMPRE obtener la firma obligatoria &key=... desde /es/download?token=...
           let dlUrl = '';
-          const pageRes = await fetch(myWorker(`${webHost}/es/download?token=${encodeURIComponent(finalToken)}`));
-          if (pageRes.ok) {
-            const html = await pageRes.text();
-            const keyMatch = html.match(/https:\/\/s\d+\.notube\.(?:im|net)\/download\.php\?token=[^"'\s>]+&key=[A-Za-z0-9]+/);
-            if (keyMatch && keyMatch[0]) {
-              dlUrl = keyMatch[0];
-            }
+          const pageRes = await raceWorkersOk(`${webHost}/es/download?token=${encodeURIComponent(finalToken)}`, {}, 3400);
+          const html = await pageRes.text();
+          const keyMatch = html.match(/https:\/\/s\d+\.notube\.(?:im|net)\/download\.php\?token=[^"'\s>]+&key=[A-Za-z0-9]+/);
+          if (keyMatch && keyMatch[0]) {
+            dlUrl = keyMatch[0];
           }
           if (!dlUrl) throw new Error('missing signed key');
 
@@ -16308,14 +16393,14 @@ function stopPianoCameraLoop() {
         };
 
         try {
-          const result = await Promise.any(orderedNodes.slice(0, 3).map(n => trySingleNode(n)));
+          const result = await Promise.any(orderedNodes.slice(0, 4).map(n => trySingleNode(n)));
           if (result && result.dlUrl) {
             window._ytMp3UrlCache.set(videoId, result);
             return result;
           }
         } catch (_) {
           try {
-            const fallbackRes = await Promise.any(orderedNodes.slice(3, 6).map(n => trySingleNode(n)));
+            const fallbackRes = await Promise.any(orderedNodes.slice(4, 7).map(n => trySingleNode(n)));
             if (fallbackRes && fallbackRes.dlUrl) {
               window._ytMp3UrlCache.set(videoId, fallbackRes);
               return fallbackRes;
@@ -16365,24 +16450,38 @@ function stopPianoCameraLoop() {
         const myWorker = (u) => `https://drive-proxi.jocomomolobruno.workers.dev/?url=${encodeURIComponent(u)}`;
         const cfWorker2 = (u) => `https://tight-breeze-969f.p1822994.workers.dev/?url=${encodeURIComponent(u)}`;
 
-        const fetchNotubeBinaryStream = async (signedDlUrl) => {
-          // IMPORTANTE: Nunca hacer fetch(signedDlUrl) directo desde WebView (sin cabeceras CORS, quema la key de un solo uso)
-          // ni pasar por el proxy 503 antes que el Worker; ir directo por el Cloudflare Worker con CORS habilitado.
+        const fetchSingleBinaryAttempt = async (proxiedUrl, connectTimeoutMs = 4800) => {
+          const ctrl = new AbortController();
+          const tid = setTimeout(() => ctrl.abort(), connectTimeoutMs);
           try {
-            const wRes = await fetch(myWorker(signedDlUrl));
+            const res = await fetch(proxiedUrl, { signal: ctrl.signal });
+            clearTimeout(tid);
+            return { res, ctrl };
+          } catch (e) {
+            clearTimeout(tid);
+            throw e;
+          }
+        };
+
+        const fetchNotubeBinaryStream = async (signedDlUrl) => {
+          // IMPORTANTE: Nunca hacer fetch(signedDlUrl) directo ni en paralelo (quema la key de un solo uso);
+          // ir secuencial con timeout ágil de conexión por Cloudflare Worker.
+          try {
+            const { res: wRes, ctrl } = await fetchSingleBinaryAttempt(myWorker(signedDlUrl), 4800);
             if (wRes && wRes.ok) {
               const ct = String(wRes.headers.get('content-type') || '').toLowerCase();
               if (!ct.includes('text/html') && !ct.includes('application/json')) {
-                return wRes;
+                return { dlRes: wRes, dlCtrl: ctrl };
               }
             }
           } catch (_) {}
-          return fetch(cfWorker2(signedDlUrl));
+          const { res: w2Res, ctrl: w2Ctrl } = await fetchSingleBinaryAttempt(cfWorker2(signedDlUrl), 4800);
+          return { dlRes: w2Res, dlCtrl: w2Ctrl };
         };
 
         if (onProgress) onProgress('Conectando con YouTube Audio...');
 
-        for (let attempt = 0; attempt < 3; attempt++) {
+        for (let attempt = 0; attempt < 2; attempt++) {
           const nextNode = attempt === 0
             ? preferredNode
             : NOTUBE_FAST_NODES[(_notubeNodeRoundRobin++) % NOTUBE_FAST_NODES.length];
@@ -16393,21 +16492,33 @@ function stopPianoCameraLoop() {
           window._ytMp3UrlCache.delete(videoId);
           const activeDlUrl = resolved.dlUrl;
 
+          let readStallTid = null;
+          let activeCtrl = null;
           try {
             if (onProgress) onProgress('Transmitiendo canción completa de YouTube...');
-            const dlRes = await fetchNotubeBinaryStream(activeDlUrl);
+            const { dlRes, dlCtrl } = await fetchNotubeBinaryStream(activeDlUrl);
+            activeCtrl = dlCtrl;
             if (!dlRes || !dlRes.ok) continue;
             const ct = String(dlRes.headers.get('content-type') || '').toLowerCase();
             if (ct.includes('text/html') || ct.includes('application/json')) continue;
+
+            const bumpReadWatchdog = () => {
+              if (readStallTid) clearTimeout(readStallTid);
+              readStallTid = setTimeout(() => {
+                try { if (activeCtrl) activeCtrl.abort(); } catch (_) {}
+              }, 12000);
+            };
 
             if (dlRes.body && typeof dlRes.body.getReader === 'function') {
               const reader = dlRes.body.getReader();
               const chunks = [];
               let totalBytes = 0;
               let partialNotified = false;
+              bumpReadWatchdog();
 
               while (true) {
                 const { done, value } = await reader.read();
+                bumpReadWatchdog();
                 if (done) break;
                 if (value && value.byteLength > 0) {
                   chunks.push(value);
@@ -16423,6 +16534,7 @@ function stopPianoCameraLoop() {
                   }
                 }
               }
+              if (readStallTid) { clearTimeout(readStallTid); readStallTid = null; }
 
               if (totalBytes >= 100000) {
                 const fullBlob = new Blob(chunks, { type: 'audio/mpeg' });
@@ -16438,7 +16550,9 @@ function stopPianoCameraLoop() {
                 };
               }
             } else {
+              bumpReadWatchdog();
               const ab = await dlRes.arrayBuffer();
+              if (readStallTid) { clearTimeout(readStallTid); readStallTid = null; }
               if (ab && ab.byteLength >= 100000) {
                 const fullBlob = new Blob([ab], { type: 'audio/mpeg' });
                 window._fullTrackBlobCache.set(`yt_${videoId}`, fullBlob);
@@ -16453,7 +16567,10 @@ function stopPianoCameraLoop() {
                 };
               }
             }
-          } catch (_) {}
+          } catch (_) {
+          } finally {
+            if (readStallTid) clearTimeout(readStallTid);
+          }
         }
 
         return null;
@@ -16672,6 +16789,66 @@ function stopPianoCameraLoop() {
       }
       return null;
     }
+
+    async function resolveSoundCloudProgressiveUrlClient(rawTitle, rawArtist = '', limit = 10, directScTrack = null) {
+      const myWorker = (u) => `https://drive-proxi.jocomomolobruno.workers.dev/?url=${encodeURIComponent(u)}`;
+      const cfWorker2 = (u) => `https://tight-breeze-969f.p1822994.workers.dev/?url=${encodeURIComponent(u)}`;
+      try {
+        const clientId = await getSoundCloudClientIdClient();
+        const tryResolveTrack = async (tr, fallbackMeta = null) => {
+          if (!tr || !tr.media) return null;
+          const durSec = Math.round(Number(tr.duration || 0) / 1000);
+          if (durSec < 45) return null;
+          const transcodings = (tr.media.transcodings || []).filter(t =>
+            t && t.url && !t.snipped && t.format?.protocol === 'progressive'
+          );
+          if (transcodings.length === 0) return null;
+          const chosen = transcodings.find(t => String(t.format?.mime_type || '').includes('mpeg')) || transcodings[0];
+          const trackAuth = tr.track_authorization || '';
+          const sep = chosen.url.includes('?') ? '&' : '?';
+          const streamResolveUrl = `${chosen.url}${sep}client_id=${clientId}${trackAuth ? `&track_authorization=${encodeURIComponent(trackAuth)}` : ''}`;
+          const fetchResolve = (proxiedUrl) => {
+            const ctrl = new AbortController();
+            const tid = setTimeout(() => ctrl.abort(), 3200);
+            return fetch(proxiedUrl, { signal: ctrl.signal }).finally(() => clearTimeout(tid));
+          };
+          let resResp = null;
+          try {
+            resResp = await Promise.any([
+              fetchResolve(myWorker(streamResolveUrl)).then(r => { if (!r || !r.ok) throw new Error('w1'); return r; }),
+              fetchResolve(cfWorker2(streamResolveUrl)).then(r => { if (!r || !r.ok) throw new Error('w2'); return r; })
+            ]);
+          } catch (_) {
+            return null;
+          }
+          const resJson = await resResp.json().catch(() => null);
+          if (!resJson || !resJson.url || !/^https?:\/\//i.test(resJson.url)) return null;
+          const parsedMeta = parseSoundCloudTrackMetaClient(tr, fallbackMeta?.title || rawTitle, fallbackMeta?.artist || rawArtist);
+          return {
+            url: resJson.url,
+            durationSec: durSec,
+            title: parsedMeta.title || fallbackMeta?.title || rawTitle,
+            artist: parsedMeta.artist || fallbackMeta?.artist || rawArtist || 'Artista',
+            thumbnail: (tr.artwork_url || tr.user?.avatar_url || '').replace('-large', '-t500x500'),
+            sourceName: 'SoundCloud Progressive Stream'
+          };
+        };
+
+        if (directScTrack && directScTrack.media) {
+          const directRes = await tryResolveTrack(directScTrack);
+          if (directRes) return directRes;
+        }
+        const candidates = await searchSoundCloudFullClient(rawTitle, rawArtist, limit);
+        if (!Array.isArray(candidates) || candidates.length === 0) return null;
+        for (const cand of candidates.slice(0, 2)) {
+          if ((cand.authenticityScore || 0) < 62) break;
+          const res = await tryResolveTrack(cand._scRawTrack, cand);
+          if (res) return res;
+        }
+      } catch (_) {}
+      return null;
+    }
+    window.resolveSoundCloudProgressiveUrlClient = resolveSoundCloudProgressiveUrlClient;
 
     async function searchAndDownloadAudiusFullClient(rawTitle, rawArtist = '', onProgress = null) {
       const cleanTitle = String(rawTitle || '').trim();
@@ -17652,10 +17829,14 @@ function stopPianoCameraLoop() {
       } catch (_) {}
 
       // 1. CARRERA PARALELA DE AUDIO REAL (Blob MP3 completo para 120 FPS fluidos + análisis acústico de letras):
+      const directYtVid = extractCleanYtIdFromTrack(preferredCandidate);
+      const sharedYtSearchPromise = (!directYtVid)
+        ? searchYouTubeOfficialClient(cleanTitle, cleanArtist, expectedDur).catch(() => [])
+        : Promise.resolve([]);
+
       const resolveYtVideoIdTask = (async () => {
-        const directVid = extractCleanYtIdFromTrack(preferredCandidate);
-        if (directVid) return directVid;
-        const ytList = await searchYouTubeOfficialClient(cleanTitle, cleanArtist, expectedDur).catch(() => []);
+        if (directYtVid) return directYtVid;
+        const ytList = await sharedYtSearchPromise;
         if (Array.isArray(ytList) && ytList.length > 0 && ytList[0].videoId) {
           if (!resolvedThumb && ytList[0].thumbnail) resolvedThumb = ytList[0].thumbnail;
           return ytList[0].videoId;
@@ -17663,33 +17844,23 @@ function stopPianoCameraLoop() {
         return '';
       })();
 
+      const sharedScSearchPromise = (preferredCandidate && (preferredCandidate._scRawTrack || preferredCandidate.scTrackId))
+        ? Promise.resolve([])
+        : searchSoundCloudFullClient(cleanTitle, cleanArtist, 14).catch(() => []);
+
+      let serverExtractFailed = false;
+      let scDirectProgPromise = null;
+
       try {
         if (onProgress) {
           onProgress(`Preparando pista de estudio (${cleanTitle})...`);
         }
 
-        const dualStreamPreloadTask = (async () => {
-          if (!window.dualStreamEngine || typeof window.dualStreamEngine.preloadFullTrackInBackground !== 'function') {
-            throw new Error('No dualStreamEngine');
-          }
-          const trackObj = preferredCandidate || { title: cleanTitle, artist: cleanArtist, thumbnail: resolvedThumb };
-          const dsBlob = await window.dualStreamEngine.preloadFullTrackInBackground(trackObj);
-          if (dsBlob && dsBlob.size >= 80000) {
-            if (candKey) window._fullTrackBlobCache.set(candKey, dsBlob);
-            window._fullTrackBlobCache.set(normKey, dsBlob);
-            return {
-              blob: dsBlob,
-              title: cleanTitle,
-              artist: cleanArtist || 'Artista',
-              thumbnail: resolvedThumb || getSongCoverFallback(cleanTitle, cleanArtist),
-              sourceName: 'DualStream Master Audio'
-            };
-          }
-          throw new Error('DualStream preload empty');
-        })();
-
         const scClientTask = (async () => {
           if (preferredCandidate && (preferredCandidate._scRawTrack || preferredCandidate.scTrackId)) {
+            if (!scDirectProgPromise && preferredCandidate._scRawTrack) {
+              scDirectProgPromise = resolveSoundCloudProgressiveUrlClient(cleanTitle, cleanArtist, 10, preferredCandidate._scRawTrack).catch(() => null);
+            }
             const scDirect = await downloadSoundCloudFullTrackClient(preferredCandidate._scRawTrack || preferredCandidate.scTrackId, onProgress);
             if (scDirect && scDirect.blob && scDirect.blob.size >= 100000) {
               if (candKey) window._fullTrackBlobCache.set(candKey, scDirect.blob);
@@ -17703,7 +17874,10 @@ function stopPianoCameraLoop() {
               };
             }
           }
-          const scCandidates = await searchSoundCloudFullClient(cleanTitle, cleanArtist, 14);
+          const scCandidates = await sharedScSearchPromise;
+          if (Array.isArray(scCandidates) && scCandidates[0]?._scRawTrack && !scDirectProgPromise) {
+            scDirectProgPromise = resolveSoundCloudProgressiveUrlClient(cleanTitle, cleanArtist, 10, scCandidates[0]._scRawTrack).catch(() => null);
+          }
           for (const scCand of scCandidates.slice(0, 3)) {
             if ((scCand.authenticityScore || 0) < 62) break;
             const scDl = await downloadSoundCloudFullTrackClient(scCand._scRawTrack || scCand.scTrackId, onProgress);
@@ -17726,7 +17900,7 @@ function stopPianoCameraLoop() {
           const vidsToTry = [];
           const vid0 = await resolveYtVideoIdTask;
           if (vid0) vidsToTry.push(vid0);
-          const ytList = await searchYouTubeOfficialClient(cleanTitle, cleanArtist, expectedDur).catch(() => []);
+          const ytList = await sharedYtSearchPromise;
           if (Array.isArray(ytList)) {
             for (const c of ytList.slice(0, 3)) {
               if (c && c.videoId && !vidsToTry.includes(c.videoId)) vidsToTry.push(c.videoId);
@@ -17755,11 +17929,14 @@ function stopPianoCameraLoop() {
           const vid0 = await resolveYtVideoIdTask.catch(() => '');
           const srvUrl = `${baseUrl}/api/v1/audio/extract?title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist || '')}${vid0 ? `&videoId=${encodeURIComponent(vid0)}` : ''}`;
           const ctrl = new AbortController();
-          const tid = setTimeout(() => ctrl.abort(), 9000);
+          const tid = setTimeout(() => ctrl.abort(), 7200);
           try {
             const resp = await fetch(srvUrl, { signal: ctrl.signal });
             clearTimeout(tid);
-            if (!resp.ok) throw new Error('Server extract HTTP ' + resp.status);
+            if (!resp.ok) {
+              serverExtractFailed = true;
+              throw new Error('Server extract HTTP ' + resp.status);
+            }
             const srvBlob = await resp.blob();
             if (srvBlob && srvBlob.size >= 80000) {
               const resolvedVid = decodeHeaderSafe(resp.headers.get('X-Video-Id'), vid0 || '');
@@ -17775,66 +17952,95 @@ function stopPianoCameraLoop() {
                 sourceName: 'Studio Audio Stream'
               };
             }
+            serverExtractFailed = true;
+          } catch (err) {
+            if (err && err.name !== 'AbortError') serverExtractFailed = true;
+            throw err;
           } finally {
             clearTimeout(tid);
           }
           throw new Error('Server extract empty');
         })();
 
-        const raceList = [dualStreamPreloadTask, scClientTask, clientExtractTask, serverExtractTask];
-        const winner = await Promise.any(raceList);
-        if (winner && winner.blob) return winner;
-      } catch (_) {}
-
-      // 4. Respaldo de Pistas Completas en Audius directo desde cliente (>= 45s)
-      try {
-        if (onProgress) onProgress('Buscando pista completa en red Audius...');
-        const ctrl = new AbortController();
-        const tid = setTimeout(() => ctrl.abort(), 4500);
-        const auResp = await fetch(`https://discoveryprovider.audius.co/v1/tracks/search?query=${encodeURIComponent(searchQuery)}&app_name=PianoCommunity`, { signal: ctrl.signal });
-        clearTimeout(tid);
-        if (auResp.ok) {
-          const auJson = await auResp.json();
-          const tracks = Array.isArray(auJson?.data) ? auJson.data : [];
-          for (const tr of tracks.slice(0, 4)) {
-            if (!tr || !tr.id || !tr.duration || Number(tr.duration) < 45) continue;
-            const sc = scoreStudioAudioAuthenticity(searchQuery, cleanTitle, cleanArtist, tr.title || '', tr.user?.name || '', '', 'Audius');
-            if (sc >= 60) {
-              const streamUrl = `https://discoveryprovider.audius.co/v1/tracks/${encodeURIComponent(tr.id)}/stream?app_name=PianoCommunity`;
-              const dlResp = await fetch(streamUrl);
-              if (dlResp.ok) {
-                const ab = await dlResp.arrayBuffer();
-                if (ab && ab.byteLength >= 140000) {
-                  const finalBlob = new Blob([ab], { type: 'audio/mpeg' });
-                  window._fullTrackBlobCache.set(normKey, finalBlob);
-                  return {
-                    blob: finalBlob,
-                    title: tr.title || cleanTitle,
-                    artist: tr.user?.name || cleanArtist || 'Artista',
-                    thumbnail: tr.artwork?.['480x480'] || resolvedThumb || getSongCoverFallback(cleanTitle, cleanArtist),
-                    sourceName: 'Audius Full Audio'
-                  };
-                }
-              }
-            }
+        const audiusRaceTask = (async () => {
+          const auRes = await searchAndDownloadAudiusFullClient(cleanTitle, cleanArtist);
+          if (auRes && auRes.blob && auRes.blob.size >= 140000) {
+            window._fullTrackBlobCache.set(normKey, auRes.blob);
+            return {
+              blob: auRes.blob,
+              title: auRes.title || cleanTitle,
+              artist: auRes.artist || cleanArtist || 'Artista',
+              thumbnail: auRes.thumbnail || resolvedThumb || getSongCoverFallback(cleanTitle, cleanArtist),
+              durationSec: auRes.durationSec || expectedDur,
+              sourceName: 'Audius Full Audio'
+            };
           }
+          throw new Error('Audius race failed');
+        })();
+
+        const raceList = [scClientTask, clientExtractTask, serverExtractTask, audiusRaceTask];
+        let cutoffTid = null;
+        const fastCutoffPromise = new Promise((_, reject) => {
+          cutoffTid = setTimeout(() => reject(new Error('fast_extract_cutoff')), 7500);
+        });
+        try {
+          const winner = await Promise.race([Promise.any(raceList), fastCutoffPromise]);
+          if (winner && winner.blob) return winner;
+        } finally {
+          if (cutoffTid) clearTimeout(cutoffTid);
         }
       } catch (_) {}
 
-      // 5. Respaldo garantizado de stream HTML5 progresivo directo del servidor para evitar iframes pesados en partida
+      // 4. Arranque instantáneo por stream progresivo SoundCloud o YouTube Bridge si la descarga completa excede 7.5s
       try {
-        const fallbackVid = await resolveYtVideoIdTask.catch(() => '');
-        const directProgUrl = `${baseUrl}/api/v1/audio/extract?title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist || '')}${fallbackVid ? `&videoId=${encodeURIComponent(fallbackVid)}` : ''}`;
-        return {
-          blob: null,
-          audioUrl: directProgUrl,
-          videoId: fallbackVid || '',
-          durationSec: expectedDur > 45 ? expectedDur : 195,
-          title: cleanTitle,
-          artist: cleanArtist || 'Artista',
-          thumbnail: resolvedThumb || (fallbackVid ? `https://i.ytimg.com/vi/${fallbackVid}/hqdefault.jpg` : getSongCoverFallback(cleanTitle, cleanArtist)),
-          sourceName: 'Direct Progressive Stream'
-        };
+        const scProg = scDirectProgPromise
+          ? await Promise.race([scDirectProgPromise, new Promise(r => setTimeout(() => r(null), 1200))]).catch(() => null)
+          : null;
+        if (scProg && scProg.url) {
+          return {
+            blob: null,
+            audioUrl: scProg.url,
+            videoId: '',
+            durationSec: (scProg.durationSec > 45 ? scProg.durationSec : (expectedDur > 45 ? expectedDur : 195)),
+            title: cleanTitle,
+            artist: cleanArtist || scProg.artist || 'Artista',
+            thumbnail: resolvedThumb || scProg.thumbnail || getSongCoverFallback(cleanTitle, cleanArtist),
+            sourceName: 'SoundCloud Progressive Stream'
+          };
+        }
+      } catch (_) {}
+
+      // 5. Respaldo instantáneo vía YouTube Bridge o stream HTML5 progresivo directo del servidor
+      try {
+        const fallbackVid = await Promise.race([
+          resolveYtVideoIdTask,
+          new Promise(r => setTimeout(() => r(''), 1500))
+        ]).catch(() => '');
+        if (fallbackVid) {
+          return {
+            blob: null,
+            audioUrl: `yt_bridge://${fallbackVid}`,
+            videoId: fallbackVid,
+            durationSec: expectedDur > 45 ? expectedDur : 195,
+            title: cleanTitle,
+            artist: cleanArtist || 'Artista',
+            thumbnail: resolvedThumb || `https://i.ytimg.com/vi/${fallbackVid}/hqdefault.jpg`,
+            sourceName: 'YouTube Instant Stream'
+          };
+        }
+        if (!serverExtractFailed) {
+          const directProgUrl = `${baseUrl}/api/v1/audio/extract?title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist || '')}`;
+          return {
+            blob: null,
+            audioUrl: directProgUrl,
+            videoId: '',
+            durationSec: expectedDur > 45 ? expectedDur : 195,
+            title: cleanTitle,
+            artist: cleanArtist || 'Artista',
+            thumbnail: resolvedThumb || getSongCoverFallback(cleanTitle, cleanArtist),
+            sourceName: 'Direct Progressive Stream'
+          };
+        }
       } catch (_) {}
 
       throw new Error('No se pudo extraer el audio original en este momento. Intenta de nuevo.');
@@ -23032,6 +23238,7 @@ function stopPianoCameraLoop() {
         }
 
         // 3.5. Si el audio no está en los releases de GitHub, extraerlo automáticamente de nuestro motor multifuente
+        let extractedAudioUrl = '';
         if (!audioBlob) {
           if (loadStatus) loadStatus.innerText = 'Obteniendo grabación original...';
           const extracted = await extractSongAudioMultiSource(
@@ -23045,25 +23252,42 @@ function stopPianoCameraLoop() {
             if (window._fullTrackBlobCache) {
               window._fullTrackBlobCache.set(`top_${rawId}`, audioBlob);
             }
-            if (extracted.thumbnail && (!songMeta.cover_url || songMeta.cover_url === './app_logo.png')) {
-              songMeta.cover_url = extracted.thumbnail;
-            }
+          } else if (extracted && extracted.audioUrl) {
+            extractedAudioUrl = extracted.audioUrl;
+          }
+          if (extracted && extracted.thumbnail && (!songMeta.cover_url || songMeta.cover_url === './app_logo.png')) {
+            songMeta.cover_url = extracted.thumbnail;
           }
         }
-        if (!audioBlob) throw new Error('No se pudo obtener el audio de la pista en este momento.');
+        if (!audioBlob && !extractedAudioUrl) throw new Error('No se pudo obtener el audio de la pista en este momento.');
 
         // 3.8. Si la pista no tenía chart JSON en los releases, generarlo al vuelo con el motor DSP de 3 carriles
         if (!chartData) {
           if (loadStatus) loadStatus.innerText = 'Sincronizando notas con la canción...';
-          const audioFile = new File([audioBlob], `${rawId}.mp3`, { type: audioBlob.type || 'audio/mpeg' });
-          const generatedMap = await AudioAutoMapper.createPlayableChartFromAudioFile(
-            audioFile,
-            'hard',
-            (pct, msg) => {
-              if (loadStatus) loadStatus.innerText = msg || `Sincronizando notas (${Math.round(pct)}%)...`;
-            }
-          );
-          chartData = generatedMap || { notes: [], bpm: Number(songMeta.bpm) || 120 };
+          if (audioBlob) {
+            const audioFile = new File([audioBlob], `${rawId}.mp3`, { type: audioBlob.type || 'audio/mpeg' });
+            const generatedMap = await AudioAutoMapper.createPlayableChartFromAudioFile(
+              audioFile,
+              'hard',
+              (pct, msg) => {
+                if (loadStatus) loadStatus.innerText = msg || `Sincronizando notas (${Math.round(pct)}%)...`;
+              }
+            );
+            chartData = generatedMap || { notes: [], bpm: Number(songMeta.bpm) || 120 };
+          } else {
+            chartData = await AudioAutoMapper.createInstantPlayableChartFromMetadata(
+              songMeta.title || rawId,
+              songMeta.artist || '',
+              Number(songMeta.durationSec) || 195,
+              {
+                id: `top_${rawId}`,
+                title: songMeta.title || rawId,
+                artist: songMeta.artist || '',
+                densityMode: 'hard',
+                audioUrl: extractedAudioUrl
+              }
+            );
+          }
         }
 
         // 4. Preparar BeatmapData estandarizado
@@ -23080,7 +23304,8 @@ function stopPianoCameraLoop() {
         chartData.is_top_song = true;
         chartData.source = 'top_playlist';
         chartData.source_name = 'Canciones Top';
-        chartData.audioBlob = audioBlob;
+        chartData.audioBlob = audioBlob || null;
+        if (extractedAudioUrl) chartData.audioUrl = extractedAudioUrl;
         chartData.metadata = {
           id: `top_${rawId}`,
           title: chartData.title,
@@ -23094,7 +23319,7 @@ function stopPianoCameraLoop() {
         };
 
         // 5. Guardar en Descargas SOLO si el usuario solicitó explícitamente descargar la canción
-        if (window._explicitOfflineDownloadRequested && typeof IndexedDBStorage !== 'undefined') {
+        if (audioBlob && window._explicitOfflineDownloadRequested && typeof IndexedDBStorage !== 'undefined') {
           try {
             const itemToSave = {
               id: `top_${rawId}`,
@@ -23118,7 +23343,7 @@ function stopPianoCameraLoop() {
         }
 
         if (loadStatus) loadStatus.innerText = '¡Iniciando partida!';
-        return await startGame(chartData, audioBlob, targetDiff || diffName);
+        return await startGame(chartData, audioBlob || extractedAudioUrl, targetDiff || diffName);
 
       } catch (err) {
         console.error('[TopSongs] Error al cargar canción:', err);

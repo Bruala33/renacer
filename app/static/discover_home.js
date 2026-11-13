@@ -1749,22 +1749,25 @@
     }
 
     getUserOffsetSec(trackKey = this.currentTrackKey) {
-      if (!trackKey) return 0;
-      const val = Number(this.userOffsetsMap?.[trackKey]);
-      return Number.isFinite(val) ? Math.max(-30, Math.min(30, val)) : 0;
+      const resolvedKey = (trackKey && typeof trackKey === 'object') ? this._makeKey(trackKey) : trackKey;
+      if (!resolvedKey) return 0;
+      const val = Number(this.userOffsetsMap?.[resolvedKey]);
+      return Number.isFinite(val) ? Math.max(-120, Math.min(120, val)) : 0;
     }
 
-    setUserOffsetSec(trackKey, offsetSec) {
-      if (!trackKey) return 0;
-      const clamped = Math.max(-30, Math.min(30, +(Number(offsetSec) || 0).toFixed(2)));
-      if (Math.abs(clamped) < 0.05) {
-        delete this.userOffsetsMap[trackKey];
+    setUserOffsetSec(trackKey, offsetSec, options = {}) {
+      const resolvedKey = (trackKey && typeof trackKey === 'object') ? this._makeKey(trackKey) : trackKey;
+      if (!resolvedKey) return 0;
+      const clamped = Math.max(-120, Math.min(120, +(Number(offsetSec) || 0).toFixed(2)));
+      const normalized = Math.abs(clamped) < 0.05 ? 0 : clamped;
+      if (normalized === 0) {
+        delete this.userOffsetsMap[resolvedKey];
       } else {
-        this.userOffsetsMap[trackKey] = clamped;
+        this.userOffsetsMap[resolvedKey] = normalized;
       }
       this._saveUserOffsets();
-      if (trackKey === this.currentTrackKey) {
-        this.timeOffsetSec = Math.abs(clamped) < 0.05 ? 0 : clamped;
+      if (resolvedKey === this.currentTrackKey) {
+        this.timeOffsetSec = normalized;
         this._userScrollingUntil = 0;
         this._userManualScrollUntil = 0;
         this._syncToolbarUI();
@@ -1775,9 +1778,27 @@
           ? dualStreamEngine.getCurrentSongTimeSec()
           : (this._lastSyncAudioSec || 0);
         this.activeLineIndex = -1;
-        this.syncTime(curSec, { forceScroll: true });
+        const syncOpts = { forceScroll: true };
+        if (Number.isFinite(options?.immediateLineIdx)) {
+          syncOpts.immediateLineIdx = options.immediateLineIdx;
+        }
+        this.syncTime(curSec, syncOpts);
+        return this.timeOffsetSec;
       }
-      return this.timeOffsetSec;
+      return normalized;
+    }
+
+    calibrateToHeldLine(lineIdx, currentSec = null) {
+      if (!this.currentTrackKey || !Array.isArray(this.currentLyrics)) return null;
+      const line = this.currentLyrics[lineIdx];
+      if (!line || !Number.isFinite(Number(line.timeSec))) return null;
+      const curSec = (typeof currentSec === 'number' && Number.isFinite(currentSec))
+        ? Math.max(0, currentSec)
+        : ((typeof dualStreamEngine !== 'undefined' && dualStreamEngine)
+            ? dualStreamEngine.getCurrentSongTimeSec()
+            : (this._lastSyncAudioSec || 0));
+      const targetOffset = +(Number(line.timeSec) - curSec).toFixed(2);
+      return this.setUserOffsetSec(this.currentTrackKey, targetOffset, { immediateLineIdx: lineIdx });
     }
 
     adjustOffset(deltaSec = 0) {
@@ -2677,12 +2698,13 @@
       const objZero = this._scoreAlignmentOnEnvelope(parsedLines, env, 0, 1.0);
 
       const isCleanMatch = Math.abs(durDiff) <= 4.5 && env.leadSilenceSec < 0.7 && env.musicStartSec <= Math.max(6, firstVocalSec + 2.5);
-      const isTrailingOutroCut = durDiff > 6 && env.musicStartSec < Math.max(4.0, firstVocalSec + 2.0) && activeSpanDiff <= 7.0;
+      const hasTrailingOutroSilence = Number.isFinite(env.musicEndSec) && (env.actualDur - env.musicEndSec) >= 6.0;
+      const isTrailingOutroCut = durDiff > 6 && hasTrailingOutroSilence && env.musicStartSec < Math.max(4.0, firstVocalSec + 2.0) && activeSpanDiff <= 7.0;
 
       // Buscar sin techo artificial de 3.0s: videoclips oficiales pueden tener intros de 8s o 42s aunque su duración total coincida tras recortar outro
       const minShift = -Math.min(14, Math.max(3.0, firstVocalSec * 0.85));
       const maxShift = isTrailingOutroCut
-        ? Math.max(8.0, Math.min(20, env.actualDur - firstVocalSec - 15))
+        ? Math.max(8.0, Math.min(20, (env.musicEndSec || env.actualDur) - firstVocalSec - 15))
         : Math.max(15, Math.min(95, env.actualDur - firstVocalSec - 12));
 
       let bestShift = 0;
@@ -2766,7 +2788,36 @@
         }
       }
 
-      if (bestScale === 1.0 && (isCleanMatch || isTrailingOutroCut)) {
+      let hasLateVocalEntry = false;
+      if (bestShift >= 1.5 && env.envVoice && env.envVoice.length > 20) {
+        const sampleVoiceWindow = (tStartSec, tEndSec) => {
+          const f0 = Math.max(0, Math.min(env.envVoice.length - 1, Math.floor(tStartSec * env.frameHz)));
+          const f1 = Math.max(f0, Math.min(env.envVoice.length - 1, Math.ceil(tEndSec * env.frameHz)));
+          let sum = 0;
+          let cnt = 0;
+          for (let f = f0; f <= f1; f++) {
+            sum += env.envVoice[f];
+            cnt++;
+          }
+          return cnt > 0 ? (sum / cnt) : 0;
+        };
+        const probeCount = Math.min(4, parsedLines.length);
+        let zeroSum = 0;
+        let bestSum = 0;
+        for (let i = 0; i < probeCount; i++) {
+          const t0 = Math.max(0, Number(parsedLines[i].timeSec || 0));
+          const tB = Math.min(env.actualDur - 0.15, Math.max(0, t0 * bestScale + bestShift));
+          zeroSum += sampleVoiceWindow(t0, Math.min(env.actualDur - 0.1, t0 + 1.3));
+          bestSum += sampleVoiceWindow(tB, Math.min(env.actualDur - 0.1, tB + 1.3));
+        }
+        const earlyAtZero = zeroSum / probeCount;
+        const earlyAtBest = bestSum / probeCount;
+        if (earlyAtBest > earlyAtZero + 0.16 && earlyAtZero < earlyAtBest * 0.72 && bestScore > objZero + 0.012) {
+          hasLateVocalEntry = true;
+        }
+      }
+
+      if (bestScale === 1.0 && !hasLateVocalEntry && (isCleanMatch || isTrailingOutroCut)) {
         const margin = (Math.abs(bestShift) >= 1.2 || env.leadSilenceSec >= 1.0) ? 0.042 : 0.065;
         if (bestShift !== 0 && bestScore < objZero + margin) {
           bestShift = 0;
@@ -4163,6 +4214,25 @@
       box._karaokeDelegationBound = true;
       box._manualScrollSyncBound = true;
 
+      let downX = 0;
+      let downY = 0;
+      let pointerTracked = false;
+      let holdTimer = null;
+      let heldLineEl = null;
+      let holdTriggered = false;
+      let suppressClickUntilMs = 0;
+
+      const clearHold = () => {
+        if (holdTimer) {
+          clearTimeout(holdTimer);
+          holdTimer = null;
+        }
+        if (heldLineEl) {
+          try { heldLineEl.classList.remove('holding'); } catch (_) {}
+          heldLineEl = null;
+        }
+      };
+
       const markUserScroll = () => {
         if (!this._programmaticScrolling) {
           this._userScrollingUntil = Date.now() + 3600;
@@ -4170,27 +4240,99 @@
         }
       };
 
-      box.addEventListener('wheel', markUserScroll, { passive: true });
+      box.addEventListener('wheel', () => {
+        clearHold();
+        markUserScroll();
+      }, { passive: true });
       box.addEventListener('touchstart', markUserScroll, { passive: true });
       box.addEventListener('scroll', () => {
+        clearHold();
         if (!this._programmaticScrolling) {
           this._userScrollingUntil = Date.now() + 3200;
           this._userManualScrollUntil = this._userScrollingUntil;
         }
       }, { passive: true });
 
-      let downX = 0;
-      let downY = 0;
-      let pointerTracked = false;
-
       box.addEventListener('pointerdown', (e) => {
         downX = e.clientX ?? 0;
         downY = e.clientY ?? 0;
         pointerTracked = true;
+        holdTriggered = false;
+        suppressClickUntilMs = 0;
+        clearHold();
         markUserScroll();
+
+        const lineEl = e.target && typeof e.target.closest === 'function'
+          ? e.target.closest('.np-karaoke-line[data-line-idx]')
+          : null;
+        const isPrimaryButton = (typeof e.button !== 'number' || e.button === 0);
+        if (lineEl && isPrimaryButton) {
+          const idx = parseInt(lineEl.getAttribute('data-line-idx'), 10);
+          if (Number.isFinite(idx)) {
+            heldLineEl = lineEl;
+            try { lineEl.classList.add('holding'); } catch (_) {}
+            holdTimer = setTimeout(() => {
+              holdTimer = null;
+              holdTriggered = true;
+              suppressClickUntilMs = Date.now() + 700;
+              try { lineEl.classList.remove('holding'); } catch (_) {}
+              heldLineEl = null;
+              if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncKaraokeLineByHold === 'function') {
+                window.DiscoverHomeApp.syncKaraokeLineByHold(idx);
+              }
+              const freshLineEl = document.getElementById(`karaokeLine_${idx}`);
+              if (freshLineEl) {
+                try {
+                  freshLineEl.classList.add('synced-flash');
+                  setTimeout(() => {
+                    try { freshLineEl.classList.remove('synced-flash'); } catch (_) {}
+                  }, 750);
+                } catch (_) {}
+              }
+            }, 480);
+          }
+        }
       }, { passive: true });
 
+      box.addEventListener('pointermove', (e) => {
+        if (!pointerTracked || !holdTimer) return;
+        const dx = (e.clientX ?? downX) - downX;
+        const dy = (e.clientY ?? downY) - downY;
+        if (Math.hypot(dx, dy) > 10) {
+          clearHold();
+        }
+      }, { passive: true });
+
+      box.addEventListener('pointerup', () => {
+        if (holdTriggered) {
+          suppressClickUntilMs = Math.max(suppressClickUntilMs, Date.now() + 350);
+        }
+        clearHold();
+      }, { passive: true });
+
+      box.addEventListener('pointercancel', () => {
+        pointerTracked = false;
+        holdTriggered = false;
+        suppressClickUntilMs = 0;
+        clearHold();
+      }, { passive: true });
+
+      box.addEventListener('contextmenu', (e) => {
+        if (e.target && typeof e.target.closest === 'function' && e.target.closest('.np-karaoke-line[data-line-idx]')) {
+          if (typeof e.preventDefault === 'function') e.preventDefault();
+        }
+      });
+
       box.addEventListener('click', (e) => {
+        clearHold();
+        if (holdTriggered || Date.now() < suppressClickUntilMs) {
+          holdTriggered = false;
+          suppressClickUntilMs = 0;
+          pointerTracked = false;
+          if (typeof e.preventDefault === 'function') e.preventDefault();
+          if (typeof e.stopPropagation === 'function') e.stopPropagation();
+          return;
+        }
         const lineEl = e.target && typeof e.target.closest === 'function'
           ? e.target.closest('.np-karaoke-line[data-line-idx]')
           : null;
@@ -4238,7 +4380,7 @@
         const transNorm = String(line.translatedText || '').trim().toLowerCase();
         const showSub = Boolean(this.showTranslation && line.translatedText && transNorm && transNorm !== origNorm);
         return `
-          <div id="karaokeLine_${idx}" class="np-karaoke-line" data-line-idx="${idx}" title="Toca para saltar a ${this._formatMmSs(effLineSec)}">
+          <div id="karaokeLine_${idx}" class="np-karaoke-line" data-line-idx="${idx}" title="Toca para saltar a ${this._formatMmSs(effLineSec)} · Mantén pulsado para sincronizar aquí">
             <div class="np-karaoke-main-row">${contentHtml}<span class="np-karaoke-line-time">${this._formatMmSs(effLineSec)}</span></div>
             ${showSub ? `<span class="np-karaoke-subline">${escapeHtmlSafe(line.translatedText)}</span>` : ''}
           </div>
@@ -4553,6 +4695,17 @@
         if (typeof window.pauseMenuAmbientMusic === 'function') {
           window.pauseMenuAmbientMusic();
         }
+        ++this._audioSrcOp;
+        if (this._seekGuard) this._seekGuard = null;
+        try {
+          this.previewAudio.pause();
+          this.previewAudio.src = '';
+        } catch (_) {}
+        try {
+          this.fullAudio.pause();
+          this.fullAudio.src = '';
+        } catch (_) {}
+        this._fullAudioIsLocalBlob = false;
         const safeStart = Math.max(0, Math.floor(Number(startSec) || 0));
         this._ytBridgeVideoId = videoId;
         this._ytBridgeBaseSec = safeStart;
@@ -4572,7 +4725,7 @@
           host.style.cssText = 'position:fixed;width:2px;height:2px;bottom:0;left:0;opacity:0.01;pointer-events:none;z-index:-1;overflow:hidden;';
           document.body.appendChild(host);
         }
-        const origin = encodeURIComponent(window.location.origin || 'https://renacer.onrender.com');
+        const origin = encodeURIComponent((window.location && window.location.origin) || 'https://renacer.onrender.com');
         host.innerHTML = `<iframe id="ytInstantAudioBridgeIframe" width="200" height="112" src="https://www.youtube.com/embed/${encodeURIComponent(videoId)}?autoplay=1&mute=0&controls=0&playsinline=1&enablejsapi=1&start=${safeStart}&origin=${origin}" allow="autoplay; encrypted-media"></iframe>`;
         const ifr = document.getElementById('ytInstantAudioBridgeIframe');
         if (this._ytBridgeListenTimer) clearInterval(this._ytBridgeListenTimer);
@@ -4644,7 +4797,7 @@
           host.style.cssText = 'position:fixed;width:2px;height:2px;bottom:0;left:0;opacity:0.01;pointer-events:none;z-index:-1;overflow:hidden;';
           document.body.appendChild(host);
         }
-        const origin = encodeURIComponent(window.location.origin || 'https://renacer.onrender.com');
+        const origin = encodeURIComponent((window.location && window.location.origin) || 'https://renacer.onrender.com');
         host.innerHTML = `<iframe id="ytInstantAudioBridgeIframe" width="200" height="112" src="https://www.youtube.com/embed/${encodeURIComponent(videoId)}?autoplay=1&mute=0&controls=0&playsinline=1&enablejsapi=1&start=${Math.floor(safeStart)}&origin=${origin}" allow="autoplay; encrypted-media"></iframe>`;
         const ifr = document.getElementById('ytInstantAudioBridgeIframe');
         if (ifr) {
@@ -4976,10 +5129,13 @@
       if (!blob || blob.size < 60000 || reqId !== this._playRequestId) return false;
       if (this._fullAudioIsLocalBlob && this.fullTrackBlob === blob) return true;
       const srcOp = ++this._audioSrcOp;
-      const wasPlaying = resumeIfPlaying || this.isPlaying();
+      const wasYtBridge = this.activeSourceType === 'yt_bridge';
+      const wasPlaying = Boolean(resumeIfPlaying || this.isPlaying());
       const preserveSec = (seekTargetSec !== null && Number.isFinite(seekTargetSec))
         ? Math.max(0, seekTargetSec)
-        : (this.activeSourceType === 'full' ? (Number(this.fullAudio.currentTime) || 0) : 0);
+        : (wasYtBridge
+            ? this.getCurrentSongTimeSec()
+            : (this.activeSourceType === 'full' ? (Number(this.fullAudio.currentTime) || 0) : 0));
 
       if (this.fullTrackObjectUrl) {
         try { URL.revokeObjectURL(this.fullTrackObjectUrl); } catch (_) {}
@@ -4995,17 +5151,30 @@
       const applyAtMeta = () => {
         if (reqId !== this._playRequestId || srcOp !== this._audioSrcOp) return;
         const dur = Number(this.fullAudio.duration) || 9999;
-        const safePos = Math.max(0, Math.min(dur - 0.5, preserveSec));
+        const liveSec = (seekTargetSec !== null && Number.isFinite(seekTargetSec))
+          ? Math.max(0, seekTargetSec)
+          : (wasYtBridge ? this.getCurrentSongTimeSec() : preserveSec);
+        const safePos = Math.max(0, Math.min(dur - 0.5, liveSec));
+        this._seekGuard = { targetSec: safePos, untilMs: Date.now() + 2500 };
         try { this.fullAudio.currentTime = safePos; } catch (_) {}
         if (wasPlaying) {
           this.fullAudio.volume = this._getMasterVolume();
           this.fullAudio.play().then(() => {
             if (reqId !== this._playRequestId || srcOp !== this._audioSrcOp) return;
+            if (wasYtBridge) {
+              this._stopYtAudioBridge();
+            }
             this.activeSourceType = 'full';
             this.isPlayingFlag = true;
             this._syncPlayPauseIcons(true);
             this._setLoadingHintVisible(false);
           }).catch(() => {});
+        } else if (wasYtBridge) {
+          this._stopYtAudioBridge();
+          this.activeSourceType = 'full';
+          this.isPlayingFlag = false;
+          this._syncPlayPauseIcons(false);
+          this._setLoadingHintVisible(false);
         }
       };
 
@@ -5301,7 +5470,7 @@
             ? this.pendingUserSeekSec
             : ((this._seekGuard && Date.now() < this._seekGuard.untilMs)
                 ? this._seekGuard.targetSec
-                : (Number(this.fullAudio.currentTime) || 0));
+                : (this.activeSourceType === 'yt_bridge' ? null : (Number(this.fullAudio.currentTime) || 0)));
           await this._upgradeFullAudioToLocalBlob(blob, curSeek, curPlaying, reqId);
         }).catch(() => {});
       };
@@ -5346,8 +5515,12 @@
         }
       }
 
-      if (!window.RELEASE_TAGS_MAP && typeof window.loadReleaseTagsMap === 'function') {
-        await window.loadReleaseTagsMap().catch(() => {});
+      const existingYtVid = this._extractTrackYoutubeId(track);
+      if (!isCommTrack && !existingYtVid && !window.RELEASE_TAGS_MAP && typeof window.loadReleaseTagsMap === 'function') {
+        await Promise.race([
+          window.loadReleaseTagsMap().catch(() => {}),
+          new Promise(r => setTimeout(r, 450))
+        ]);
         if (reqId !== this._playRequestId) return false;
       }
 
@@ -5388,14 +5561,45 @@
       }
 
       // 4. Streaming directo de pista COMPLETA desde 0:00 (SIN previews de 30s):
-      //    Compite en paralelo el stream progresivo del servidor (/api/v1/audio/extract)
-      //    con la descarga completa directa en cliente (SoundCloud / Notube / Audius).
+      //    Compite en paralelo el stream progresivo del servidor (/api/v1/audio/extract),
+      //    la URL progresiva SoundCloud, la descarga Blob en cliente y un arranque rápido
+      //    vía YouTube Bridge (cutoff 1.6s) mientras el Blob completo sigue descargando detrás.
       this._setLoadingHintVisible(true);
       this._currentFullAudioTrackId = String(track.id || '');
       if (desiredStartSec > 0) {
         this.pendingUserSeekSec = desiredStartSec;
         this._seekGuard = { targetSec: desiredStartSec, untilMs: Date.now() + 8000 };
       }
+
+      const rawT4 = repairSpanishBrokenAccents(track.title || '');
+      const rawA4 = repairSpanishBrokenAccents(track.artist || '');
+      const parsedMeta4 = (typeof window.parseYouTubeMetadataSmart === 'function')
+        ? window.parseYouTubeMetadataSmart(rawT4, rawA4)
+        : { coreTitle: rawT4, coreArtist: rawA4 };
+      const cleanTitle4 = repairSpanishBrokenAccents(parsedMeta4.coreTitle || rawT4);
+      const cleanArtist4 = repairSpanishBrokenAccents(
+        (parsedMeta4.coreArtist && parsedMeta4.coreArtist.toLowerCase() !== 'youtube')
+          ? parsedMeta4.coreArtist
+          : rawA4.replace(/^youtube$/i, '').trim()
+      );
+
+      const fastVidPromise = existingYtVid
+        ? Promise.resolve(existingYtVid)
+        : ((typeof window.searchYouTubeOfficialClient === 'function' && cleanTitle4)
+            ? window.searchYouTubeOfficialClient(cleanTitle4, cleanArtist4, Number(track.durationSec) || 0)
+                .then((ytCands) => {
+                  const best = Array.isArray(ytCands) ? ytCands.find(c => c && c.videoId) : null;
+                  if (best && best.videoId) {
+                    if (!track.videoId) track.videoId = best.videoId;
+                    if (best.durationSec > 45 && (!track.durationSec || track.durationSec < 45)) {
+                      track.durationSec = best.durationSec;
+                    }
+                    return best.videoId;
+                  }
+                  return '';
+                })
+                .catch(() => '')
+            : Promise.resolve(''));
 
       const progressiveExtractUrl = this._buildServerExtractStreamUrl(track);
       const serverStreamRace = progressiveExtractUrl
@@ -5406,14 +5610,43 @@
           })()
         : Promise.reject(new Error('no_server_url'));
 
+      const soundCloudProgRace = (typeof window.resolveSoundCloudProgressiveUrlClient === 'function' && cleanTitle4)
+        ? (async () => {
+            const scProg = await window.resolveSoundCloudProgressiveUrlClient(
+              cleanTitle4,
+              cleanArtist4,
+              10,
+              track._scRawTrack || null
+            ).catch(() => null);
+            if (!scProg || !scProg.url) throw new Error('no_sc_prog_url');
+            return {
+              mode: 'sc_url',
+              url: scProg.url,
+              durationSec: scProg.durationSec || 0,
+              thumbnail: scProg.thumbnail || ''
+            };
+          })()
+        : Promise.reject(new Error('no_sc_resolver'));
+
       const clientBlobRace = (async () => {
         const blob = await this.preloadFullTrackInBackground(track, { excludeServer: true });
         if (!blob || blob.size < 80000) throw new Error('client_blob_failed');
         return { mode: 'blob', blob };
       })();
 
+      let fastBridgeTid = null;
+      const ytBridgeFastStarter = (async () => {
+        const vid = await fastVidPromise;
+        if (!vid || reqId !== this._playRequestId) throw new Error('no_yt_vid');
+        await new Promise((resolve) => {
+          fastBridgeTid = setTimeout(resolve, 1600);
+        });
+        if (reqId !== this._playRequestId) throw new Error('stale_req');
+        return { mode: 'yt_bridge', videoId: vid };
+      })();
+
       try {
-        const winner = await Promise.any([serverStreamRace, clientBlobRace]);
+        const winner = await Promise.any([serverStreamRace, soundCloudProgRace, clientBlobRace, ytBridgeFastStarter]);
         if (reqId !== this._playRequestId) return false;
 
         if (winner && winner.mode === 'blob' && winner.blob) {
@@ -5433,6 +5666,29 @@
             }
             this._updatePlayerMetadataUI(track);
             this._startListenTracker();
+            if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
+              window.DiscoverHomeApp.syncActiveVideoclipPlayback('play');
+            }
+            return true;
+          }
+        }
+
+        if (winner && winner.mode === 'sc_url' && winner.url) {
+          if (winner.durationSec > 45 && (!track.durationSec || track.durationSec < 45)) {
+            track.durationSec = winner.durationSec;
+          }
+          const effectiveStart = this.pendingUserSeekSec !== null ? this.pendingUserSeekSec : desiredStartSec;
+          const startedSc = await this._startChannelWithFadeIn(this.fullAudio, winner.url, 'full', reqId, effectiveStart, 110);
+          if (reqId !== this._playRequestId) return false;
+          if (startedSc) {
+            this.pendingUserSeekSec = null;
+            this.fullTrackReady = true;
+            this._fullAudioIsLocalBlob = false;
+            this.isLoadingTrack = false;
+            this._setLoadingHintVisible(false);
+            this._updatePlayerMetadataUI(track);
+            this._startListenTracker();
+            attachBackgroundDspAndBlobUpgrade(winner.url, { excludeServer: false });
             if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
               window.DiscoverHomeApp.syncActiveVideoclipPlayback('play');
             }
@@ -5461,11 +5717,48 @@
           }
           return true;
         }
-      } catch (_) {}
+
+        if (winner && winner.mode === 'yt_bridge' && winner.videoId) {
+          const bridgeStart = this.pendingUserSeekSec !== null ? this.pendingUserSeekSec : desiredStartSec;
+          this.pendingUserSeekSec = null;
+          if (this._startYtAudioBridge(winner.videoId, bridgeStart, reqId)) {
+            this._updatePlayerMetadataUI(track);
+            this._startListenTracker();
+            if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
+              window.DiscoverHomeApp.syncActiveVideoclipPlayback('play');
+            }
+            attachBackgroundDspAndBlobUpgrade('', { excludeServer: false });
+            return true;
+          }
+        }
+      } catch (_) {
+      } finally {
+        if (fastBridgeTid) {
+          clearTimeout(fastBridgeTid);
+          fastBridgeTid = null;
+        }
+      }
 
       if (reqId !== this._playRequestId) return false;
 
-      // 5. Respaldo final de descarga completa multi-fuente (incluyendo endpoint servidor si aún no se intentó como Blob)
+      // 5. Respaldo inmediato vía YouTube Bridge si existe videoId + descarga completa en segundo plano
+      const ytFallbackVid = this._extractTrackYoutubeId(track) || (await Promise.race([
+        fastVidPromise,
+        new Promise(r => setTimeout(() => r(''), 1200))
+      ]).catch(() => ''));
+      if (reqId !== this._playRequestId) return false;
+      if (ytFallbackVid) {
+        const bridgeStart = this.pendingUserSeekSec !== null ? this.pendingUserSeekSec : desiredStartSec;
+        this.pendingUserSeekSec = null;
+        if (this._startYtAudioBridge(ytFallbackVid, bridgeStart, reqId)) {
+          this._updatePlayerMetadataUI(track);
+          this._startListenTracker();
+          attachBackgroundDspAndBlobUpgrade('', { excludeServer: false });
+          return true;
+        }
+      }
+
+      // 6. Último respaldo solo si tampoco se halló vídeo de YouTube
       const fullBlob = await this.preloadFullTrackInBackground(track);
       if (reqId !== this._playRequestId) return false;
       if (fullBlob && fullBlob.size >= 80000) {
@@ -5488,18 +5781,6 @@
           if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
             window.DiscoverHomeApp.syncActiveVideoclipPlayback('play');
           }
-          return true;
-        }
-      }
-
-      // 6. Último recurso completo: reproductor directo de YouTube desde 0:00 si permite embed
-      const ytFallbackVid = this._extractTrackYoutubeId(track);
-      if (ytFallbackVid) {
-        const bridgeStart = this.pendingUserSeekSec !== null ? this.pendingUserSeekSec : desiredStartSec;
-        this.pendingUserSeekSec = null;
-        if (this._startYtAudioBridge(ytFallbackVid, bridgeStart, reqId)) {
-          this._updatePlayerMetadataUI(track);
-          this._startListenTracker();
           return true;
         }
       }
@@ -5724,6 +6005,7 @@
     async _startChannelWithFadeIn(audioEl, srcOrBlob, channelType, reqId, startSec = 0, fadeInMs = 260) {
       if (reqId !== this._playRequestId) return false;
       const srcOp = ++this._audioSrcOp;
+      if (reqId !== this._playRequestId || srcOp !== this._audioSrcOp) return false;
       try {
         if (typeof window.pauseMenuAmbientMusic === 'function') {
           window.pauseMenuAmbientMusic();
@@ -5770,6 +6052,9 @@
           return false;
         }
         if (srcOp !== this._audioSrcOp) {
+          if (this.activeSourceType === 'yt_bridge') {
+            try { audioEl.pause(); } catch (_) {}
+          }
           return false;
         }
 
@@ -7595,7 +7880,7 @@
         const startSec = Math.max(0, Math.floor(dualStreamEngine.getCurrentSongTimeSec() || 0));
         this._lastVideoclipSyncMs = performance.now();
         this._lastVideoclipSyncedAudioSec = startSec;
-        const origin = encodeURIComponent(window.location.origin || 'https://renacer.onrender.com');
+        const origin = encodeURIComponent((window.location && window.location.origin) || 'https://renacer.onrender.com');
         cont.innerHTML = `
           <iframe
             id="npActiveYtVideoclipIframe"
@@ -9904,12 +10189,78 @@
       return karaokeService.toggleTranslation();
     },
 
+    KARAOKE_HOLD_TIP_KEY: 'beatstar_karaoke_hold_tip_seen_v1',
+
+    maybeShowKaraokeHoldTip() {
+      if (this._karaokeHoldTipShownSession) return false;
+      let alreadySeen = false;
+      try {
+        alreadySeen = localStorage.getItem('beatstar_karaoke_hold_tip_seen_v1') === '1';
+      } catch (_) {}
+      if (alreadySeen) return false;
+
+      const banner = document.getElementById('npKaraokeHoldTipBanner');
+      if (!banner) return false;
+
+      // Marcar como visto inmediatamente la primera vez que se muestra al entrar en Karaoke
+      this._karaokeHoldTipShownSession = true;
+      try {
+        localStorage.setItem('beatstar_karaoke_hold_tip_seen_v1', '1');
+      } catch (_) {}
+
+      banner.classList.remove('hidden');
+      return true;
+    },
+
+    dismissKaraokeOnboardingTip(markSeen = true) {
+      if (markSeen) {
+        this._karaokeHoldTipShownSession = true;
+        try {
+          localStorage.setItem('beatstar_karaoke_hold_tip_seen_v1', '1');
+        } catch (_) {}
+      }
+      const banner = document.getElementById('npKaraokeHoldTipBanner');
+      if (banner) {
+        banner.classList.add('hidden');
+      }
+    },
+
+    syncKaraokeLineByHold(lineIdx) {
+      if (!karaokeService || typeof karaokeService.calibrateToHeldLine !== 'function') return null;
+      if (!dualStreamEngine.currentTrack && !this.getActiveCrateTrack()) return null;
+
+      const curSec = dualStreamEngine.getCurrentSongTimeSec();
+      const newOffset = karaokeService.calibrateToHeldLine(lineIdx, curSec);
+      if (newOffset === null) return null;
+
+      karaokeService._userScrollingUntil = 0;
+      karaokeService._userManualScrollUntil = 0;
+      this.dismissKaraokeOnboardingTip(true);
+
+      try {
+        if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+          navigator.vibrate(25);
+        }
+      } catch (_) {}
+
+      if (typeof window.showSuccessToast === 'function') {
+        const sign = newOffset >= 0 ? '+' : '';
+        window.showSuccessToast(`Letra sincronizada (${sign}${newOffset.toFixed(1)}s)`);
+      }
+      return newOffset;
+    },
+
     openNowPlayingModal(defaultTab = null) {
       const modal = document.getElementById('nowPlayingTurntableModal');
       if (!modal) return;
       modal.classList.add('open');
       if (defaultTab) {
         this.switchNowPlayingTab(defaultTab);
+      } else {
+        const karaokeStage = document.getElementById('npKaraokeStageContainer');
+        if (karaokeStage && !karaokeStage.classList.contains('hidden')) {
+          this.maybeShowKaraokeHoldTip();
+        }
       }
       const tr = dualStreamEngine.currentTrack || this.getActiveCrateTrack();
       if (tr) {
@@ -9919,6 +10270,7 @@
     },
 
     closeNowPlayingModal() {
+      this.dismissKaraokeOnboardingTip(false);
       const modal = document.getElementById('nowPlayingTurntableModal');
       if (modal) modal.classList.remove('open');
     },
@@ -9943,6 +10295,12 @@
       if (tabVinylBtn) tabVinylBtn.classList.toggle('active', isVinyl);
       if (tabVideoclipBtn) tabVideoclipBtn.classList.toggle('active', isVideoclip);
       if (tabKaraokeBtn) tabKaraokeBtn.classList.toggle('active', isKaraoke);
+
+      if (isKaraoke) {
+        this.maybeShowKaraokeHoldTip();
+      } else {
+        this.dismissKaraokeOnboardingTip(false);
+      }
 
       const tr = dualStreamEngine.currentTrack || this.getActiveCrateTrack();
       if (isVideoclip && tr) {
