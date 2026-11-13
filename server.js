@@ -4373,13 +4373,27 @@ async function fetchExtraSyncedLyrics(rawTitle, rawArtist, videoId = '') {
 app.get('/api/v1/lyrics', async (req, res) => {
   try {
     const rawVideoId = String(req.query.videoId || '').replace(/^magic_yt_|^yt_/, '').trim();
-    const rawTitleOrig = repairStrippedSpanishText(String(req.query.title || '')).trim();
+    let rawTitleOrig = repairStrippedSpanishText(String(req.query.title || '')).trim();
+    let rawArtistOrig = String(req.query.artist || '').replace(/\s*-\s*topic$/i, '').replace(/vevo$/i, '').trim();
+    if (rawTitleOrig.includes(' - ')) {
+      const dashParts = rawTitleOrig.split(' - ');
+      const left = dashParts[0].trim();
+      const right = dashParts.slice(1).join(' - ').trim();
+      const rightIsTag = /^(?:official|oficial|video|videoclip|audio|lyric|lyrics|letra|hd|4k|live|en vivo|remaster|visualizer)/i.test(right);
+      const artGenericOrMatch = !rawArtistOrig ||
+        /^(?:youtube|ultimoscruzados|unknown|artista|music|varios|various)$/i.test(rawArtistOrig) ||
+        rawArtistOrig.toLowerCase().includes(left.toLowerCase()) ||
+        left.toLowerCase().includes(rawArtistOrig.toLowerCase());
+      if (left && right && !rightIsTag && artGenericOrMatch) {
+        rawArtistOrig = left;
+        rawTitleOrig = right;
+      }
+    }
     const rawTitle = rawTitleOrig
       .replace(/^perreo\s+sanxe\s*(?:ft\.?\s*[^-]+)?\s*-\s*/i, '')
       .replace(/\s*\[[^\]]*\]/g, '')
       .replace(/\s*[\(\[][^\)\]]*(?:official|video|audio|lyric|letra|videoclip|hd|4k|remaster|live|en vivo|tv size|ver\.|version|feat\.|ft\.|parodia)[^\)\]]*[\)\]]/gi, '')
       .trim();
-    const rawArtistOrig = String(req.query.artist || '').replace(/\s*-\s*topic$/i, '').replace(/vevo$/i, '').trim();
     const rawArtist = /^ultimoscruzados$/i.test(rawArtistOrig) && /perreo\s+sanxe/i.test(rawTitleOrig)
       ? 'Perreo Sanxe'
       : rawArtistOrig;
@@ -4713,6 +4727,134 @@ async function searchYouTubeCandidatesServer(query, rawTitle = '', rawArtist = '
 async function searchYouTubeBestVideo(query, rawTitle = '', rawArtist = '', expectedDurationSec = 0) {
   const list = await searchYouTubeCandidatesServer(query, rawTitle, rawArtist, expectedDurationSec);
   return list[0] || null;
+}
+
+async function searchYouTubeVideoclipCandidatesServer(query, rawTitle = '', rawArtist = '', expectedDurationSec = 0) {
+  try {
+    const cleanTitle = String(rawTitle || '').replace(/\([^)]*\)|\[[^\]]*\]/g, '').trim();
+    const cleanArtist = String(rawArtist || '').replace(/\s*-\s*topic$/i, '').replace(/vevo$/i, '').trim();
+    const cleanQ = String(query || `${cleanArtist} ${cleanTitle}`).trim();
+    if (!cleanQ) return [];
+
+    const baseClean = cleanQ
+      .replace(/\b(official\s*(?:music\s*)?video|videoclip\s*oficial|official\s*audio|lyric(?:s)?|letra)\b/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim() || cleanQ;
+    const queries = [
+      `${baseClean} official music video`,
+      `${baseClean} videoclip oficial`
+    ];
+
+    const normTit = normalizeSearchText(cleanTitle || baseClean);
+    const titleWords = normTit.split(' ').filter(w => w.length >= 2);
+    const normArt = normalizeSearchText(cleanArtist);
+    const artPrimary = normArt.split(' ')[0] || '';
+
+    const found = [];
+    const seenIds = new Set();
+
+    await Promise.allSettled(queries.map(async (ytQuery, qIdx) => {
+      const ytRes = await fetch('https://www.youtube.com/youtubei/v1/search?prettyPrint=false', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+        },
+        body: JSON.stringify({
+          context: {
+            client: { clientName: 'WEB', clientVersion: '2.20240726.00.00', hl: 'es', gl: 'ES' }
+          },
+          query: ytQuery
+        }),
+        signal: AbortSignal.timeout(3400)
+      });
+      if (!ytRes.ok) return;
+      const data = await ytRes.json();
+      let rankIdx = 0;
+
+      const walk = (node) => {
+        if (!node || typeof node !== 'object' || found.length >= 34) return;
+        if (node.videoRenderer && node.videoRenderer.videoId) {
+          const v = node.videoRenderer;
+          const vid = v.videoId;
+          if (seenIds.has(vid)) return;
+          const title = v.title?.runs?.[0]?.text || v.title?.simpleText || '';
+          const author = v.ownerText?.runs?.[0]?.text || v.longBylineText?.runs?.[0]?.text || '';
+          const lenText = v.lengthText?.simpleText || v.lengthText?.runs?.[0]?.text || '';
+          const durSec = parseDurationStrToSecondsServer(lenText);
+          if (!durSec || durSec < 45 || durSec > 900) return;
+          if (!lenText && v.badges && JSON.stringify(v.badges).includes('LIVE')) return;
+
+          const thumbs = v.thumbnail?.thumbnails || [];
+          const thumb = thumbs.length ? thumbs[thumbs.length - 1].url : `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`;
+          if (vid && title) {
+            seenIds.add(vid);
+            const myRank = rankIdx++;
+            const nVTitle = normalizeSearchText(title);
+            const nAuthor = normalizeSearchText(author);
+            const cleanArt = author.replace(/ - Topic$/i, '').replace(/VEVO$/i, '').trim();
+
+            let mvScore = 50 - (qIdx * 3) - Math.min(30, myRank * 1.5);
+            if (titleWords.length > 0) {
+              let matchedW = 0;
+              for (const w of titleWords) {
+                if (nVTitle.includes(w)) matchedW++;
+              }
+              if (matchedW === 0) mvScore -= 120;
+              else mvScore += Math.round((matchedW / titleWords.length) * 35);
+            }
+            if (normArt && (nVTitle.includes(normArt) || nAuthor.includes(normArt) || (artPrimary.length >= 3 && (nVTitle.includes(artPrimary) || nAuthor.includes(artPrimary))))) {
+              mvScore += 25;
+            }
+
+            const isTopicChannel = / - Topic$/i.test(author) || /\b(provided\s+to\s+youtube|auto-?generated)\b/i.test(`${title} ${author}`);
+            const isExplicitMv = /\b(official\s*(?:music\s*)?video|music\s*video|videoclip\s*oficial|video\s*(?:musical\s*)?oficial|video\s*clip\s*oficial|official\s*mv)\b/i.test(title);
+            const isBroadMv = !isExplicitMv && /\b(videoclip|video\s*oficial|official\s*clip)\b/i.test(title);
+            const isLyricOrNonMv = /\b(lyric\s*video|lyrics?|con\s+letra|letra\s*oficial|\bletra\b|subtitulad[oa]|sub\.\s*espa[ñn]ol|traducid[oa])\b/i.test(title);
+            const isAudioOnlyOrAlt = /\b(official\s*audio|audio\s*oficial|audio\s*only|solo\s*audio|visualizer|visualizador|karaoke|instrumental|cover|nightcore|sped\s*up|slowed|8d\s*audio|reaction|en\s*vivo|live\s+at|live\s+in|concierto)\b/i.test(title) && !/\b(karaoke|cover|live|en vivo)\b/i.test(cleanTitle);
+
+            if (isExplicitMv) mvScore += 95;
+            else if (isBroadMv) mvScore += 65;
+            if (!isTopicChannel && (/vevo$/i.test(author) || (normArt && (nAuthor.includes(normArt) || (artPrimary.length >= 3 && nAuthor.includes(artPrimary)))))) {
+              mvScore += 42;
+            }
+            if (isTopicChannel) mvScore -= 170;
+            if (isLyricOrNonMv) mvScore -= 150;
+            if (isAudioOnlyOrAlt) mvScore -= 115;
+
+            if (expectedDurationSec > 55 && durSec > 55) {
+              const diffDur = durSec - expectedDurationSec;
+              if (Math.abs(diffDur) <= 8) mvScore += 20;
+              else if (diffDur > 8 && diffDur <= 45) mvScore += 10;
+              else if (Math.abs(diffDur) > 85) mvScore -= 25;
+            }
+
+            found.push({
+              videoId: vid,
+              title,
+              artist: cleanArt || rawArtist || 'YouTube',
+              channel: author,
+              durationSec: durSec || expectedDurationSec || 180,
+              thumbnail: thumb,
+              authScore: Math.round(mvScore),
+              isMusicVideoCandidate: !isTopicChannel && !isLyricOrNonMv && !isAudioOnlyOrAlt
+            });
+          }
+        }
+        for (const k of Object.keys(node)) {
+          const child = node[k];
+          if (Array.isArray(child)) child.forEach(walk);
+          else if (child && typeof child === 'object') walk(child);
+        }
+      };
+      walk(data);
+    }));
+
+    found.sort((a, b) => (b.authScore || 0) - (a.authScore || 0));
+    return found.slice(0, 30);
+  } catch (_) {
+    return [];
+  }
 }
 
 const YOUTUBE_FULL_MP3_LRU = new Map();
@@ -5437,6 +5579,72 @@ async function extractSoundCloudFullTrackServer(searchQuery, rawTitle = '', rawA
         source: 'SoundCloud Full Audio'
       };
     }
+  }
+  return null;
+}
+
+async function resolveSoundCloudProgressiveStreamServer(searchQuery, rawTitle = '', rawArtist = '', specificScTrackId = '', minScore = 68) {
+  const clientId = await getSoundCloudClientIdServer();
+  if (!clientId) return null;
+
+  const tryPickProgressiveUrl = async (tr, fallbackMeta = {}) => {
+    const transcodings = Array.isArray(tr?.media?.transcodings) ? tr.media.transcodings : [];
+    const progList = transcodings.filter(t => {
+      if (!t || !t.url || t.snipped) return false;
+      const proto = String(t?.format?.protocol || '');
+      const mime = String(t?.format?.mime_type || '');
+      if (proto !== 'progressive' || mime.includes('mpegurl')) return false;
+      if (String(t.preset || '').includes('cbc') || proto.includes('encrypted')) return false;
+      return true;
+    }).sort((a, b) => {
+      const aMpeg = String(a?.format?.mime_type || '').includes('mpeg') ? 1 : 0;
+      const bMpeg = String(b?.format?.mime_type || '').includes('mpeg') ? 1 : 0;
+      return bMpeg - aMpeg;
+    });
+    for (const trans of progList) {
+      try {
+        const mime = String(trans?.format?.mime_type || 'audio/mpeg').split(';')[0].trim() || 'audio/mpeg';
+        const sep = trans.url.includes('?') ? '&' : '?';
+        const resolveUrl = `${trans.url}${sep}client_id=${encodeURIComponent(clientId)}&track_authorization=${encodeURIComponent(tr.track_authorization || '')}`;
+        const r = await fetch(resolveUrl, { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(3500) });
+        if (!r.ok) continue;
+        const streamObj = await r.json();
+        if (streamObj && streamObj.url && /^https?:\/\//i.test(streamObj.url)) {
+          const parsedMeta = parseSoundCloudTrackMetaServer(tr, rawTitle, rawArtist);
+          return {
+            streamUrl: streamObj.url,
+            contentType: mime,
+            title: fallbackMeta.title || parsedMeta.title,
+            artist: fallbackMeta.artist || parsedMeta.artist,
+            thumbnail: fallbackMeta.thumbnail || (tr.artwork_url || tr.user?.avatar_url || '').replace('-large', '-t500x500'),
+            durationSec: fallbackMeta.durationSec || Math.round(Number(tr.duration || 180000) / 1000),
+            source: 'SoundCloud Live Stream'
+          };
+        }
+      } catch (_) {}
+    }
+    return null;
+  };
+
+  if (specificScTrackId && /^\d+$/.test(String(specificScTrackId))) {
+    try {
+      const trRes = await fetch(`https://api-v2.soundcloud.com/tracks/${encodeURIComponent(specificScTrackId)}?client_id=${encodeURIComponent(clientId)}`, {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        signal: AbortSignal.timeout(3500)
+      });
+      if (trRes.ok) {
+        const tr = await trRes.json();
+        const prog = await tryPickProgressiveUrl(tr);
+        if (prog) return prog;
+      }
+    } catch (_) {}
+  }
+
+  const { candidates } = await searchSoundCloudFullCandidatesServer(searchQuery, rawTitle, rawArtist);
+  for (const cand of candidates.slice(0, 3)) {
+    if (cand.score < minScore) break;
+    const prog = await tryPickProgressiveUrl(cand.tr, cand);
+    if (prog) return prog;
   }
   return null;
 }
@@ -6192,20 +6400,35 @@ app.get('/api/v1/search/youtube', async (req, res) => {
 
 app.get('/api/v1/video/resolve', async (req, res) => {
   try {
-    const title = String(req.query.title || '').trim();
-    const artist = String(req.query.artist || '').trim();
-    const q = String(req.query.q || `${artist} ${title}`).trim();
+    let title = repairStrippedSpanishText(String(req.query.title || '').trim());
+    let artist = repairStrippedSpanishText(String(req.query.artist || '').replace(/\s*-\s*topic$/i, '').replace(/vevo$/i, '').trim());
+    if (title.includes(' - ')) {
+      const dashParts = title.split(' - ');
+      const left = dashParts[0].trim();
+      const right = dashParts.slice(1).join(' - ').trim();
+      const rightIsTag = /^(?:official|oficial|video|videoclip|audio|lyric|lyrics|letra|hd|4k|live|en vivo|remaster|visualizer)/i.test(right);
+      const artGenericOrMatch = !artist ||
+        /^(?:youtube|ultimoscruzados|unknown|artista|music)$/i.test(artist) ||
+        artist.toLowerCase().includes(left.toLowerCase()) ||
+        left.toLowerCase().includes(artist.toLowerCase());
+      if (left && right && !rightIsTag && artGenericOrMatch) {
+        artist = left;
+        title = right;
+      }
+    }
+    const q = repairStrippedSpanishText(String(req.query.q || `${artist} ${title}`).trim());
+    const expectedDur = parseInt(String(req.query.durationSec || req.query.duration || '0'), 10) || 0;
     if (!q) return res.json({ ok: false });
 
-    const cleanTitle = title.replace(/\([^)]*\)|\[[^\]]*\]/g, '').trim();
-    const cleanArtist = artist.replace(/\([^)]*\)|\[[^\]]*\]/g, '').trim();
+    const cleanTitle = title.replace(/\([^)]*\)|\[[^\]]*\]/g, '').trim() || title;
+    const cleanArtist = artist.replace(/\([^)]*\)|\[[^\]]*\]/g, '').trim() || artist;
     const lookupTerm = `${cleanArtist} ${cleanTitle}`.trim() || q;
 
     const [itunesVideoRes, ytList] = await Promise.all([
       fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(lookupTerm)}&entity=musicVideo&limit=6`, {
         signal: AbortSignal.timeout(4500)
       }).then(r => (r.ok ? r.json() : null)).catch(() => null),
-      searchYouTubeCandidatesServer(`${lookupTerm} official music video`, cleanTitle, cleanArtist, 0).catch(() => [])
+      searchYouTubeVideoclipCandidatesServer(lookupTerm, cleanTitle, cleanArtist, expectedDur).catch(() => [])
     ]);
 
     let videoStreamUrl = '';
@@ -6229,11 +6452,15 @@ app.get('/api/v1/video/resolve', async (req, res) => {
       }
     }
 
-    const topYt = Array.isArray(ytList) && ytList.length > 0 ? ytList[0] : null;
+    const topYt = (Array.isArray(ytList) && ytList.length > 0)
+      ? (ytList.find(c => c && c.isMusicVideoCandidate) || ytList[0])
+      : null;
     return res.json({
       ok: Boolean(videoStreamUrl || (topYt && topYt.videoId)),
       videoStreamUrl: videoStreamUrl || '',
       videoId: topYt ? topYt.videoId : '',
+      isMusicVideo: Boolean(topYt && topYt.isMusicVideoCandidate),
+      bestScore: topYt ? Number(topYt.authScore || 0) : 0,
       artworkUrl: artworkUrl || (topYt && topYt.videoId ? `https://i.ytimg.com/vi/${topYt.videoId}/hqdefault.jpg` : ''),
       candidates: (ytList || []).map(c => c.videoId).filter(Boolean)
     });
@@ -6269,7 +6496,7 @@ async function resolveYouTubeDirectAudioUrl(videoId) {
       .filter(x => x && x.url && (!x.mimeType || x.mimeType.includes('audio')))
       .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
     if (!streams.length) throw new Error('No audioStreams');
-    return { url: streams[0].url, durationSec: Number(j.duration) || 0, title: j.title || '' };
+    return { url: streams[0].url, contentType: streams[0].mimeType || 'audio/webm', durationSec: Number(j.duration) || 0, title: j.title || '' };
   });
   const invidious = [
     `https://inv.tux.pizza/api/v1/videos/${id}`,
@@ -6285,7 +6512,7 @@ async function resolveYouTubeDirectAudioUrl(videoId) {
       .filter(f => f && f.url && String(f.type || '').startsWith('audio/'))
       .sort((a, b) => (parseInt(b.bitrate, 10) || 0) - (parseInt(a.bitrate, 10) || 0));
     if (!fmts.length) throw new Error('No adaptive audio');
-    return { url: fmts[0].url, durationSec: Number(j.lengthSeconds) || 0, title: j.title || '' };
+    return { url: fmts[0].url, contentType: String(fmts[0].type || 'audio/webm').split(';')[0], durationSec: Number(j.lengthSeconds) || 0, title: j.title || '' };
   });
   try {
     return await Promise.any([...piped, ...invidious]);
@@ -6294,91 +6521,325 @@ async function resolveYouTubeDirectAudioUrl(videoId) {
   }
 }
 
+function createBufferedLiveStream(cacheKey, contentType = 'audio/mpeg', contentLength = 0, extraHeaders = {}, initialChunks = [], onCancel = null) {
+  const chunks = [];
+  let total = 0;
+  for (const c of initialChunks) {
+    if (c && c.length > 0) {
+      chunks.push(c);
+      total += c.length;
+    }
+  }
+  let resolveDone = null;
+  const donePromise = new Promise((resolve) => { resolveDone = resolve; });
+  const live = {
+    cacheKey,
+    chunks,
+    total,
+    done: false,
+    failed: false,
+    listeners: new Set(),
+    contentType: contentType || 'audio/mpeg',
+    contentLength: Number(contentLength) || 0,
+    extraHeaders: extraHeaders || {},
+    donePromise,
+    cancel: () => {
+      if (live.done) return;
+      try { if (typeof onCancel === 'function') onCancel(); } catch (_) {}
+      finish(true);
+    }
+  };
+  const notify = () => {
+    for (const fn of [...live.listeners]) {
+      try { fn(); } catch (_) {}
+    }
+  };
+  const pushChunk = (c) => {
+    if (live.done || !c || !c.length) return;
+    live.chunks.push(c);
+    live.total += c.length;
+    notify();
+  };
+  const finish = (failed = false) => {
+    if (live.done) return;
+    live.failed = Boolean(failed);
+    live.done = true;
+    if (!live.failed && live.total >= 60000) {
+      const buffer = Buffer.concat(live.chunks.map(c => Buffer.isBuffer(c) ? c : Buffer.from(c.buffer, c.byteOffset, c.byteLength)));
+      EXTRACTED_AUDIO_BUFFER_CACHE.delete(cacheKey);
+      EXTRACTED_AUDIO_BUFFER_CACHE.set(cacheKey, {
+        buffer,
+        contentType: live.contentType,
+        extraHeaders: live.extraHeaders
+      });
+      while (EXTRACTED_AUDIO_BUFFER_CACHE.size > MAX_EXTRACTED_BUFFER_CACHE) {
+        const oldestKey = EXTRACTED_AUDIO_BUFFER_CACHE.keys().next().value;
+        if (oldestKey) EXTRACTED_AUDIO_BUFFER_CACHE.delete(oldestKey);
+      }
+      const encVid = String(live.extraHeaders?.['X-Video-Id'] || '');
+      let decVid = '';
+      try { decVid = decodeURIComponent(encVid); } catch (_) { decVid = encVid; }
+      let srcName = '';
+      try { srcName = decodeURIComponent(String(live.extraHeaders?.['X-Audio-Source'] || '')); } catch (_) {}
+      if (decVid && /^[A-Za-z0-9_-]{11}$/.test(decVid) &&
+          live.contentType.includes('mpeg') &&
+          !srcName.includes('SoundCloud') &&
+          !YOUTUBE_FULL_MP3_LRU.has(decVid)) {
+        if (YOUTUBE_FULL_MP3_LRU.size >= YOUTUBE_FULL_MP3_LRU_MAX) {
+          const oldest = YOUTUBE_FULL_MP3_LRU.keys().next().value;
+          if (oldest) YOUTUBE_FULL_MP3_LRU.delete(oldest);
+        }
+        let decTitle = '';
+        try { decTitle = decodeURIComponent(String(live.extraHeaders?.['X-Song-Title'] || '')); } catch (_) {}
+        YOUTUBE_FULL_MP3_LRU.set(decVid, {
+          buffer,
+          contentType: live.contentType,
+          title: decTitle,
+          thumbnail: `https://i.ytimg.com/vi/${decVid}/hqdefault.jpg`,
+          durationSec: parseInt(String(live.extraHeaders?.['X-Audio-Duration'] || '0'), 10) || 0,
+          source: 'YouTube Studio Master MP3'
+        });
+      }
+    }
+    if (LIVE_AUDIO_STREAMS.get(cacheKey) === live) {
+      LIVE_AUDIO_STREAMS.delete(cacheKey);
+    }
+    notify();
+    if (resolveDone) resolveDone();
+  };
+  return { live, pushChunk, finish };
+}
+
+async function startRemoteLiveAudioStream(cacheKey, streamUrl, contentTypeHint = 'audio/mpeg', extraHeaders = {}, timeoutMs = 95000, requestHeaders = {}, connectTimeoutMs = 7500) {
+  if (!streamUrl || !/^https?:\/\//i.test(streamUrl)) return null;
+  const abortCtrl = new AbortController();
+  const totalTid = setTimeout(() => abortCtrl.abort(), timeoutMs);
+  const connectTid = setTimeout(() => abortCtrl.abort(), connectTimeoutMs);
+  let reader = null;
+  try {
+    const upstream = await fetch(streamUrl, {
+      headers: { 'User-Agent': LIVE_UA, 'Accept': 'audio/*,*/*;q=0.8', ...(requestHeaders || {}) },
+      redirect: 'follow',
+      signal: abortCtrl.signal
+    });
+    if (!upstream || !upstream.ok || !upstream.body) {
+      clearTimeout(connectTid);
+      clearTimeout(totalTid);
+      return null;
+    }
+    const cType = String(upstream.headers.get('content-type') || '').toLowerCase();
+    if (cType.includes('text/html') || cType.includes('application/json') || cType.includes('mpegurl')) {
+      clearTimeout(connectTid);
+      clearTimeout(totalTid);
+      return null;
+    }
+    const lenHdr = parseInt(upstream.headers.get('content-length') || '0', 10) || 0;
+    if (lenHdr > 0 && lenHdr < 60000) {
+      clearTimeout(connectTid);
+      clearTimeout(totalTid);
+      return null;
+    }
+    reader = upstream.body.getReader();
+    const initChunks = [];
+    let initTotal = 0;
+    let streamDone = false;
+    while (initTotal < 16384) {
+      const { done, value } = await reader.read();
+      if (done) {
+        streamDone = true;
+        break;
+      }
+      if (value && value.length > 0) {
+        initChunks.push(value);
+        initTotal += value.length;
+      }
+    }
+    clearTimeout(connectTid);
+    if (initTotal === 0 || (streamDone && initTotal < 60000)) {
+      clearTimeout(totalTid);
+      try { await reader.cancel(); } catch (_) {}
+      return null;
+    }
+    const headStr = Buffer.concat(initChunks.slice(0, 2).map(c => Buffer.from(c.buffer, c.byteOffset, Math.min(c.byteLength, 256)))).toString('utf8', 0, 128).trim().toLowerCase();
+    if (headStr.startsWith('<!doctype') || headStr.startsWith('<html') || headStr.startsWith('{"error')) {
+      clearTimeout(totalTid);
+      try { await reader.cancel(); } catch (_) {}
+      return null;
+    }
+
+    const contentType = (cType && !cType.includes('octet-stream')) ? cType.split(';')[0].trim() : (contentTypeHint || 'audio/mpeg');
+    const contentLength = (!upstream.headers.get('content-encoding') && lenHdr >= 60000) ? lenHdr : 0;
+    const { live, pushChunk, finish } = createBufferedLiveStream(
+      cacheKey,
+      contentType,
+      contentLength,
+      extraHeaders,
+      initChunks,
+      () => {
+        clearTimeout(totalTid);
+        try { if (reader) reader.cancel().catch(() => {}); } catch (_) {}
+        try { abortCtrl.abort(); } catch (_) {}
+      }
+    );
+
+    if (streamDone) {
+      clearTimeout(totalTid);
+      finish(false);
+      return live;
+    }
+
+    (async () => {
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (live.done) {
+            try { await reader.cancel(); } catch (_) {}
+            break;
+          }
+          if (value && value.length > 0) {
+            pushChunk(value);
+          }
+        }
+        finish(false);
+      } catch (_) {
+        finish(true);
+      } finally {
+        clearTimeout(totalTid);
+      }
+    })();
+
+    return live;
+  } catch (_) {
+    clearTimeout(connectTid);
+    clearTimeout(totalTid);
+    try { if (reader) reader.cancel().catch(() => {}); } catch (_) {}
+    return null;
+  }
+}
+
+async function startNotubeLiveStream(cacheKey, videoId, customMeta = {}, expectedDur = 0) {
+  if (!videoId || !/^[A-Za-z0-9_-]{8,15}$/.test(videoId)) return null;
+  const extraHeaders = {
+    'X-Song-Title': encodeURIComponent(customMeta.title || ''),
+    'X-Song-Artist': encodeURIComponent(customMeta.artist || ''),
+    'X-Song-Cover': encodeURIComponent(customMeta.thumbnail || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`),
+    'X-Audio-Source': encodeURIComponent('YouTube Live Stream MP3'),
+    'X-Video-Id': encodeURIComponent(videoId),
+    'X-Audio-Duration': String(customMeta.durationSec || expectedDur || 180)
+  };
+  const donePromise = extractYouTubeFullAudioViaNotubeServer(videoId).catch(() => null);
+  const state = YOUTUBE_STREAM_STATES.get(videoId);
+  if (!state) {
+    const doneObj = await donePromise;
+    if (!doneObj || !doneObj.buffer || doneObj.buffer.length < 60000) return null;
+    const { live, finish } = createBufferedLiveStream(cacheKey, 'audio/mpeg', doneObj.buffer.length, extraHeaders, [doneObj.buffer]);
+    finish(false);
+    return live;
+  }
+
+  return new Promise((resolve) => {
+    let settled = false;
+    let buffered = null;
+    let detached = false;
+    const cleanup = () => {
+      if (detached) return;
+      detached = true;
+      state.listeners.delete(onStateEvent);
+      clearTimeout(waitTid);
+    };
+    const waitTid = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        cleanup();
+        resolve(null);
+      }
+    }, 13500);
+
+    const onStateEvent = (chunk, isDone, isError) => {
+      if (!buffered) {
+        if (state.error || (isError && state.totalBytes < 16384) || (state.done && state.totalBytes < 60000)) {
+          if (!settled) {
+            settled = true;
+            cleanup();
+            resolve(null);
+          }
+          return;
+        }
+        if (state.totalBytes >= 16384 || state.done) {
+          clearTimeout(waitTid);
+          buffered = createBufferedLiveStream(
+            cacheKey,
+            'audio/mpeg',
+            0,
+            extraHeaders,
+            [...state.chunks],
+            () => cleanup()
+          );
+          if (state.done) {
+            cleanup();
+            buffered.finish(Boolean(state.error || state.totalBytes < 60000));
+          }
+          if (!settled) {
+            settled = true;
+            resolve(buffered.live);
+          }
+        }
+        return;
+      }
+
+      if (chunk && chunk.length > 0) {
+        buffered.pushChunk(chunk);
+      }
+      if (isDone || state.done) {
+        cleanup();
+        buffered.finish(Boolean(isError || state.error || buffered.live.total < 60000));
+      }
+    };
+
+    state.listeners.add(onStateEvent);
+    if (state.totalBytes >= 16384 || state.done || state.error) {
+      onStateEvent(null, state.done, state.error);
+    }
+  });
+}
+
 async function startLiveYouTubeStream(cacheKey, p) {
   let videoId = p.rawVideoId;
   let durationSec = p.expectedDur || 0;
+  let resolvedTitle = p.rawTitle || '';
   if (!videoId && p.searchQuery) {
     const ytList = await searchYouTubeCandidatesServer(
       p.rawArtist && p.rawTitle ? `${p.rawArtist} ${p.rawTitle}` : p.searchQuery,
       p.rawTitle, p.rawArtist, p.expectedDur
     );
     const top = ytList.find(c => c && c.videoId && (c.authScore || 0) >= 35);
-    console.log('[live] yt candidates', ytList.length, top && top.videoId);
     if (!top) return null;
     videoId = top.videoId;
     durationSec = top.durationSec || durationSec;
+    resolvedTitle = resolvedTitle || top.title || '';
   }
   if (!videoId) return null;
 
   const src = await resolveYouTubeDirectAudioUrl(videoId);
-  console.log('[live] src', videoId, src && src.url && src.url.slice(0,80));
   if (!src || !src.url) return null;
   durationSec = src.durationSec || durationSec;
-
-  const upstream = await fetch(src.url, {
-    headers: { 'User-Agent': LIVE_UA, 'Accept': 'audio/*,*/*;q=0.8' },
-    redirect: 'follow',
-    signal: AbortSignal.timeout(120000)
-  });
-  if (!upstream.ok || !upstream.body) return null;
-  const cType = String(upstream.headers.get('content-type') || '').toLowerCase();
-  if (cType.includes('text/html') || cType.includes('application/json')) return null;
-  const reader = upstream.body.getReader();
-  const first = await reader.read();
-  if (first.done || !first.value || first.value.length < 1) return null;
-
-  const contentType = cType.includes('octet-stream') || !cType ? 'audio/mpeg' : cType.split(';')[0];
-  const lenHdr = parseInt(upstream.headers.get('content-length') || '0', 10) || 0;
-  const live = {
+  return startRemoteLiveAudioStream(
     cacheKey,
-    chunks: [first.value],
-    total: first.value.length,
-    done: false,
-    failed: false,
-    listeners: new Set(),
-    contentType,
-    contentLength: upstream.headers.get('content-encoding') ? 0 : lenHdr,
-    extraHeaders: {
+    src.url,
+    src.contentType || 'audio/webm',
+    {
+      'X-Song-Title': encodeURIComponent(p.rawTitle || src.title || resolvedTitle || 'Canción'),
+      'X-Song-Artist': encodeURIComponent(p.rawArtist || 'Artista'),
+      'X-Song-Cover': encodeURIComponent(p.thumbnail || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`),
       'X-Audio-Source': encodeURIComponent('YouTube Live Stream'),
       'X-Video-Id': encodeURIComponent(videoId),
       'X-Audio-Duration': String(durationSec || 0)
     },
-    donePromise: null
-  };
-  const notify = () => { for (const fn of [...live.listeners]) { try { fn(); } catch (_) {} } };
-  live.donePromise = new Promise((resolve) => {
-    (async () => {
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          if (value && value.length) {
-            live.chunks.push(value);
-            live.total += value.length;
-            notify();
-          }
-        }
-      } catch (_) {
-        live.failed = true;
-      } finally {
-        live.done = true;
-        if (!live.failed && live.total >= 60000) {
-          const buffer = Buffer.concat(live.chunks.map(c => Buffer.from(c.buffer, c.byteOffset, c.byteLength)));
-          EXTRACTED_AUDIO_BUFFER_CACHE.delete(cacheKey);
-          EXTRACTED_AUDIO_BUFFER_CACHE.set(cacheKey, { buffer, contentType, extraHeaders: live.extraHeaders });
-          while (EXTRACTED_AUDIO_BUFFER_CACHE.size > MAX_EXTRACTED_BUFFER_CACHE) {
-            const oldestKey = EXTRACTED_AUDIO_BUFFER_CACHE.keys().next().value;
-            if (oldestKey) EXTRACTED_AUDIO_BUFFER_CACHE.delete(oldestKey);
-          }
-        }
-        LIVE_AUDIO_STREAMS.delete(cacheKey);
-        notify();
-        resolve();
-      }
-    })();
-  });
-  LIVE_AUDIO_STREAMS.set(cacheKey, live);
-  return live;
+    95000,
+    {},
+    7500
+  );
 }
 
 function getOrStartLiveStream(cacheKey, params, maxWaitMs = 8000) {
@@ -6398,13 +6859,16 @@ function attachToLiveStream(req, res, live) {
     live.donePromise.then(() => {
       const c = EXTRACTED_AUDIO_BUFFER_CACHE.get(live.cacheKey);
       if (c) return sendAudioBufferWithRange(req, res, live.cacheKey, c.buffer, c.contentType, c.extraHeaders);
-      return res.status(503).end();
+      if (!res.headersSent) return res.status(503).end();
+    }).catch(() => {
+      if (!res.headersSent) res.status(503).end();
     });
     return;
   }
   res.status(200);
   res.setHeader('Content-Type', live.contentType);
   res.setHeader('Accept-Ranges', 'bytes');
+  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('Access-Control-Expose-Headers', 'X-Song-Title, X-Song-Artist, X-Song-Cover, X-Audio-Source, X-Video-Id, X-Audio-Duration, Content-Range, Accept-Ranges');
   Object.entries(live.extraHeaders || {}).forEach(([k, v]) => res.setHeader(k, String(v)));
@@ -6415,7 +6879,14 @@ function attachToLiveStream(req, res, live) {
   const pump = () => {
     if (closed || waiting) return;
     while (idx < live.chunks.length) {
-      const ok = res.write(live.chunks[idx++]);
+      let ok = true;
+      try {
+        ok = res.write(live.chunks[idx++]);
+      } catch (_) {
+        closed = true;
+        live.listeners.delete(pump);
+        return;
+      }
       if (!ok) {
         waiting = true;
         res.once('drain', () => { waiting = false; pump(); });
@@ -6424,7 +6895,7 @@ function attachToLiveStream(req, res, live) {
     }
     if (live.done) {
       live.listeners.delete(pump);
-      res.end();
+      try { res.end(); } catch (_) {}
     }
   };
   live.listeners.add(pump);
@@ -6521,130 +6992,104 @@ app.get('/api/v1/audio/extract', async (req, res) => {
     title: rawTitle || rawQ || 'Canción Extraída',
     artist: rawArtist || 'Artista',
     thumbnail: String(req.query.cover || '').trim(),
-    videoId: rawVideoId || ''
+    videoId: rawVideoId || '',
+    durationSec: expectedDur || 0
   };
 
-  // Helper: Retransmitir en vivo desde YOUTUBE_STREAM_STATES en cuanto lleguen los primeros 16 KB (evita 10s a 0 KB/s)
-  const tryStreamLiveFromNotubeState = (videoIdToStream, customMeta = {}) => {
-    const rangeHdr = String(req.headers.range || '');
-    const rangeMatch = rangeHdr ? /bytes=(\d+)-/.exec(rangeHdr) : null;
-    const rangeStart = rangeMatch ? parseInt(rangeMatch[1], 10) : 0;
-    if (isPrewarmReq || rangeStart > 0) return Promise.resolve(false);
+  const rangeHdr = String(req.headers.range || '');
+  const rangeMatch = rangeHdr ? /bytes=(\d+)-/.exec(rangeHdr) : null;
+  const rangeStart = rangeMatch ? parseInt(rangeMatch[1], 10) : 0;
 
-    extractYouTubeFullAudioViaNotubeServer(videoIdToStream).then((doneObj) => {
-      if (doneObj && doneObj.buffer && doneObj.buffer.length >= 120000) {
-        EXTRACTED_AUDIO_BUFFER_CACHE.set(cacheKey, {
-          buffer: doneObj.buffer,
-          contentType: 'audio/mpeg',
-          extraHeaders: {
-            'X-Song-Title': encodeURIComponent(customMeta.title || resolvedMeta.title || doneObj.title || ''),
-            'X-Song-Artist': encodeURIComponent(customMeta.artist || resolvedMeta.artist || ''),
-            'X-Song-Cover': encodeURIComponent(customMeta.thumbnail || resolvedMeta.thumbnail || doneObj.thumbnail || ''),
-            'X-Audio-Source': encodeURIComponent('YouTube Studio Master MP3'),
-            'X-Video-Id': encodeURIComponent(videoIdToStream),
-            'X-Audio-Duration': String(customMeta.durationSec || expectedDur || 180)
-          }
+  // Si ya existe un live stream activo para esta canción, acoplarse inmediatamente sin duplicar descarga
+  if (LIVE_AUDIO_STREAMS.has(cacheKey) && !isPrewarmReq) {
+    return attachToLiveStream(req, res, LIVE_AUDIO_STREAMS.get(cacheKey));
+  }
+
+  // En arranque en frío desde el principio (rangeStart === 0), lanzar streaming por chunks progresivos
+  // en cuanto lleguen los primeros 16 KB (evita bloquear al oyente hasta descargar el archivo entero)
+  if (!isPrewarmReq && rangeStart === 0) {
+    let claimed = false;
+    const liveBranches = [];
+    const tryClaimLive = (candidateLive) => {
+      if (!candidateLive || claimed) {
+        try { if (candidateLive && candidateLive.cancel) candidateLive.cancel(); } catch (_) {}
+        return null;
+      }
+      claimed = true;
+      if (!candidateLive.done && !LIVE_AUDIO_STREAMS.has(cacheKey)) {
+        LIVE_AUDIO_STREAMS.set(cacheKey, candidateLive);
+      }
+      return candidateLive;
+    };
+
+    const isShortPreviewCdn = /(mzstatic\.com|itunes\.apple\.com|cdns-preview|dzcdn\.net)/i.test(directAudioUrl);
+    if (directAudioUrl && /^https?:\/\//i.test(directAudioUrl) && !isShortPreviewCdn) {
+      liveBranches.push((async () => {
+        const l = await startRemoteLiveAudioStream(cacheKey, directAudioUrl, 'audio/mpeg', {
+          'X-Song-Title': encodeURIComponent(resolvedMeta.title),
+          'X-Song-Artist': encodeURIComponent(resolvedMeta.artist),
+          'X-Song-Cover': encodeURIComponent(resolvedMeta.thumbnail),
+          'X-Audio-Source': encodeURIComponent('Grabación Completa')
         });
+        const won = tryClaimLive(l);
+        if (!won) throw new Error('direct_live_failed');
+        return won;
+      })());
+    }
+
+    if (scTrackId || searchQuery) {
+      liveBranches.push((async () => {
+        const minScScore = resolvedMeta.videoId ? 74 : 68;
+        const scProg = await resolveSoundCloudProgressiveStreamServer(searchQuery, rawTitle, rawArtist, scTrackId, minScScore);
+        if (!scProg || !scProg.streamUrl) throw new Error('sc_prog_none');
+        const l = await startRemoteLiveAudioStream(cacheKey, scProg.streamUrl, scProg.contentType || 'audio/mpeg', {
+          'X-Song-Title': encodeURIComponent(rawTitle || scProg.title || resolvedMeta.title),
+          'X-Song-Artist': encodeURIComponent(rawArtist || scProg.artist || resolvedMeta.artist),
+          'X-Song-Cover': encodeURIComponent(resolvedMeta.thumbnail || scProg.thumbnail || ''),
+          'X-Audio-Source': encodeURIComponent(scProg.source || 'SoundCloud Live Stream'),
+          'X-Video-Id': encodeURIComponent(resolvedMeta.videoId || ''),
+          'X-Audio-Duration': String(scProg.durationSec || expectedDur || 180)
+        });
+        const won = tryClaimLive(l);
+        if (!won) throw new Error('sc_live_failed');
+        return won;
+      })());
+    }
+
+    if (resolvedMeta.videoId || searchQuery) {
+      liveBranches.push((async () => {
+        const l = await getOrStartLiveStream(cacheKey, {
+          rawVideoId: resolvedMeta.videoId,
+          searchQuery,
+          rawTitle: resolvedMeta.title,
+          rawArtist: resolvedMeta.artist,
+          thumbnail: resolvedMeta.thumbnail,
+          expectedDur
+        }, 7000);
+        const won = tryClaimLive(l);
+        if (!won) throw new Error('yt_piped_live_failed');
+        return won;
+      })());
+    }
+
+    if (resolvedMeta.videoId && !scTrackId && !directAudioUrl) {
+      liveBranches.push((async () => {
+        const l = await startNotubeLiveStream(cacheKey, resolvedMeta.videoId, resolvedMeta, expectedDur);
+        const won = tryClaimLive(l);
+        if (!won) throw new Error('notube_live_failed');
+        return won;
+      })());
+    }
+
+    if (liveBranches.length > 0) {
+      try {
+        const winnerLive = await Promise.any(liveBranches);
+        if (winnerLive && !res.headersSent) {
+          return attachToLiveStream(req, res, winnerLive);
+        }
+      } catch (_) {
+        claimed = true;
       }
-    }).catch(() => {});
-
-    const state = YOUTUBE_STREAM_STATES.get(videoIdToStream);
-    if (!state) return Promise.resolve(false);
-
-    return new Promise((resolve) => {
-      let settled = false;
-      let headersFlushed = false;
-      let closed = false;
-
-      const finishWait = (val) => {
-        if (!settled) {
-          settled = true;
-          resolve(val);
-        }
-      };
-
-      const flushInitialAndWrite = (newChunk) => {
-        if (closed) return;
-        if (!headersFlushed) {
-          if (state.totalBytes < 16384 && !state.done) return;
-          if (state.error || (state.done && state.totalBytes < 16384)) {
-            closed = true;
-            state.listeners.delete(listener);
-            finishWait(false);
-            return;
-          }
-          headersFlushed = true;
-          finishWait(true);
-          res.status(200);
-          res.setHeader('Content-Type', 'audio/mpeg');
-          res.setHeader('Access-Control-Allow-Origin', '*');
-          res.setHeader('Cache-Control', 'no-store');
-          res.setHeader('Access-Control-Expose-Headers', 'X-Song-Title, X-Song-Artist, X-Song-Cover, X-Audio-Source, X-Video-Id, X-Audio-Duration, Content-Range, Accept-Ranges');
-          res.setHeader('X-Song-Title', encodeURIComponent(customMeta.title || resolvedMeta.title || ''));
-          res.setHeader('X-Song-Artist', encodeURIComponent(customMeta.artist || resolvedMeta.artist || ''));
-          res.setHeader('X-Song-Cover', encodeURIComponent(customMeta.thumbnail || resolvedMeta.thumbnail || `https://i.ytimg.com/vi/${videoIdToStream}/hqdefault.jpg`));
-          res.setHeader('X-Audio-Source', encodeURIComponent('YouTube Live Stream MP3'));
-          res.setHeader('X-Video-Id', encodeURIComponent(videoIdToStream));
-          res.setHeader('X-Audio-Duration', String(customMeta.durationSec || expectedDur || 180));
-          for (const existing of state.chunks) {
-            try { res.write(existing); } catch (_) {}
-          }
-          if (state.done) {
-            closed = true;
-            state.listeners.delete(listener);
-            try { res.end(); } catch (_) {}
-          }
-          return;
-        }
-        if (newChunk && newChunk.length > 0) {
-          try { res.write(newChunk); } catch (_) {}
-        }
-      };
-
-      const listener = (chunk, isDone, isError) => {
-        if (closed) return;
-        if (isError && !headersFlushed) {
-          closed = true;
-          state.listeners.delete(listener);
-          finishWait(false);
-          return;
-        }
-        flushInitialAndWrite(chunk);
-        if (isDone && !closed) {
-          closed = true;
-          state.listeners.delete(listener);
-          if (headersFlushed) {
-            try { res.end(); } catch (_) {}
-          } else {
-            finishWait(false);
-          }
-        }
-      };
-
-      state.listeners.add(listener);
-      req.on('close', () => {
-        closed = true;
-        state.listeners.delete(listener);
-        finishWait(true);
-      });
-
-      if (state.totalBytes >= 16384 || state.done) {
-        listener(null, state.done, state.error);
-      }
-    });
-  };
-
-  // Si el vídeo de YouTube ya está en caché RAM o disco o tiene un stream con >= 16 KB listos, servirlo al instante;
-  // de lo contrario, NO bloquear la carrera paralela con SoundCloud (~0.25s) esperando 12s a que Notube convierta en frío.
-  if (resolvedMeta.videoId && !scTrackId && !directAudioUrl) {
-    const existingState = YOUTUBE_STREAM_STATES.get(resolvedMeta.videoId);
-    const hasWarmState = Boolean(
-      YOUTUBE_FULL_MP3_LRU.has(resolvedMeta.videoId) ||
-      (existingState && existingState.totalBytes >= 16384)
-    );
-    if (hasWarmState) {
-      const streamedLive = await tryStreamLiveFromNotubeState(resolvedMeta.videoId, resolvedMeta);
-      if (streamedLive || res.headersSent) return;
     }
   }
 

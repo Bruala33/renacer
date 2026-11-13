@@ -425,13 +425,13 @@
             const data = await resp.json();
             const results = Array.isArray(data?.results) ? data.results : [];
             for (const item of results) {
-              if (!item || !item.previewUrl) continue;
+              if (!item || (!item.artworkUrl100 && !item.trackTimeMillis)) continue;
               const art600 = item.artworkUrl100
                 ? item.artworkUrl100.replace('100x100bb', '600x600bb')
                 : '';
               const relYear = item.releaseDate ? parseInt(String(item.releaseDate).slice(0, 4), 10) : null;
               return {
-                previewUrl: item.previewUrl,
+                previewUrl: '',
                 artworkUrl600: art600,
                 genre: item.primaryGenreName || '',
                 releaseYear: Number.isFinite(relYear) ? relYear : null,
@@ -446,7 +446,7 @@
           throw new Error('no_itunes');
         })();
 
-        // Tarea 2: Servidor (/api/v1/audio/instant_preview que cruza Deezer Public API + iTunes API)
+        // Tarea 2: Servidor (/api/v1/audio/instant_preview que cruza Deezer Public API + iTunes API solo para carátula y metadatos)
         const serverDeezerItunesTask = (async () => {
           const ctrl = new AbortController();
           const tid = setTimeout(() => ctrl.abort(), 1800);
@@ -458,13 +458,10 @@
             clearTimeout(tid);
             if (!resp.ok) throw new Error('srv_http');
             const data = await resp.json();
-            if (data && (data.previewUrl || data.artworkUrl600 || data.artworkUrl)) {
-              const resolvedPrev = data.previewUrl && data.previewUrl.startsWith('/')
-                ? `${baseUrl}${data.previewUrl}`
-                : (data.previewUrl || '');
+            if (data && (data.artworkUrl600 || data.artworkUrl || data.durationSec)) {
               const art600 = data.artworkUrl600 || (data.artworkUrl ? data.artworkUrl.replace('300x300bb', '600x600bb').replace('100x100bb', '600x600bb') : '');
               return {
-                previewUrl: resolvedPrev,
+                previewUrl: '',
                 artworkUrl600: art600,
                 genre: data.genre || '',
                 releaseYear: data.releaseYear || null,
@@ -508,10 +505,6 @@
 
     _applyEnrichedToTrack(track, meta) {
       if (!track || !meta) return;
-      if (meta.previewUrl && (!track.previewUrl || String(track.previewUrl).startsWith('yt_full://'))) {
-        track.previewUrl = meta.previewUrl;
-        track.preview_url = meta.previewUrl;
-      }
       if (meta.artworkUrl600) {
         const curThumb = String(track.thumbnail || track.cover_url || '');
         if (!curThumb || curThumb === './app_logo.png' || curThumb.startsWith('data:image/svg+xml') || curThumb.includes('300x300bb') || curThumb.includes('100x100bb') || /i\.ytimg\.com/i.test(curThumb)) {
@@ -582,11 +575,11 @@
           if (itResp.ok) {
             const itData = await itResp.json();
             for (const item of (itData?.results || [])) {
-              if (!item || !item.previewUrl) continue;
+              if (!item || !item.trackName) continue;
               addExt({
                 title: item.trackName,
                 artist: item.artistName,
-                previewUrl: item.previewUrl,
+                previewUrl: '',
                 artworkUrl600: item.artworkUrl100 ? item.artworkUrl100.replace('100x100bb', '600x600bb') : '',
                 genre: item.primaryGenreName || '',
                 releaseYear: item.releaseDate ? parseInt(String(item.releaseDate).slice(0, 4), 10) : null,
@@ -1959,7 +1952,7 @@
       return rep
         .replace(/\(.*?\)|\[.*?\]/g, '')
         .replace(/\b(official|oficial|video|music video|audio|remastered|remaster|live|hd|4k|lyrics|letra|videoclip)\b/gi, '')
-        .replace(/\b(feat\.?|ft\.?|con|with)\b.*$/i, '')
+        .replace(/\b(feat\.?|ft\.?|featuring)\b.*$/i, '')
         .replace(/\s+/g, ' ')
         .trim();
     }
@@ -2434,16 +2427,19 @@
       const step = Math.max(1, Math.floor(sr / 11025));
       const srEff = sr / step;
 
-      // Filtro paso banda vocal (300 Hz - 2600 Hz) en canal central (L+R)/2
+      // Filtro paso banda vocal (350 Hz - 2800 Hz) con separación Mid/Side (voz centrada vs acompañamiento estéreo)
       const dt = 1 / srEff;
-      const rcHp = 1 / (2 * Math.PI * 300);
+      const rcHp = 1 / (2 * Math.PI * 350);
       const aHp = rcHp / (rcHp + dt);
-      const rcLp = 1 / (2 * Math.PI * 2600);
+      const rcLp = 1 / (2 * Math.PI * 2800);
       const aLp = dt / (rcLp + dt);
 
-      let prevIn = 0;
-      let hpOut = 0;
-      let lpOut = 0;
+      let prevMidIn = 0;
+      let hpMidOut = 0;
+      let lpMidOut = 0;
+      let prevSideIn = 0;
+      let hpSideOut = 0;
+      let lpSideOut = 0;
 
       const rawTotal = new Float32Array(nFrames);
       const rawVoice = new Float32Array(nFrames);
@@ -2454,19 +2450,35 @@
         const sStart = Math.floor((f / FRAME_HZ) * sr);
         const sEnd = Math.min(ch0.length, Math.floor(((f + 1) / FRAME_HZ) * sr));
         let sumTotal = 0;
-        let sumVoice = 0;
+        let sumMidVoice = 0;
+        let sumSideVoice = 0;
         let cnt = 0;
         for (let s = sStart; s < sEnd; s += step) {
-          const mono = ch1 ? 0.5 * (ch0[s] + ch1[s]) : ch0[s];
-          sumTotal += mono * mono;
-          hpOut = aHp * (hpOut + mono - prevIn);
-          prevIn = mono;
-          lpOut = lpOut + aLp * (hpOut - lpOut);
-          sumVoice += lpOut * lpOut;
+          const l = ch0[s];
+          const r = ch1 ? ch1[s] : l;
+          const mid = 0.5 * (l + r);
+          const side = ch1 ? 0.5 * (l - r) : 0;
+          sumTotal += mid * mid + 0.35 * side * side;
+
+          hpMidOut = aHp * (hpMidOut + mid - prevMidIn);
+          prevMidIn = mid;
+          lpMidOut = lpMidOut + aLp * (hpMidOut - lpMidOut);
+          sumMidVoice += lpMidOut * lpMidOut;
+
+          if (ch1) {
+            hpSideOut = aHp * (hpSideOut + side - prevSideIn);
+            prevSideIn = side;
+            lpSideOut = lpSideOut + aLp * (hpSideOut - lpSideOut);
+            sumSideVoice += lpSideOut * lpSideOut;
+          }
           cnt++;
         }
         const rmsT = cnt > 0 ? Math.sqrt(sumTotal / cnt) : 0;
-        const rmsV = cnt > 0 ? Math.sqrt(sumVoice / cnt) : 0;
+        const midV = cnt > 0 ? Math.sqrt(sumMidVoice / cnt) : 0;
+        const sideV = cnt > 0 ? Math.sqrt(sumSideVoice / cnt) : 0;
+        // Dominancia de voz centrada sobre instrumentos estéreo abiertos en banda vocal
+        const centerFocus = ch1 ? Math.min(1.25, (midV + 0.002) / (midV + 0.55 * sideV + 0.002)) : 1.0;
+        const rmsV = midV * centerFocus;
         rawTotal[f] = rmsT;
         rawVoice[f] = rmsV;
         if (rmsT > 0.0005) nonZeroTotal.push(rmsT);
@@ -2491,6 +2503,12 @@
         const cV = Math.min(1.5, rawVoice[f] / Math.max(1e-5, p90V));
         const rV = Math.min(1.5, rawVoice[Math.min(nFrames - 1, f + 1)] / Math.max(1e-5, p90V));
         envVoice[f] = 0.25 * lV + 0.5 * cV + 0.25 * rV;
+      }
+
+      const envOnset = new Float32Array(nFrames);
+      for (let f = 1; f < nFrames; f++) {
+        const diff = envVoice[f] - envVoice[f - 1];
+        envOnset[f] = diff > 0 ? Math.min(1.2, diff * 1.4) : 0;
       }
 
       let leadSilenceSec = 0;
@@ -2526,6 +2544,7 @@
         actualDur: +dur.toFixed(2),
         envTotal,
         envVoice,
+        envOnset,
         leadSilenceSec,
         musicStartSec,
         musicEndSec: Math.max(musicStartSec + 10, musicEndSec),
@@ -2557,7 +2576,7 @@
 
     _scoreAlignmentOnEnvelope(lines, env, shiftSec, scale = 1.0) {
       if (!Array.isArray(lines) || lines.length === 0 || !env) return -999;
-      const { frameHz, envTotal, envVoice, musicStartSec, musicEndSec, actualDur } = env;
+      const { frameHz, envTotal, envVoice, envOnset, musicStartSec, musicEndSec, actualDur } = env;
       const maxFrame = envTotal.length - 1;
 
       const sampleWindow = (arr, tStartSec, tEndSec) => {
@@ -2570,6 +2589,17 @@
           cnt++;
         }
         return cnt > 0 ? (sum / cnt) : 0;
+      };
+
+      const sampleMaxWindow = (arr, tStartSec, tEndSec) => {
+        if (!arr) return 0;
+        const f0 = Math.max(0, Math.min(maxFrame, Math.floor(tStartSec * frameHz)));
+        const f1 = Math.max(f0, Math.min(maxFrame, Math.ceil(tEndSec * frameHz)));
+        let mx = 0;
+        for (let f = f0; f <= f1; f++) {
+          if (arr[f] > mx) mx = arr[f];
+        }
+        return mx;
       };
 
       const step = Math.max(1, Math.floor(lines.length / 65));
@@ -2592,13 +2622,15 @@
         if (t >= 0 && t < actualDur) {
           const eTot = sampleWindow(envTotal, t, tEnd);
           const eVoc = sampleWindow(envVoice, t, tEnd);
-          const blended = 0.72 * eVoc + 0.28 * eTot;
+          const blended = 0.78 * eVoc + 0.22 * eTot;
           sungVoiceSum += blended;
           if (eTot < 0.055) deadAir++;
           const prevGapSec = i === 0 ? 1.5 : ((l.timeSec - (lines[i - 1].endTimeSec || lines[i - 1].timeSec)) * scale);
-          if (prevGapSec >= 0.7 && t >= 0.8) {
+          if (prevGapSec >= 0.65 && t >= 0.7) {
             const eBefore = sampleWindow(envVoice, t - 0.75, t - 0.15);
-            onsetSum += (eVoc - eBefore);
+            const eAfter = sampleWindow(envVoice, t, Math.min(actualDur - 0.1, t + 0.95));
+            const peakOnset = envOnset ? sampleMaxWindow(envOnset, Math.max(0, t - 0.15), Math.min(actualDur - 0.05, t + 0.45)) : 0;
+            onsetSum += (eAfter - eBefore) + 0.32 * peakOnset;
             onsetCount++;
           }
         } else {
@@ -2612,10 +2644,10 @@
       for (let i = 0; i < lines.length - 1; i++) {
         const endCur = Number(lines[i].endTimeSec || (lines[i].timeSec + 3.0));
         const gap = (lines[i + 1].timeSec - endCur) * scale;
-        if (gap >= 5.0) {
+        if (gap >= 2.5) {
           const mid = ((endCur + lines[i + 1].timeSec) * 0.5) * scale + shiftSec;
-          if (mid >= musicStartSec && mid <= musicEndSec - 1) {
-            gapVoiceSum += sampleWindow(envVoice, mid - 1.0, mid + 1.0);
+          if (mid >= musicStartSec && mid <= musicEndSec - 0.8) {
+            gapVoiceSum += sampleWindow(envVoice, mid - 0.9, mid + 0.9);
             gapCount++;
           }
         }
@@ -2626,9 +2658,9 @@
       const gapAvg = gapCount > 0 ? (gapVoiceSum / gapCount) : (sungAvg * 0.5);
       const oobFrac = checked > 0 ? (outOfBounds / checked) : 0;
       const deadFrac = checked > 0 ? (deadAir / checked) : 0;
-      const shiftPrior = Math.abs(shiftSec) < 0.75 ? 0 : Math.min(0.14, Math.abs(shiftSec) * 0.0014);
+      const shiftPrior = Math.abs(shiftSec) < 0.65 ? 0 : Math.min(0.085, Math.abs(shiftSec) * 0.0011);
 
-      return sungAvg + 0.35 * onsetAvg - 0.35 * gapAvg - 2.4 * oobFrac - 1.2 * deadFrac - shiftPrior;
+      return sungAvg + 0.40 * onsetAvg - 0.42 * gapAvg - 2.4 * oobFrac - 1.2 * deadFrac - shiftPrior;
     }
 
     _computeDspAlignment(parsedLines, declaredDur, env) {
@@ -2644,30 +2676,49 @@
 
       const objZero = this._scoreAlignmentOnEnvelope(parsedLines, env, 0, 1.0);
 
-      const isCleanMatch = Math.abs(durDiff) <= 4.5 && env.leadSilenceSec < 1.0 && env.musicStartSec <= Math.max(6, firstVocalSec + 2.5);
+      const isCleanMatch = Math.abs(durDiff) <= 4.5 && env.leadSilenceSec < 0.7 && env.musicStartSec <= Math.max(6, firstVocalSec + 2.5);
       const isTrailingOutroCut = durDiff > 6 && env.musicStartSec < Math.max(4.0, firstVocalSec + 2.0) && activeSpanDiff <= 7.0;
 
-      const minShift = -Math.min(10, Math.max(2.5, firstVocalSec * 0.75));
-      const maxShift = isCleanMatch
-        ? 3.0
-        : (isTrailingOutroCut ? 6.0 : Math.max(12, Math.min(95, env.actualDur - firstVocalSec - 15)));
+      // Buscar sin techo artificial de 3.0s: videoclips oficiales pueden tener intros de 8s o 42s aunque su duración total coincida tras recortar outro
+      const minShift = -Math.min(14, Math.max(3.0, firstVocalSec * 0.85));
+      const maxShift = isTrailingOutroCut
+        ? Math.max(8.0, Math.min(20, env.actualDur - firstVocalSec - 15))
+        : Math.max(15, Math.min(95, env.actualDur - firstVocalSec - 12));
 
       let bestShift = 0;
       let bestScale = 1.0;
       let bestScore = objZero;
 
       const peaks = [{ shift: 0, score: objZero }];
-      const coarseStep = isCleanMatch ? 0.15 : 0.25;
+      const considerPeak = (sh, scVal) => {
+        if (peaks.length < 6) {
+          peaks.push({ shift: sh, score: scVal });
+          peaks.sort((a, b) => b.score - a.score);
+          return;
+        }
+        // Mantener diversidad temporal de picos (>= 0.8s entre sí) para explorar intros largos aparte de la vecindad de 0s
+        const nearIdx = peaks.findIndex(p => Math.abs(p.shift - sh) < 0.8);
+        if (nearIdx !== -1) {
+          if (scVal > peaks[nearIdx].score) {
+            peaks[nearIdx] = { shift: sh, score: scVal };
+            peaks.sort((a, b) => b.score - a.score);
+          }
+        } else if (scVal > peaks[peaks.length - 1].score) {
+          peaks[peaks.length - 1] = { shift: sh, score: scVal };
+          peaks.sort((a, b) => b.score - a.score);
+        }
+      };
+
+      const coarseStep = 0.20;
       for (let s = minShift; s <= maxShift; s += coarseStep) {
         const sc = this._scoreAlignmentOnEnvelope(parsedLines, env, s, 1.0);
-        if (sc > peaks[peaks.length - 1]?.score || peaks.length < 4) {
-          peaks.push({ shift: s, score: sc });
-          peaks.sort((a, b) => b.score - a.score);
-          if (peaks.length > 4) peaks.length = 4;
-        }
+        considerPeak(s, sc);
+      }
+      if (env.leadSilenceSec >= 0.3 && env.leadSilenceSec <= maxShift) {
+        considerPeak(env.leadSilenceSec, this._scoreAlignmentOnEnvelope(parsedLines, env, env.leadSilenceSec, 1.0));
       }
 
-      for (const pk of peaks.slice(0, 3)) {
+      for (const pk of peaks.slice(0, 4)) {
         for (let ds = -0.6; ds <= 0.6; ds += 0.05) {
           const candS = +(pk.shift + ds).toFixed(2);
           if (candS < minShift || candS > maxShift) continue;
@@ -2715,8 +2766,8 @@
         }
       }
 
-      if (isCleanMatch || isTrailingOutroCut) {
-        const margin = env.leadSilenceSec >= 1.2 ? 0.05 : 0.14;
+      if (bestScale === 1.0 && (isCleanMatch || isTrailingOutroCut)) {
+        const margin = (Math.abs(bestShift) >= 1.2 || env.leadSilenceSec >= 1.0) ? 0.042 : 0.065;
         if (bestShift !== 0 && bestScore < objZero + margin) {
           bestShift = 0;
           bestScale = 1.0;
@@ -3634,11 +3685,21 @@
 
     async _fetchCandidatesMultiProvider(track, totalDurationSec = 195, vidQueryParam = '') {
       let rawTitleForSearch = repairSpanishBrokenAccents(String(track?.title || ''));
-      let rawArtistForSearch = repairSpanishBrokenAccents(String(track?.artist || ''));
-      if (/^ultimoscruzados$/i.test(rawArtistForSearch) && rawTitleForSearch.includes(' - ')) {
-        const parts = rawTitleForSearch.split(' - ');
-        rawArtistForSearch = parts[0].trim();
-        rawTitleForSearch = parts.slice(1).join(' - ').trim();
+      let rawArtistForSearch = repairSpanishBrokenAccents(String(track?.artist || '')).replace(/\s*-\s*topic$/i, '').replace(/vevo$/i, '').trim();
+      if (rawTitleForSearch.includes(' - ')) {
+        const dashParts = rawTitleForSearch.split(' - ');
+        const left = dashParts[0].trim();
+        const right = dashParts.slice(1).join(' - ').trim();
+        const rightIsSuffixTag = /^(?:official|oficial|video|videoclip|audio|lyric|lyrics|letra|live|en vivo|hd|4k|remaster|visualizer)/i.test(right);
+        const normLeft = this._normMatch(left);
+        const normArt0 = this._normMatch(rawArtistForSearch);
+        const artIsGenericOrMatch = !rawArtistForSearch ||
+          /^(?:youtube|ultimoscruzados|varios|various|unknown|artista|music)$/i.test(rawArtistForSearch) ||
+          (normLeft && normArt0 && (normArt0.includes(normLeft) || normLeft.includes(normArt0)));
+        if (left && right && !rightIsSuffixTag && artIsGenericOrMatch) {
+          rawArtistForSearch = left;
+          rawTitleForSearch = right;
+        }
       }
       const cleanTitle = this._cleanSearchTerm(rawTitleForSearch);
       const primaryArtist = this._extractPrimaryArtist(rawArtistForSearch);
@@ -3676,7 +3737,7 @@
       }
       if (baseUrl || typeof window.getApiBaseUrl === 'function') {
         urlsToTry.push(
-          `${baseUrl}/api/v1/lyrics?title=${encodeURIComponent(cleanTitle || track?.title || '')}&artist=${encodeURIComponent(primaryArtist || track?.artist || '')}&duration=${durParam}${vidQueryParam}`,
+          `${baseUrl}/api/v1/lyrics?title=${encodeURIComponent(cleanTitle || rawTitleForSearch || track?.title || '')}&artist=${encodeURIComponent(primaryArtist || rawArtistForSearch || track?.artist || '')}&duration=${durParam}${vidQueryParam}`,
           `${baseUrl}/api/v1/lyrics?q=${encodeURIComponent(`${cleanTitle} ${primaryArtist}`.trim())}&duration=${durParam}${vidQueryParam}`
         );
       }
@@ -3734,6 +3795,7 @@
           audioBlob: null,
           dspEnvelope: null,
           nativeLyrics: null,
+          nativeLyricsRaw: null,
           nativeChecked: false,
           candidates: null,
           candidatesPromise: null,
@@ -3744,6 +3806,28 @@
         st.track = track || st.track;
       }
       return st;
+    }
+
+    _alignNativeLyricsWithDspIfNeeded(st) {
+      const baseNative = Array.isArray(st?.nativeLyricsRaw) && st.nativeLyricsRaw.length >= 4
+        ? st.nativeLyricsRaw
+        : st?.nativeLyrics;
+      if (!Array.isArray(baseNative) || baseNative.length < 4) return null;
+      if (!st.nativeLyricsRaw) {
+        st.nativeLyricsRaw = baseNative.map(l => ({ ...l }));
+      }
+      if (!st.dspEnvelope) {
+        return st.nativeLyricsRaw.map(l => ({ ...l }));
+      }
+      const declaredDur = st.actualDur || st.expectedDur || st.dspEnvelope.actualDur || 195;
+      const dspRes = this._computeDspAlignment(st.nativeLyricsRaw, declaredDur, st.dspEnvelope);
+      const hasSignificantChange = dspRes && Array.isArray(dspRes.lines) && dspRes.lines.length >= 4 &&
+        (Math.abs(dspRes.shiftSec) >= 0.55 || Math.abs(dspRes.scale - 1.0) >= 0.015);
+      const verifiedLines = hasSignificantChange
+        ? dspRes.lines
+        : st.nativeLyricsRaw.map(l => ({ ...l }));
+      st.nativeLyrics = verifiedLines;
+      return verifiedLines.map(l => ({ ...l }));
     }
 
     async fetchLyricsForTrack(track, totalDurationSec = 0) {
@@ -3817,11 +3901,13 @@
             }
           }
           st.nativeLyrics = nativeLines;
+          st.nativeLyricsRaw = Array.isArray(nativeLines) ? nativeLines.map(l => ({ ...l })) : null;
         }
         if (Array.isArray(st.nativeLyrics) && st.nativeLyrics.length >= 4) {
+          const verifiedNative = this._alignNativeLyricsWithDspIfNeeded(st);
           st.isFallbackOnly = false;
-          this.cache.set(key, st.nativeLyrics);
-          return st.nativeLyrics.map(l => ({ ...l }));
+          this.cache.set(key, verifiedNative);
+          return verifiedNative.map(l => ({ ...l }));
         }
 
         const vidQueryParam = (trackVid && !track._isPlaceholderVid) ? `&videoId=${encodeURIComponent(trackVid)}` : '';
@@ -3932,15 +4018,17 @@
           }
         }
         st.nativeLyrics = nativeLines;
+        st.nativeLyricsRaw = Array.isArray(nativeLines) ? nativeLines.map(l => ({ ...l })) : null;
       }
 
       if (Array.isArray(st.nativeLyrics) && st.nativeLyrics.length >= 4) {
-        this.cache.set(key, st.nativeLyrics);
+        const verifiedNative = this._alignNativeLyricsWithDspIfNeeded(st);
+        this.cache.set(key, verifiedNative);
         if (this.currentTrackKey === key) {
           const old = this.currentLyrics || [];
-          const same = old.length === st.nativeLyrics.length && old.every((l, i) => l.text === st.nativeLyrics[i].text && Math.abs((l.timeSec || 0) - (st.nativeLyrics[i].timeSec || 0)) < 0.03);
+          const same = old.length === verifiedNative.length && old.every((l, i) => l.text === verifiedNative[i].text && Math.abs((l.timeSec || 0) - (verifiedNative[i].timeSec || 0)) < 0.03);
           if (!same) {
-            this.currentLyrics = st.nativeLyrics.map(l => ({ ...l }));
+            this.currentLyrics = verifiedNative.map(l => ({ ...l }));
             this.activeLineIndex = -1;
             this.renderLinesToDom();
             const curSec = (typeof dualStreamEngine !== 'undefined' && dualStreamEngine)
@@ -3949,7 +4037,7 @@
             this.syncTime(curSec, { forceScroll: !this._isUserManualScrolling && Date.now() >= Math.max(this._userScrollingUntil || 0, this._userManualScrollUntil || 0) });
           }
         }
-        return st.nativeLyrics;
+        return verifiedNative;
       }
 
       if (!st.candidates) {
@@ -4301,6 +4389,7 @@
       this.karaokeSyncInterval = null;
       this.listenedSecondsOnCurrent = 0;
       this._playRequestId = 0;
+      this._audioSrcOp = 0;
 
       this._bindAudioEvents();
       this._initMediaSession();
@@ -4853,21 +4942,6 @@
 
       this.previewAudio.addEventListener('ended', () => {
         if (this.activeSourceType !== 'preview') return;
-        if (this.fullTrackReady && (this.fullTrackBlob || this.fullAudio.src)) {
-          this._handoffFromPreviewOrPending(this._playRequestId);
-          return;
-        }
-        if (!this._fullUpgradeExhausted && (this._previewLoopCount || 0) < 1) {
-          this._previewLoopCount = (this._previewLoopCount || 0) + 1;
-          if (!this._activeUpgradePromise && this.currentTrack) {
-            this._upgradeActivePreviewToFullTrackInBackground(this.currentTrack, this._playRequestId);
-          }
-          try {
-            this.previewAudio.currentTime = 0;
-            this.previewAudio.play().catch(() => {});
-          } catch (_) {}
-          return;
-        }
         this.isPlayingFlag = false;
         this._syncPlayPauseIcons(false);
         this._setLoadingHintVisible(false);
@@ -4901,6 +4975,7 @@
     async _upgradeFullAudioToLocalBlob(blob, seekTargetSec = null, resumeIfPlaying = true, reqId = this._playRequestId) {
       if (!blob || blob.size < 60000 || reqId !== this._playRequestId) return false;
       if (this._fullAudioIsLocalBlob && this.fullTrackBlob === blob) return true;
+      const srcOp = ++this._audioSrcOp;
       const wasPlaying = resumeIfPlaying || this.isPlaying();
       const preserveSec = (seekTargetSec !== null && Number.isFinite(seekTargetSec))
         ? Math.max(0, seekTargetSec)
@@ -4918,14 +4993,14 @@
 
       this.fullAudio.src = this.fullTrackObjectUrl;
       const applyAtMeta = () => {
-        if (reqId !== this._playRequestId) return;
+        if (reqId !== this._playRequestId || srcOp !== this._audioSrcOp) return;
         const dur = Number(this.fullAudio.duration) || 9999;
         const safePos = Math.max(0, Math.min(dur - 0.5, preserveSec));
         try { this.fullAudio.currentTime = safePos; } catch (_) {}
         if (wasPlaying) {
           this.fullAudio.volume = this._getMasterVolume();
           this.fullAudio.play().then(() => {
-            if (reqId !== this._playRequestId) return;
+            if (reqId !== this._playRequestId || srcOp !== this._audioSrcOp) return;
             this.activeSourceType = 'full';
             this.isPlayingFlag = true;
             this._syncPlayPauseIcons(true);
@@ -5104,8 +5179,6 @@
 
     async _resolveFastStudioPreviewUrl(track) {
       if (!track) return '';
-      const existing = String(track.previewUrl || track.preview_url || '').trim();
-      if (/^https?:\/\//i.test(existing)) return existing;
       const repTitle = repairSpanishBrokenAccents(track.title || '').replace(/\(.*?\)|\[.*?\]/g, '').trim();
       const repArtist = repairSpanishBrokenAccents(track.artist || '').replace(/\s*-\s*topic$/i, '').replace(/vevo$/i, '').trim();
       const q = `${repTitle} ${repArtist}`.trim();
@@ -5118,17 +5191,14 @@
         if (resp.ok) {
           const data = await resp.json();
           const results = Array.isArray(data?.results) ? data.results : [];
-          const hit = results.find(r => r && r.previewUrl && /^https?:\/\//i.test(r.previewUrl));
+          const hit = results.find(r => r && (r.artworkUrl100 || r.trackTimeMillis));
           if (hit) {
-            track.previewUrl = hit.previewUrl;
-            track.preview_url = hit.previewUrl;
             if (!track.artworkUrl600 && hit.artworkUrl100) {
               track.artworkUrl600 = String(hit.artworkUrl100).replace(/100x100bb/g, '600x600bb');
             }
             if ((!track.durationSec || track.durationSec < 45) && Number(hit.trackTimeMillis) > 45000) {
               track.durationSec = Math.round(Number(hit.trackTimeMillis) / 1000);
             }
-            return hit.previewUrl;
           }
         }
       } catch (_) {}
@@ -5136,8 +5206,9 @@
     }
 
     /**
-     * Reproduce SIEMPRE mediante HTML5 <audio> real (nunca iframes ocultos de YouTube que fallan con Error 150 en VEVO/Pepas),
-     * arrancando en <200ms y escalando transparentemente a la pista de estudio completa con calibración DSP y upgrade a Blob local.
+     * Reproduce SIEMPRE la canción COMPLETA desde 0:00 (sin previews de 30s ni bucles cortos)
+     * mediante HTML5 <audio> real, arrancando en frío por stream chunked del servidor (/api/v1/audio/extract)
+     * en carrera paralela con la extracción directa en cliente y calibración acústica DSP.
      */
     async playTrack(track, options = {}) {
       if (!track) return false;
@@ -5209,17 +5280,16 @@
         }).catch(() => {});
       }
 
-      let lyricsPromise = null;
       if (this.karaokeService) {
-        lyricsPromise = this.karaokeService.loadAndRenderTrackLyrics(track, this.getRealDurationSec(track)).catch(() => {});
+        this.karaokeService.loadAndRenderTrackLyrics(track, this.getRealDurationSec(track)).catch(() => {});
       }
 
       if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncVideoclipIfActive === 'function') {
         window.DiscoverHomeApp.syncVideoclipIfActive(track);
       }
 
-      const attachBackgroundDspAndBlobUpgrade = (audioUrlUsed) => {
-        this.preloadFullTrackInBackground(track).then(async (blob) => {
+      const attachBackgroundDspAndBlobUpgrade = (_audioUrlUsed = '', preloadOpts = {}) => {
+        this.preloadFullTrackInBackground(track, preloadOpts).then(async (blob) => {
           if (reqId !== this._playRequestId || !blob || blob.size < 60000) return;
           this.fullTrackBlob = blob;
           if (this.karaokeService) {
@@ -5227,10 +5297,12 @@
           }
           // Actualizar silenciosamente a Blob local para que cualquier clic futuro en frases sea <5ms sin cortes Range
           const curPlaying = this.isPlaying();
-          const curSeek = this.pendingUserSeekSec !== null ? this.pendingUserSeekSec : (Number(this.fullAudio.currentTime) || 0);
-          if (!this._seekGuard || this.pendingUserSeekSec !== null) {
-            await this._upgradeFullAudioToLocalBlob(blob, curSeek, curPlaying, reqId);
-          }
+          const curSeek = this.pendingUserSeekSec !== null
+            ? this.pendingUserSeekSec
+            : ((this._seekGuard && Date.now() < this._seekGuard.untilMs)
+                ? this._seekGuard.targetSec
+                : (Number(this.fullAudio.currentTime) || 0));
+          await this._upgradeFullAudioToLocalBlob(blob, curSeek, curPlaying, reqId);
         }).catch(() => {});
       };
 
@@ -5280,9 +5352,8 @@
       }
 
       const directStreamUrl = (!isCommTrack) ? this._getDirectFullStreamUrl(track) : '';
-      let fastHttpPreviewUrl = (track.previewUrl || track.preview_url || (this.prewarmedPreviewMap.get(String(track.id))?.previewUrl) || '').trim();
 
-      // 3A. Si tiene URL directa en GitHub Releases (Catálogo Top), reproducir el MP3 de estudio al instante + Blob upgrade silencioso
+      // 3. Si tiene URL directa en GitHub Releases (Catálogo Top), reproducir el MP3 de estudio completo desde 0:00 + Blob upgrade silencioso
       if (directStreamUrl) {
         this._setLoadingHintVisible(true);
         this._currentFullAudioTrackId = String(track.id || '');
@@ -5316,70 +5387,85 @@
         }
       }
 
-      // 3B. Si tiene previewUrl HTTP (osu!, BeatSaver, iTunes, Deezer) y arranca desde 0, reproducir en <100ms mientras se descarga el track completo en segundo plano
-      if (/^https?:\/\//i.test(fastHttpPreviewUrl) && desiredStartSec === 0) {
-        if (this.karaokeService && typeof this.karaokeService._precomputePreviewEnvelope === 'function') {
-          this.karaokeService._precomputePreviewEnvelope(fastHttpPreviewUrl).catch(() => {});
-        }
-        this.previewBaseOffsetSec = this.getChorusOffsetSec(track, this.getTrackFullDurationSec(track));
-        const previewStarted = await this._startChannelWithFadeIn(this.previewAudio, fastHttpPreviewUrl, 'preview', reqId, 0, 95);
+      // 4. Streaming directo de pista COMPLETA desde 0:00 (SIN previews de 30s):
+      //    Compite en paralelo el stream progresivo del servidor (/api/v1/audio/extract)
+      //    con la descarga completa directa en cliente (SoundCloud / Notube / Audius).
+      this._setLoadingHintVisible(true);
+      this._currentFullAudioTrackId = String(track.id || '');
+      if (desiredStartSec > 0) {
+        this.pendingUserSeekSec = desiredStartSec;
+        this._seekGuard = { targetSec: desiredStartSec, untilMs: Date.now() + 8000 };
+      }
+
+      const progressiveExtractUrl = this._buildServerExtractStreamUrl(track);
+      const serverStreamRace = progressiveExtractUrl
+        ? (async () => {
+            const ok = await this._startChannelWithFadeIn(this.fullAudio, progressiveExtractUrl, 'full', reqId, desiredStartSec, 110);
+            if (!ok) throw new Error('server_stream_failed');
+            return { mode: 'server_stream' };
+          })()
+        : Promise.reject(new Error('no_server_url'));
+
+      const clientBlobRace = (async () => {
+        const blob = await this.preloadFullTrackInBackground(track, { excludeServer: true });
+        if (!blob || blob.size < 80000) throw new Error('client_blob_failed');
+        return { mode: 'blob', blob };
+      })();
+
+      try {
+        const winner = await Promise.any([serverStreamRace, clientBlobRace]);
         if (reqId !== this._playRequestId) return false;
-        if (previewStarted) {
+
+        if (winner && winner.mode === 'blob' && winner.blob) {
+          this.fullTrackBlob = winner.blob;
+          this._fullAudioIsLocalBlob = true;
+          this.fullTrackReady = true;
+          this._currentFullAudioTrackId = String(track.id || '');
+          const effectiveStart = this.pendingUserSeekSec !== null ? this.pendingUserSeekSec : desiredStartSec;
+          this.pendingUserSeekSec = null;
+          const startedBlob = await this._startChannelWithFadeIn(this.fullAudio, winner.blob, 'full', reqId, effectiveStart, 110);
+          if (reqId !== this._playRequestId) return false;
+          if (startedBlob) {
+            this.isLoadingTrack = false;
+            this._setLoadingHintVisible(false);
+            if (this.karaokeService) {
+              this.karaokeService.recalibrateForActualAudio(track, this.getTrackFullDurationSec(track), winner.blob).catch(() => {});
+            }
+            this._updatePlayerMetadataUI(track);
+            this._startListenTracker();
+            if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
+              window.DiscoverHomeApp.syncActiveVideoclipPlayback('play');
+            }
+            return true;
+          }
+        }
+
+        if (winner && winner.mode === 'server_stream') {
+          this.fullTrackReady = true;
+          this._fullAudioIsLocalBlob = false;
           this.isLoadingTrack = false;
           this._setLoadingHintVisible(false);
           this._updatePlayerMetadataUI(track);
           this._startListenTracker();
-          if (lyricsPromise) {
-            lyricsPromise.then(() => {
-              if (reqId !== this._playRequestId || this.activeSourceType !== 'preview' || this._correlatedPreviewStartSec !== null) return;
-              if (this.pendingUserSeekSec === null) {
-                this.previewBaseOffsetSec = this.getChorusOffsetSec(track, this.getTrackFullDurationSec(track));
-              }
-            }).catch(() => {});
+          attachBackgroundDspAndBlobUpgrade('', { excludeServer: true });
+          const targetSeek = this.pendingUserSeekSec !== null ? this.pendingUserSeekSec : (desiredStartSec > 0 ? desiredStartSec : null);
+          if (targetSeek !== null && targetSeek > 0 && Math.abs((Number(this.fullAudio.currentTime) || 0) - targetSeek) > 2.5) {
+            this.pendingUserSeekSec = targetSeek;
+            this._seekGuard = { targetSec: targetSeek, untilMs: Date.now() + 8000 };
+            this._ensureFullBlobUpgradeAndSeek(track, targetSeek, reqId);
+          } else if (this.pendingUserSeekSec !== null) {
+            this.pendingUserSeekSec = null;
           }
-          this._upgradeActivePreviewToFullTrackInBackground(track, reqId);
+          if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
+            window.DiscoverHomeApp.syncActiveVideoclipPlayback('play');
+          }
           return true;
         }
-      }
+      } catch (_) {}
 
-      // 4. Para cualquier canción de Búsqueda / Magic Key / Descubrir (ej. "Pepas") sin previewUrl previo:
-      //    Resolver preview oficial de estudio (~180ms en iTunes) para sonido inmediato + lanzar extracción de pista completa en paralelo
-      this._setLoadingHintVisible(true);
-      if (desiredStartSec === 0) {
-        const resolvedPrevUrl = await this._resolveFastStudioPreviewUrl(track);
-        if (reqId !== this._playRequestId) return false;
-        if (/^https?:\/\//i.test(resolvedPrevUrl)) {
-          fastHttpPreviewUrl = resolvedPrevUrl;
-          if (this.karaokeService && typeof this.karaokeService._precomputePreviewEnvelope === 'function') {
-            this.karaokeService._precomputePreviewEnvelope(resolvedPrevUrl).catch(() => {});
-          }
-          this.previewBaseOffsetSec = this.getChorusOffsetSec(track, this.getTrackFullDurationSec(track));
-          const previewStarted = await this._startChannelWithFadeIn(this.previewAudio, resolvedPrevUrl, 'preview', reqId, 0, 95);
-          if (reqId !== this._playRequestId) return false;
-          if (previewStarted) {
-            this.isLoadingTrack = false;
-            this._setLoadingHintVisible(false);
-            this._updatePlayerMetadataUI(track);
-            this._startListenTracker();
-            if (lyricsPromise) {
-              lyricsPromise.then(() => {
-                if (reqId !== this._playRequestId || this.activeSourceType !== 'preview' || this._correlatedPreviewStartSec !== null) return;
-                if (this.pendingUserSeekSec === null) {
-                  this.previewBaseOffsetSec = this.getChorusOffsetSec(track, this.getTrackFullDurationSec(track));
-                }
-              }).catch(() => {});
-            }
-            this._upgradeActivePreviewToFullTrackInBackground(track, reqId);
-            return true;
-          }
-        }
-      }
+      if (reqId !== this._playRequestId) return false;
 
-      if (desiredStartSec > 0 && !this.fullTrackReady) {
-        this.pendingUserSeekSec = desiredStartSec;
-      }
-
-      // 5. Descarga / stream de pista completa multi-fuente (SoundCloud / Notube / Servidor)
+      // 5. Respaldo final de descarga completa multi-fuente (incluyendo endpoint servidor si aún no se intentó como Blob)
       const fullBlob = await this.preloadFullTrackInBackground(track);
       if (reqId !== this._playRequestId) return false;
       if (fullBlob && fullBlob.size >= 80000) {
@@ -5399,32 +5485,19 @@
           this._setLoadingHintVisible(false);
           this._updatePlayerMetadataUI(track);
           this._startListenTracker();
+          if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
+            window.DiscoverHomeApp.syncActiveVideoclipPlayback('play');
+          }
           return true;
         }
       }
 
-      // 6. Respaldo por stream directo del servidor (/api/v1/audio/extract)
-      const progressiveExtractUrl = this._buildServerExtractStreamUrl(track);
-      this._currentFullAudioTrackId = String(track.id || '');
-      this._fullAudioIsLocalBlob = false;
-      const effectiveProgStart = this.pendingUserSeekSec !== null ? this.pendingUserSeekSec : desiredStartSec;
-      this.pendingUserSeekSec = null;
-      const startedProg = await this._startChannelWithFadeIn(this.fullAudio, progressiveExtractUrl, 'full', reqId, effectiveProgStart, 110);
-      if (reqId !== this._playRequestId) return false;
-      if (startedProg) {
-        this.fullTrackReady = true;
-        this.isLoadingTrack = false;
-        this._setLoadingHintVisible(false);
-        this._updatePlayerMetadataUI(track);
-        this._startListenTracker();
-        return true;
-      }
-
-      if (fastHttpPreviewUrl && /^https?:\/\//i.test(fastHttpPreviewUrl)) {
-        const previewStarted = await this._startChannelWithFadeIn(this.previewAudio, fastHttpPreviewUrl, 'preview', reqId, 0, 120);
-        this.isLoadingTrack = false;
-        this._setLoadingHintVisible(false);
-        if (previewStarted) {
+      // 6. Último recurso completo: reproductor directo de YouTube desde 0:00 si permite embed
+      const ytFallbackVid = this._extractTrackYoutubeId(track);
+      if (ytFallbackVid) {
+        const bridgeStart = this.pendingUserSeekSec !== null ? this.pendingUserSeekSec : desiredStartSec;
+        this.pendingUserSeekSec = null;
+        if (this._startYtAudioBridge(ytFallbackVid, bridgeStart, reqId)) {
           this._updatePlayerMetadataUI(track);
           this._startListenTracker();
           return true;
@@ -5650,6 +5723,7 @@
 
     async _startChannelWithFadeIn(audioEl, srcOrBlob, channelType, reqId, startSec = 0, fadeInMs = 260) {
       if (reqId !== this._playRequestId) return false;
+      const srcOp = ++this._audioSrcOp;
       try {
         if (typeof window.pauseMenuAmbientMusic === 'function') {
           window.pauseMenuAmbientMusic();
@@ -5674,7 +5748,7 @@
         }
 
         const applySeek = () => {
-          if (reqId !== this._playRequestId) return;
+          if (reqId !== this._playRequestId || srcOp !== this._audioSrcOp) return;
           try {
             if (startSec > 0) {
               const maxDur = Number(audioEl.duration) || 9999;
@@ -5695,6 +5769,9 @@
           audioEl.pause();
           return false;
         }
+        if (srcOp !== this._audioSrcOp) {
+          return false;
+        }
 
         if (typeof window.pauseMenuAmbientMusic === 'function') {
           window.pauseMenuAmbientMusic();
@@ -5709,7 +5786,7 @@
         let curStep = 0;
         const fadeTimer = setInterval(() => {
           curStep++;
-          if (reqId !== this._playRequestId || audioEl.paused) {
+          if (reqId !== this._playRequestId || srcOp !== this._audioSrcOp || audioEl.paused) {
             clearInterval(fadeTimer);
             return;
           }
@@ -5874,13 +5951,15 @@
       }
     }
 
-    async preloadFullTrackInBackground(track) {
+    async preloadFullTrackInBackground(track, options = {}) {
       if (!track) return null;
       const existing = this._getCachedFullBlobForTrack(track);
       if (existing && existing.size >= 80000) return existing;
 
+      const excludeServer = Boolean(options && options.excludeServer);
       if (!this._inflightFullPreloads) this._inflightFullPreloads = new Map();
-      const key = String(track.id || `${track.title}__${track.artist}`);
+      const baseKey = String(track.id || `${track.title}__${track.artist}`);
+      const key = excludeServer ? `${baseKey}__nosrv` : baseKey;
       if (this._inflightFullPreloads.has(key)) {
         return this._inflightFullPreloads.get(key);
       }
@@ -5901,35 +5980,37 @@
               : rawA.replace(/^youtube$/i, '').trim()
           );
 
-          // 1. Rama Servidor (/api/v1/audio/extract) con timeout ágil (2500ms) para no bloquear en caso de 503
-          const serverRaceTask = (async () => {
-            const extractUrl = this._buildServerExtractStreamUrl(track);
-            const ctrl = new AbortController();
-            const tid = setTimeout(() => ctrl.abort(), 2500);
-            let resp = null;
-            try {
-              resp = await fetch(extractUrl, { signal: ctrl.signal });
-            } finally {
-              clearTimeout(tid);
-            }
-            if (!resp || !resp.ok) throw new Error('Server extract HTTP ' + (resp ? resp.status : 'err'));
-            const cType = String(resp.headers.get('content-type') || '').toLowerCase();
-            if (!cType.startsWith('audio/') && !cType.includes('octet-stream')) {
-              throw new Error('Invalid audio content-type: ' + cType);
-            }
-            const matchedVid = resp.headers.get('X-Video-Id');
-            if (matchedVid && !track.videoId) {
-              track.videoId = decodeURIComponent(matchedVid);
-            }
-            const durHdr = Number(resp.headers.get('X-Audio-Duration')) || 0;
-            if (durHdr > 45) {
-              track.durationSec = durHdr;
-            }
-            const blob = await resp.blob();
-            if (!blob || blob.size < 80000) throw new Error('Blob too small');
-            return blob;
-          })();
-          raceCompetitors.push(serverRaceTask);
+          // 1. Rama Servidor (/api/v1/audio/extract) con timeout amplio (16s) para permitir extracción en frío de pistas completas
+          if (!excludeServer) {
+            const serverRaceTask = (async () => {
+              const extractUrl = this._buildServerExtractStreamUrl(track);
+              const ctrl = new AbortController();
+              const tid = setTimeout(() => ctrl.abort(), 16000);
+              let resp = null;
+              try {
+                resp = await fetch(extractUrl, { signal: ctrl.signal });
+              } finally {
+                clearTimeout(tid);
+              }
+              if (!resp || !resp.ok) throw new Error('Server extract HTTP ' + (resp ? resp.status : 'err'));
+              const cType = String(resp.headers.get('content-type') || '').toLowerCase();
+              if (!cType.startsWith('audio/') && !cType.includes('octet-stream')) {
+                throw new Error('Invalid audio content-type: ' + cType);
+              }
+              const matchedVid = resp.headers.get('X-Video-Id');
+              if (matchedVid && !track.videoId) {
+                track.videoId = decodeURIComponent(matchedVid);
+              }
+              const durHdr = Number(resp.headers.get('X-Audio-Duration')) || 0;
+              if (durHdr > 45) {
+                track.durationSec = durHdr;
+              }
+              const blob = await resp.blob();
+              if (!blob || blob.size < 80000) throw new Error('Blob too small');
+              return blob;
+            })();
+            raceCompetitors.push(serverRaceTask);
+          }
 
           // 2. Rama CDN Directo con resolución exacta de Release Tag (3 al 9)
           const directUrl = this._getDirectFullStreamUrl(track);
@@ -6058,7 +6139,7 @@
 
     /**
      * Pre-calienta los metadatos, las letras sincronizadas de Karaoke y el audio completo
-     * de las próximas tarjetas del mazo Para Ti para que al deslizar arranquen en 0ms.
+     * de las próximas tarjetas del mazo Para Ti para que al deslizar arranquen sin previews de 30s.
      */
     async prewarmUpcomingCards(tracksSlice = []) {
       if (!Array.isArray(tracksSlice) || tracksSlice.length === 0) return;
@@ -6067,7 +6148,6 @@
       for (let i = 0; i < nextCards.length; i++) {
         const tr = nextCards[i];
         if (!tr || !tr.id) continue;
-        const idStr = String(tr.id);
 
         if (this.karaokeService) {
           this.karaokeService.fetchLyricsForTrack(tr, this.getRealDurationSec(tr)).catch(() => {});
@@ -6084,18 +6164,15 @@
               nextImgEl.src = artUrl;
             }
           }
-          const prevUrl = (meta && meta.previewUrl) || tr.previewUrl || tr.preview_url;
-          if (prevUrl && /^https?:\/\//i.test(prevUrl) && !this.prewarmedPreviewMap.has(idStr)) {
-            if (this.prewarmedPreviewMap.size >= 16) {
-              const oldest = this.prewarmedPreviewMap.keys().next().value;
-              if (oldest) this.prewarmedPreviewMap.delete(oldest);
-            }
-            this.prewarmedPreviewMap.set(idStr, {
-              previewUrl: prevUrl,
-              artworkUrl600: artUrl
-            });
-          }
         }).catch(() => {});
+      }
+
+      const nextTrack0 = nextCards[0];
+      if (nextTrack0 && !window.isGameLoadingOrActive && !(window.engine && (window.engine.isRunning || window.engine.isCountingDown))) {
+        setTimeout(() => {
+          if (window.isGameLoadingOrActive || (window.engine && (window.engine.isRunning || window.engine.isCountingDown))) return;
+          this.preloadFullTrackInBackground(nextTrack0).catch(() => {});
+        }, 350);
       }
     }
 
@@ -6281,6 +6358,12 @@
         if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
           window.DiscoverHomeApp.syncActiveVideoclipPlayback('seek', safeTarget);
         }
+        return;
+      }
+
+      // Si la pista actual todavía está iniciando el stream en frío, guardar el destino sin abortar la descarga en curso
+      if (this.isLoadingTrack && this.activeSourceType === 'none') {
+        this.pendingUserSeekSec = safeTarget;
         return;
       }
 
@@ -7151,25 +7234,74 @@
       if (!track) return { videoStreamUrl: '', videoId: '' };
       if (!this._videoclipDataCache) this._videoclipDataCache = new Map();
 
-      const existingVid = dualStreamEngine._extractTrackYoutubeId(track);
-      const key = `${existingVid}__${track.title || ''}__${track.artist || ''}`.toLowerCase().trim();
+      const existingAudioVid = dualStreamEngine._extractTrackYoutubeId(track);
+      const existingMvVid = (track.mvVideoId && /^[a-zA-Z0-9_-]{11}$/.test(String(track.mvVideoId)))
+        ? String(track.mvVideoId)
+        : '';
+      const key = this._getVideoclipTrackKey(track);
       if (key && this._videoclipDataCache.has(key)) {
         return this._videoclipDataCache.get(key);
       }
 
-      const cleanTitle = String(track.title || '').replace(/\([^)]*\)|\[[^\]]*\]/g, '').trim();
-      const cleanArtist = String(track.artist || '').replace(/\([^)]*\)|\[[^\]]*\]/g, '').trim();
+      const repTitle0 = repairSpanishBrokenAccents(track.title || '');
+      const repArtist0 = repairSpanishBrokenAccents(track.artist || '');
+      const parsedMeta = (typeof window.parseYouTubeMetadataSmart === 'function')
+        ? window.parseYouTubeMetadataSmart(repTitle0, repArtist0)
+        : { coreTitle: repTitle0, coreArtist: repArtist0 };
+      const cleanTitle = String(parsedMeta.coreTitle || repTitle0)
+        .replace(/\([^)]*\)|\[[^\]]*\]/g, '')
+        .trim();
+      const cleanArtist = String(
+        (parsedMeta.coreArtist && parsedMeta.coreArtist.toLowerCase() !== 'youtube')
+          ? parsedMeta.coreArtist
+          : repArtist0
+      )
+        .replace(/\s*-\s*topic$/i, '')
+        .replace(/vevo$/i, '')
+        .replace(/\([^)]*\)|\[[^\]]*\]/g, '')
+        .replace(/^youtube$/i, '')
+        .trim();
       const lookupTerm = `${cleanArtist} ${cleanTitle}`.trim();
 
-      let videoStreamUrl = '';
-      let resolvedVid = existingVid;
+      if (existingMvVid) {
+        const cachedMvRes = { videoStreamUrl: '', videoId: existingMvVid };
+        if (key) this._videoclipDataCache.set(key, cachedMvRes);
+        return cachedMvRes;
+      }
 
-      // 1. Consulta directa a iTunes Music Video API exigiendo coincidencia real de título Y artista
-      if (!existingVid || !/^ultimoscruzados$/i.test(cleanArtist)) {
+      // 1. Búsqueda directa de Videoclip Oficial en YouTube (penaliza - Topic, Lyric Video y Audio Oficial)
+      const ytMvClientTask = (typeof window.searchYouTubeVideoclipClient === 'function')
+        ? window.searchYouTubeVideoclipClient(cleanTitle, cleanArtist, Number(track.durationSec) || 0).catch(() => [])
+        : Promise.resolve([]);
+
+      // 2. Búsqueda de Videoclip Oficial en servidor (/api/v1/video/resolve)
+      const srvMvTask = (async () => {
         try {
-          const itunesMvResp = await fetch(
-            `https://itunes.apple.com/search?term=${encodeURIComponent(lookupTerm)}&entity=musicVideo&limit=6`
+          const baseUrl = typeof window.getApiBaseUrl === 'function' ? window.getApiBaseUrl() : '';
+          const durParam = (Number(track.durationSec) > 45) ? `&durationSec=${Math.round(Number(track.durationSec))}` : '';
+          const ctrl = new AbortController();
+          const tid = setTimeout(() => ctrl.abort(), 4500);
+          const resp = await fetch(
+            `${baseUrl}/api/v1/video/resolve?title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist)}&q=${encodeURIComponent(lookupTerm)}${durParam}`,
+            { signal: ctrl.signal }
           );
+          clearTimeout(tid);
+          if (resp.ok) return await resp.json();
+        } catch (_) {}
+        return null;
+      })();
+
+      // 3. Respaldo iTunes Music Video API (.m4v / .mp4) exigiendo coincidencia real de título Y artista
+      const itunesMvTask = (async () => {
+        if (!lookupTerm || /^ultimoscruzados$/i.test(cleanArtist)) return '';
+        try {
+          const ctrl = new AbortController();
+          const tid = setTimeout(() => ctrl.abort(), 2400);
+          const itunesMvResp = await fetch(
+            `https://itunes.apple.com/search?term=${encodeURIComponent(lookupTerm)}&entity=musicVideo&limit=6`,
+            { signal: ctrl.signal }
+          );
+          clearTimeout(tid);
           if (itunesMvResp.ok) {
             const itunesData = await itunesMvResp.json();
             const mvList = Array.isArray(itunesData?.results)
@@ -7187,59 +7319,53 @@
                 return artOk && titOk;
               });
               if (bestMv && bestMv.previewUrl) {
-                videoStreamUrl = bestMv.previewUrl;
+                return bestMv.previewUrl;
               }
             }
           }
         } catch (_) {}
+        return '';
+      })();
+
+      const [ytList, srvData, itunesStreamUrl] = await Promise.all([ytMvClientTask, srvMvTask, itunesMvTask]);
+
+      const videoStreamUrl = itunesStreamUrl || (srvData && srvData.videoStreamUrl) || '';
+      let resolvedVid = '';
+
+      const topClientCand = (Array.isArray(ytList) && ytList[0] && /^[a-zA-Z0-9_-]{11}$/.test(String(ytList[0].videoId || '')))
+        ? ytList[0]
+        : null;
+      const srvVid = (srvData && /^[a-zA-Z0-9_-]{11}$/.test(String(srvData.videoId || '')))
+        ? String(srvData.videoId)
+        : '';
+
+      const clientScore = topClientCand ? Number(topClientCand.mvScore ?? topClientCand.score ?? 20) : -999;
+      const srvScore = srvVid ? Number(srvData.bestScore ?? (srvData.isMusicVideo ? 50 : 10)) : -999;
+
+      if (topClientCand && (!srvVid || clientScore >= srvScore)) {
+        if (!existingAudioVid || clientScore >= -10) {
+          resolvedVid = String(topClientCand.videoId);
+        }
+        if (topClientCand.durationSec && topClientCand.durationSec > 45 && (!track.durationSec || track.durationSec < 45)) {
+          track.durationSec = topClientCand.durationSec;
+          if (dualStreamEngine && dualStreamEngine.currentTrack && dualStreamEngine.currentTrack.id === track.id) {
+            dualStreamEngine._updatePlayerProgressUI(dualStreamEngine.getCurrentSongTimeSec(), topClientCand.durationSec);
+          }
+          if (karaokeService) {
+            karaokeService.recalibrateForActualAudio(track, topClientCand.durationSec).catch(() => {});
+          }
+        }
+      } else if (srvVid && (!existingAudioVid || srvScore >= -10)) {
+        resolvedVid = srvVid;
       }
 
-      // 2. Búsqueda directa de YouTube en el cliente (~300ms vía YouTubei Worker) sin depender de Render
-      if (!resolvedVid && typeof window.searchYouTubeOfficialClient === 'function') {
-        try {
-          const ytList = await window.searchYouTubeOfficialClient(
-            repairSpanishBrokenAccents(track.title || ''),
-            repairSpanishBrokenAccents(track.artist || ''),
-            Number(track.durationSec) || 0
-          );
-          if (Array.isArray(ytList) && ytList.length > 0 && ytList[0].videoId) {
-            resolvedVid = String(ytList[0].videoId);
-            track.videoId = resolvedVid;
-            if (ytList[0].durationSec && ytList[0].durationSec > 45 && (!track.durationSec || track.durationSec < 45)) {
-              track.durationSec = ytList[0].durationSec;
-              if (dualStreamEngine && dualStreamEngine.currentTrack && dualStreamEngine.currentTrack.id === track.id) {
-                dualStreamEngine._updatePlayerProgressUI(dualStreamEngine.getCurrentSongTimeSec(), ytList[0].durationSec);
-              }
-              if (karaokeService) {
-                karaokeService.recalibrateForActualAudio(track, ytList[0].durationSec).catch(() => {});
-              }
-            }
-          }
-        } catch (_) {}
-      }
-
-      // 3. Consulta de respaldo al endpoint del servidor /api/v1/video/resolve si aún falta stream o videoId
-      if (!videoStreamUrl && !resolvedVid) {
-        try {
-          const baseUrl = typeof window.getApiBaseUrl === 'function' ? window.getApiBaseUrl() : '';
-          const ctrl = new AbortController();
-          const tid = setTimeout(() => ctrl.abort(), 2200);
-          const resp = await fetch(
-            `${baseUrl}/api/v1/video/resolve?title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist)}&q=${encodeURIComponent(lookupTerm)}`,
-            { signal: ctrl.signal }
-          );
-          clearTimeout(tid);
-          if (resp.ok) {
-            const data = await resp.json();
-            if (!videoStreamUrl && data && data.videoStreamUrl) {
-              videoStreamUrl = data.videoStreamUrl;
-            }
-            if (!resolvedVid && data && /^[a-zA-Z0-9_-]{11}$/.test(String(data.videoId || ''))) {
-              resolvedVid = String(data.videoId);
-              track.videoId = resolvedVid;
-            }
-          }
-        } catch (_) {}
+      if (resolvedVid) {
+        track.mvVideoId = resolvedVid;
+        if (!existingAudioVid && track.id) {
+          track.videoId = resolvedVid;
+        }
+      } else if (existingAudioVid) {
+        resolvedVid = existingAudioVid;
       }
 
       const result = { videoStreamUrl: videoStreamUrl || '', videoId: resolvedVid || '' };
@@ -7283,6 +7409,20 @@
       const clipData = await this.resolveTrackVideoclipData(track);
       if (!this.crateVideoclipMode || this._getVideoclipTrackKey(this.getActiveCrateTrack()) !== reqKey) return;
 
+      if (clipData.videoId) {
+        const startSec = Math.max(0, Math.round(dualStreamEngine.getCurrentSongTimeSec() || 0));
+        wrap.innerHTML = `
+          <iframe
+            class="crate-videoclip-iframe"
+            src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(clipData.videoId)}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&playsinline=1&start=${startSec}&loop=1&playlist=${encodeURIComponent(clipData.videoId)}"
+            title="Videoclip Oficial"
+            frameborder="0"
+            allow="autoplay; encrypted-media; picture-in-picture"
+          ></iframe>
+        `;
+        return;
+      }
+
       if (clipData.videoStreamUrl) {
         wrap.innerHTML = `
           <video
@@ -7296,20 +7436,6 @@
         `;
         const vEl = wrap.querySelector('video');
         if (vEl) vEl.play().catch(() => {});
-        return;
-      }
-
-      if (clipData.videoId) {
-        const startSec = Math.max(15, Math.round(dualStreamEngine.getChorusOffsetSec(track) || 35));
-        wrap.innerHTML = `
-          <iframe
-            class="crate-videoclip-iframe"
-            src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(clipData.videoId)}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&playsinline=1&start=${startSec}&loop=1&playlist=${encodeURIComponent(clipData.videoId)}"
-            title="Videoclip"
-            frameborder="0"
-            allow="autoplay; encrypted-media; picture-in-picture"
-          ></iframe>
-        `;
         return;
       }
 
