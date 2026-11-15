@@ -1,11 +1,16 @@
 package com.beatstar.renacer
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.media.AudioFormat
+import android.media.AudioRecord
+import android.media.MediaRecorder
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -13,6 +18,10 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.util.Log
+import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.sqrt
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowInsetsController
@@ -30,6 +39,8 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
@@ -45,9 +56,20 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
+    private var pendingWebPermissionRequest: PermissionRequest? = null
     private val FILE_CHOOSER_REQUEST_CODE = 1001
+    private val AUDIO_PERMISSION_REQUEST_CODE = 1002
     private lateinit var assetLoader: WebViewAssetLoader
     private var forceSoftwareLayer: Boolean = false
+
+    @Volatile private var nativeMicRequested: Boolean = false
+    @Volatile private var nativeMicRunning: Boolean = false
+    @Volatile private var nativeMicState: String = "stopped"
+    @Volatile private var nativeMicFreqHz: Float = 0f
+    @Volatile private var nativeMicClarity: Float = 0f
+    @Volatile private var nativeMicRms: Float = 0f
+    private var nativeAudioRecord: AudioRecord? = null
+    private var nativeMicThread: Thread? = null
 
     private fun isRunningOnEmulator(): Boolean {
         val fp = Build.FINGERPRINT.lowercase(Locale.ROOT)
@@ -449,7 +471,21 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun onPermissionRequest(request: PermissionRequest?) {
-                request?.grant(request.resources)
+                if (request == null) return
+                val resources = request.resources ?: emptyArray()
+                val needsAudio = resources.contains(PermissionRequest.RESOURCE_AUDIO_CAPTURE)
+                if (needsAudio && ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                    pendingWebPermissionRequest = request
+                    ActivityCompat.requestPermissions(
+                        this@MainActivity,
+                        arrayOf(Manifest.permission.RECORD_AUDIO),
+                        AUDIO_PERMISSION_REQUEST_CODE
+                    )
+                } else {
+                    try {
+                        request.grant(resources)
+                    } catch (_: Exception) {}
+                }
             }
 
             override fun onShowFileChooser(
@@ -480,8 +516,250 @@ class MainActivity : AppCompatActivity() {
 
         setContentView(webView)
         webView.clearCache(true)
-        webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html?v=80.0")
+        webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html?v=84.0")
         hideSystemUI()
+    }
+
+    @Volatile private var isRequestingMicPermission: Boolean = false
+
+    @SuppressLint("MissingPermission")
+    fun startNativeVocalMicEngine(forcePromptIfDenied: Boolean = false): String {
+        nativeMicRequested = true
+        val hasPerm = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+        if (!hasPerm) {
+            nativeMicState = "permission_pending"
+            if (!isRequestingMicPermission || forcePromptIfDenied) {
+                isRequestingMicPermission = true
+                runOnUiThread {
+                    try {
+                        ActivityCompat.requestPermissions(
+                            this,
+                            arrayOf(Manifest.permission.RECORD_AUDIO),
+                            AUDIO_PERMISSION_REQUEST_CODE
+                        )
+                    } catch (_: Exception) {
+                        isRequestingMicPermission = false
+                    }
+                }
+            }
+            return pollNativeVocalMicTelemetry()
+        }
+        isRequestingMicPermission = false
+        if (nativeMicRunning && nativeMicThread?.isAlive == true) {
+            nativeMicState = "running"
+            return pollNativeVocalMicTelemetry()
+        }
+        stopNativeVocalMicEngine(keepRequested = true)
+
+        val candidateRates = intArrayOf(44100, 48000, 22050, 16000)
+        val candidateSources = intArrayOf(
+            MediaRecorder.AudioSource.MIC,
+            MediaRecorder.AudioSource.VOICE_RECOGNITION,
+            MediaRecorder.AudioSource.VOICE_COMMUNICATION,
+            MediaRecorder.AudioSource.DEFAULT
+        )
+
+        var recorder: AudioRecord? = null
+        var chosenSampleRate = 44100
+        var chosenFrameSamples = 2048
+
+        outer@ for (sr in candidateRates) {
+            val minBufBytes = AudioRecord.getMinBufferSize(
+                sr,
+                AudioFormat.CHANNEL_IN_MONO,
+                AudioFormat.ENCODING_PCM_16BIT
+            )
+            if (minBufBytes <= 0) continue
+            val fSamples = if (sr >= 44100) 2048 else 1024
+            val recordBufBytes = max(minBufBytes * 2, fSamples * 4)
+            for (src in candidateSources) {
+                try {
+                    val cand = AudioRecord(
+                        src,
+                        sr,
+                        AudioFormat.CHANNEL_IN_MONO,
+                        AudioFormat.ENCODING_PCM_16BIT,
+                        recordBufBytes
+                    )
+                    if (cand.state == AudioRecord.STATE_INITIALIZED) {
+                        recorder = cand
+                        chosenSampleRate = sr
+                        chosenFrameSamples = fSamples
+                        break@outer
+                    } else {
+                        cand.release()
+                    }
+                } catch (_: Exception) {}
+            }
+        }
+
+        if (recorder == null) {
+            nativeMicState = "error"
+            return pollNativeVocalMicTelemetry()
+        }
+        nativeAudioRecord = recorder
+        nativeMicRunning = true
+        nativeMicState = "running"
+
+        val sampleRate = chosenSampleRate
+        val frameSamples = chosenFrameSamples
+
+        nativeMicThread = Thread({
+            val shortBuf = ShortArray(frameSamples)
+            val floatBuf = FloatArray(frameSamples)
+            val halfW = min(768, frameSamples / 2 - 4)
+            val minTau = max(3, sampleRate / 980) // ~980 Hz
+            val maxTau = min(halfW - 4, sampleRate / 80) // ~80 Hz
+            val cmnd = FloatArray(maxTau + 2)
+            try {
+                recorder.startRecording()
+                var prevSample = 0f
+                var hpSample = 0f
+                var lpSample = 0f
+                val dt = 1f / sampleRate.toFloat()
+                val rcHp = 1f / (2f * Math.PI.toFloat() * 78f)
+                val aHp = rcHp / (rcHp + dt)
+                val rcLp = 1f / (2f * Math.PI.toFloat() * 1100f)
+                val aLp = dt / (rcLp + dt)
+                val preAmpGain = 2.6f
+
+                while (nativeMicRunning && !Thread.currentThread().isInterrupted) {
+                    val readCount = recorder.read(shortBuf, 0, frameSamples)
+                    if (readCount <= 0) {
+                        Thread.sleep(6)
+                        continue
+                    }
+                    val usableLen = min(readCount, frameSamples)
+                    if (usableLen < halfW * 2) {
+                        Thread.sleep(6)
+                        continue
+                    }
+                    var sumSq = 0f
+                    for (i in 0 until usableLen) {
+                        val raw = (shortBuf[i] / 32768f) * preAmpGain
+                        hpSample = aHp * (hpSample + raw - prevSample)
+                        prevSample = raw
+                        lpSample += aLp * (hpSample - lpSample)
+                        floatBuf[i] = lpSample
+                        sumSq += lpSample * lpSample
+                    }
+                    val rms = sqrt(sumSq / usableLen.toFloat())
+                    nativeMicRms = rms
+
+                    if (rms < 0.0022f) {
+                        nativeMicFreqHz = 0f
+                        nativeMicClarity = 0f
+                        continue
+                    }
+
+                    // YIN Cumulative Mean Normalized Difference d'(tau)
+                    cmnd[0] = 1f
+                    var runningSum = 0f
+                    for (tau in 1..maxTau) {
+                        var diff = 0f
+                        var i = 0
+                        while (i < halfW) {
+                            val d = floatBuf[i] - floatBuf[i + tau]
+                            diff += d * d
+                            i += 2
+                        }
+                        runningSum += diff
+                        cmnd[tau] = if (runningSum > 1e-9f) (diff * tau) / runningSum else 1f
+                    }
+
+                    var chosenTau = -1
+                    var chosenVal = 1f
+                    for (tau in (minTau + 1) until maxTau) {
+                        val v = cmnd[tau]
+                        if (v < 0.30f && v <= cmnd[tau - 1] && v <= cmnd[tau + 1]) {
+                            chosenTau = tau
+                            chosenVal = v
+                            break
+                        }
+                    }
+                    if (chosenTau < 0) {
+                        for (tau in (minTau + 1) until maxTau) {
+                            val v = cmnd[tau]
+                            if (v < chosenVal && v <= cmnd[tau - 1] && v <= cmnd[tau + 1]) {
+                                chosenVal = v
+                                chosenTau = tau
+                            }
+                        }
+                        if (chosenVal > 0.46f) {
+                            chosenTau = -1
+                        }
+                    }
+
+                    if (chosenTau >= minTau) {
+                        val y1 = cmnd[chosenTau - 1]
+                        val y2 = cmnd[chosenTau]
+                        val y3 = cmnd[chosenTau + 1]
+                        val denom = (y1 - 2f * y2 + y3)
+                        val shift = if (abs(denom) > 1e-6f) 0.5f * (y1 - y3) / denom else 0f
+                        val refinedTau = max(minTau.toFloat(), chosenTau.toFloat() + shift.coerceIn(-0.5f, 0.5f))
+                        val freq = sampleRate.toFloat() / refinedTau
+                        if (freq in 78f..995f) {
+                            nativeMicFreqHz = freq
+                            nativeMicClarity = (1f - chosenVal).coerceIn(0f, 1f)
+                        } else {
+                            nativeMicFreqHz = 0f
+                            nativeMicClarity = 0f
+                        }
+                    } else {
+                        nativeMicFreqHz = 0f
+                        nativeMicClarity = 0f
+                    }
+                }
+            } catch (_: Exception) {
+            } finally {
+                try { recorder.stop() } catch (_: Exception) {}
+                try { recorder.release() } catch (_: Exception) {}
+            }
+        }, "BeatstarVocalYinThread").apply {
+            priority = Thread.MAX_PRIORITY - 1
+            isDaemon = true
+            start()
+        }
+        return pollNativeVocalMicTelemetry()
+    }
+
+    fun stopNativeVocalMicEngine(keepRequested: Boolean = false) {
+        if (!keepRequested) {
+            nativeMicRequested = false
+        }
+        nativeMicRunning = false
+        if (!keepRequested) {
+            nativeMicState = "stopped"
+        }
+        nativeMicFreqHz = 0f
+        nativeMicClarity = 0f
+        nativeMicRms = 0f
+        try {
+            nativeMicThread?.interrupt()
+        } catch (_: Exception) {}
+        nativeMicThread = null
+        try {
+            nativeAudioRecord?.stop()
+        } catch (_: Exception) {}
+        try {
+            nativeAudioRecord?.release()
+        } catch (_: Exception) {}
+        nativeAudioRecord = null
+    }
+
+    fun pollNativeVocalMicTelemetry(): String {
+        val permGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+        val isAct = nativeMicRunning && nativeMicState == "running"
+        return String.format(
+            Locale.US,
+            "{\"active\":%s,\"state\":\"%s\",\"permissionGranted\":%s,\"freqHz\":%.2f,\"clarity\":%.3f,\"rms\":%.5f}",
+            if (isAct) "true" else "false",
+            nativeMicState,
+            if (permGranted) "true" else "false",
+            nativeMicFreqHz,
+            nativeMicClarity,
+            nativeMicRms
+        )
     }
 
     @Deprecated("Deprecated in Java")
@@ -505,6 +783,35 @@ class MainActivity : AppCompatActivity() {
             filePathCallback = null
         } else {
             super.onActivityResult(requestCode, resultCode, data)
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == AUDIO_PERMISSION_REQUEST_CODE) {
+            isRequestingMicPermission = false
+            val granted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
+            val req = pendingWebPermissionRequest
+            pendingWebPermissionRequest = null
+            if (req != null) {
+                try {
+                    if (granted) {
+                        req.grant(req.resources)
+                    } else {
+                        req.deny()
+                    }
+                } catch (_: Exception) {}
+            }
+            if (granted) {
+                nativeMicRequested = true
+                startNativeVocalMicEngine()
+            } else {
+                nativeMicState = "denied"
+            }
         }
     }
 
@@ -537,8 +844,11 @@ class MainActivity : AppCompatActivity() {
 
     override fun onPause() {
         cleanupWebViewVariationsSeed(this)
+        if (!isRequestingMicPermission) {
+            stopNativeVocalMicEngine(keepRequested = nativeMicRequested)
+        }
         super.onPause()
-        if (::webView.isInitialized) {
+        if (::webView.isInitialized && !isRequestingMicPermission) {
             try {
                 webView.evaluateJavascript("if (typeof window.onAppBackground === 'function') { window.onAppBackground(); }", null)
                 webView.onPause()
@@ -567,10 +877,17 @@ class MainActivity : AppCompatActivity() {
                 e.printStackTrace()
             }
         }
+        if (nativeMicRequested && !nativeMicRunning) {
+            val hasPerm = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+            if (hasPerm) {
+                startNativeVocalMicEngine()
+            }
+        }
     }
 
     override fun onDestroy() {
         cleanupWebViewVariationsSeed(this)
+        stopNativeVocalMicEngine(keepRequested = false)
         if (::webView.isInitialized) {
             try {
                 webView.stopLoading()
@@ -583,7 +900,7 @@ class MainActivity : AppCompatActivity() {
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         webView.evaluateJavascript(
-            "if (typeof engine !== 'undefined' && engine && engine.isRunning) { if (engine.isPaused) { resumeGame(); } else { openPauseModal(); } } else if (typeof exitToSearch === 'function') { exitToSearch(); }",
+            "if (window.SingStarVocalEngine && window.SingStarVocalEngine.isActive && window.DiscoverHomeApp) { window.DiscoverHomeApp.closeSingStarStudio(); } else if (typeof engine !== 'undefined' && engine && engine.isPaused) { resumeGame(); } else if (typeof engine !== 'undefined' && engine && engine.isRunning) { openPauseModal(); } else if (typeof exitToSearch === 'function') { exitToSearch(); }",
             null
         )
     }
@@ -602,6 +919,24 @@ class MainActivity : AppCompatActivity() {
             } catch (_: Exception) {
                 null
             }
+        }
+
+        @JavascriptInterface
+        fun startVocalMic(): String {
+            val act = context as? MainActivity ?: return "{\"active\":false,\"state\":\"error\",\"permissionGranted\":false,\"freqHz\":0,\"clarity\":0,\"rms\":0}"
+            return act.startNativeVocalMicEngine(forcePromptIfDenied = true)
+        }
+
+        @JavascriptInterface
+        fun stopVocalMic() {
+            val act = context as? MainActivity ?: return
+            act.stopNativeVocalMicEngine(keepRequested = false)
+        }
+
+        @JavascriptInterface
+        fun pollVocalMic(): String {
+            val act = context as? MainActivity ?: return "{\"active\":false,\"state\":\"stopped\",\"permissionGranted\":false,\"freqHz\":0,\"clarity\":0,\"rms\":0}"
+            return act.pollNativeVocalMicTelemetry()
         }
 
         @JavascriptInterface

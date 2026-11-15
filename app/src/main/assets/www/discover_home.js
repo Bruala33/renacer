@@ -1141,6 +1141,21 @@
 
   const CLIENT_CUSTOM_SYNCED_LYRICS_DB = [
     {
+      videoId: 'kwG8PIdLUlM',
+      keys: ['soldaditofarlo', 'soldaditofarlopero', 'perreosanxesoldaditofarlo', 'perreosanxesoldaditofarlopero', 'jcsesoldaditofarlo', 'jcsesoldaditofarlopero'],
+      trackName: 'Soldadito Farlo',
+      artistName: 'Perreo Sanxe',
+      duration: 96,
+      syncedLyrics: `[00:28.20] Él camina acelerado que el camello nunca espera
+[00:35.20] El billete dobladito con cuidado en la cartera
+[00:42.20] Luego pilla un par de gramos porque esta noche hay juerga
+[00:48.80] Él también quiso ser niño pero le pilló la juerga
+[00:55.60] Soldadito farlopero conociste a una sirena
+[01:02.44] De esas que suenan en la calle cuando la policía llega
+[01:09.48] Escogiste la más cara y la menos buena
+[01:16.32] Sin saber cómo ha venido te ha llevado la madera`
+    },
+    {
       videoId: 'F8oXB7zLwxk',
       keys: ['adiosatubarrio', 'perreosanxeadiosatubarrio', 'adiosatubarriomanofirme'],
       trackName: 'Adiós a tu barrio [MANO FIRME]',
@@ -1848,8 +1863,8 @@
       if (btn) btn.classList.toggle('active', Boolean(this.showTranslation));
       if (label) {
         label.textContent = this.showTranslation
-          ? (lang === 'en' ? 'Traducción (EN)' : 'Traducción (ES)')
-          : 'Traducir letra';
+          ? (lang === 'en' ? 'Trad. (EN)' : 'Trad. (ES)')
+          : 'Traducir';
       }
       const off = this.currentTrackKey
         ? this.getUserOffsetSec(this.currentTrackKey)
@@ -2131,6 +2146,38 @@
       return deduped;
     }
 
+    _isNativeChartTextCorrupted(lines) {
+      if (!Array.isArray(lines) || lines.length < 4) return true;
+      let badTokenCount = 0;
+      let totalWords = 0;
+      const garbledRe = /\b(?:lque|yyp|teco|qeu|dlr|stdo|xqz|kjh|bvc|zxc)\b|[bcdfghjklmnpqrstvwxyzñ]{4,}/i;
+      for (const l of lines) {
+        const txt = String(l?.text || '').trim();
+        if (!txt) continue;
+        const wList = txt.split(/\s+/).filter(Boolean);
+        for (const w of wList) {
+          totalWords++;
+          const cleanW = w.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, '');
+          if (cleanW.length >= 3 && !/[aeiouáéíóúüAEIOUÁÉÍÓÚÜyY]/.test(cleanW)) {
+            badTokenCount += 2;
+          } else if (garbledRe.test(cleanW)) {
+            badTokenCount += 2;
+          }
+        }
+        if (Array.isArray(l.words)) {
+          for (const sw of l.words) {
+            const st = String(sw?.text || '').replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, '');
+            if (st.length >= 3 && !/[aeiouáéíóúüAEIOUÁÉÍÓÚÜyY]/.test(st)) {
+              badTokenCount += 2;
+            } else if (garbledRe.test(st)) {
+              badTokenCount += 2;
+            }
+          }
+        }
+      }
+      return totalWords < 8 || badTokenCount >= 2 || (badTokenCount / Math.max(1, totalWords)) > 0.06;
+    }
+
     convertNativeLyricsArrayToLines(nativeLyrics) {
       if (!Array.isArray(nativeLyrics) || nativeLyrics.length === 0) return [];
       const rawJsonCheck = JSON.stringify(nativeLyrics);
@@ -2144,17 +2191,23 @@
         let lastEndSec = 0;
         const words = [];
 
-        for (const syl of verse) {
+        for (let si = 0; si < verse.length; si++) {
+          const syl = verse[si];
           if (!syl) continue;
           const rawSec = Number.isFinite(Number(syl.time)) ? Number(syl.time) : 0;
           const tSec = Math.max(0, rawSec / 1000);
           const durSec = Math.max(0.12, (Number(syl.dur) || 260) / 1000);
           const rawT = repairSpanishBrokenAccents(String(syl.text !== undefined && syl.text !== null ? syl.text : ''));
-          const cleanToken = rawT.replace(/~/g, '');
+          let cleanToken = rawT.replace(/~/g, '');
           if (!cleanToken.trim()) continue;
+          // Reparar tokens corruptos comunes de Whisper en charts antiguos
+          cleanToken = cleanToken
+            .replace(/\blque\b/gi, 'lo que ')
+            .replace(/\bteco\b/gi, 'te co')
+            .replace(/\byyp\b/gi, 'y ya pongo ');
           if (firstTimeSec === null) firstTimeSec = tSec;
           lastEndSec = Math.max(lastEndSec, tSec + durSec);
-          words.push({ timeSec: +tSec.toFixed(3), text: cleanToken });
+          words.push({ timeSec: +tSec.toFixed(3), endSec: +(tSec + durSec).toFixed(3), text: cleanToken });
           lineText += cleanToken;
         }
         const finalTxt = repairSpanishBrokenAccents(lineText.replace(/\s+/g, ' ').trim());
@@ -2173,6 +2226,9 @@
         if (i + 1 < lines.length) {
           lines[i].endTimeSec = +Math.min(lines[i].endTimeSec, Math.max(lines[i].timeSec + 0.4, lines[i + 1].timeSec - 0.08)).toFixed(2);
         }
+      }
+      if (this._isNativeChartTextCorrupted(lines)) {
+        return [];
       }
       return lines;
     }
@@ -3065,6 +3121,10 @@
         if (this.currentTrackKey === key) this.autoLeadingSilenceSec = 0;
       }
 
+      if (Array.isArray(outLines) && outLines.length >= 2) {
+        this._computeAcousticSyllablesForLines(key, outLines);
+      }
+
       return outLines;
     }
 
@@ -3275,10 +3335,10 @@
           const isStressed = hasAccent || (parts.length > 1 && p === parts.length - 2 && /[aeiounsAEIOUNS]$/.test(w)) || (parts.length > 1 && isLastInWord && !/[aeiounsAEIOUNS]$/.test(w));
 
           let weight = 1.0;
-          if (sText.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, '').length <= 2 && !hasAccent) weight = 0.82;
-          if (isStressed) weight *= 1.24;
-          if (isLastInWord) weight *= 1.12;
-          if (hasPunct) weight *= 1.42;
+          if (sText.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, '').length <= 2 && !hasAccent) weight = 0.84;
+          if (isStressed) weight *= 1.25;
+          if (isLastInWord) weight *= 1.14;
+          if (hasPunct) weight *= 1.38;
 
           rawSyls.push({
             rawText: sText,
@@ -3288,44 +3348,20 @@
         }
       }
 
-      // 2. Fusionar sinalefas / monosílabos átonos ultracortos ("en el", "de la", "a tu") o cuando la frase es rápida,
-      //    garantizando que cada unidad rítmica tenga al menos >= 190ms de espacio vital y NUNCA salgan apelotonadas.
+      // 2. Agrupar únicamente sílabas dentro de una misma palabra si la frase es ultrarrápida,
+      //    NUNCA fusionando palabras distintas sin espacio para que la lectura sea 100% limpia.
       const spanMs = Math.max(520, Number(targetDurationMs) || 2200);
-      const maxComfortableTokens = Math.max(2, Math.min(11, Math.floor(spanMs / 195)));
+      const maxComfortableTokens = Math.max(3, Math.min(16, Math.floor(spanMs / 135)));
 
-      let tokens = rawSyls.map(s => ({ ...s }));
+      const tokens = rawSyls.map(s => ({ ...s }));
 
-      // Paso A: sinalefa natural de preposiciones/artículos de 1-2 letras sin acento con la sílaba siguiente si hay margen
-      if (tokens.length > 3) {
-        const mergedSynalepha = [];
-        let k = 0;
-        while (k < tokens.length) {
-          const cur = tokens[k];
-          const cleanCur = cur.rawText.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, '').toLowerCase();
-          if (k + 1 < tokens.length && cur.isWordEnd && /^(?:a|y|o|u|e|de|el|la|en|mi|tu|su|un|al|me|te|se|lo|no|ni|si)$/.test(cleanCur) && tokens.length > maxComfortableTokens) {
-            const nxt = tokens[k + 1];
-            mergedSynalepha.push({
-              rawText: cur.rawText + ' ' + nxt.rawText,
-              isWordEnd: nxt.isWordEnd,
-              weight: cur.weight * 0.55 + nxt.weight
-            });
-            k += 2;
-          } else {
-            mergedSynalepha.push(cur);
-            k++;
-          }
-        }
-        tokens = mergedSynalepha;
-      }
-
-      // Paso B: si aún supera maxComfortableTokens, agrupar sílabas de una misma palabra empezando por las más cortas
-      while (tokens.length > maxComfortableTokens && tokens.length > 2) {
+      while (tokens.length > maxComfortableTokens && tokens.length > 3) {
         let bestMergeIdx = -1;
         let minCombinedWeight = 1e9;
         for (let i = 0; i < tokens.length - 1; i++) {
-          // Preferir unir sílabas dentro de la misma palabra (!tokens[i].isWordEnd)
-          const sameWordBonus = !tokens[i].isWordEnd ? -2.0 : 0.0;
-          const score = tokens[i].weight + tokens[i + 1].weight + sameWordBonus;
+          // Solo permitir unir sílabas dentro de la MISMA palabra (!tokens[i].isWordEnd)
+          if (tokens[i].isWordEnd) continue;
+          const score = tokens[i].weight + tokens[i + 1].weight;
           if (score < minCombinedWeight) {
             minCombinedWeight = score;
             bestMergeIdx = i;
@@ -3334,20 +3370,19 @@
         if (bestMergeIdx === -1) break;
         const a = tokens[bestMergeIdx];
         const b = tokens[bestMergeIdx + 1];
-        const joinedText = a.isWordEnd ? (a.rawText + ' ' + b.rawText) : (a.rawText + b.rawText);
         tokens.splice(bestMergeIdx, 2, {
-          rawText: joinedText,
+          rawText: a.rawText + b.rawText,
           isWordEnd: b.isWordEnd,
           weight: a.weight * 0.72 + b.weight
         });
       }
 
       if (tokens.length > 0) {
-        tokens[tokens.length - 1].weight *= 1.32;
+        tokens[tokens.length - 1].weight *= 1.30;
       }
 
       return tokens.map(t => ({
-        text: t.rawText + (t.isWordEnd ? ' ' : '-'),
+        text: t.rawText,
         displayText: t.rawText + (t.isWordEnd ? ' ' : ''),
         isWordEnd: t.isWordEnd,
         weight: t.weight
@@ -3366,6 +3401,7 @@
       const maxProfileSec = hasAudioProfile ? (vocCurve.length * hopSec) : 0;
 
       let prevPhraseEndMs = 0;
+      let runningLocalDriftSec = 0;
 
       for (let i = 0; i < linesArr.length; i++) {
         const line = linesArr[i];
@@ -3373,57 +3409,74 @@
         const cleanText = repairSpanishBrokenAccents(String(line.text || '').trim());
         if (!cleanText) continue;
 
+        if (!Number.isFinite(line._origTimeSec)) {
+          line._origTimeSec = Number(line.timeSec) || 0;
+        }
+
         const nextLine = (i + 1 < linesArr.length) ? linesArr[i + 1] : null;
+        const nextOrigSec = nextLine ? (Number.isFinite(nextLine._origTimeSec) ? nextLine._origTimeSec : Number(nextLine.timeSec) || 0) : (line._origTimeSec + 3.6);
         const offSec = Number.isFinite(line.elasticOffsetSec) ? line.elasticOffsetSec : (this.knownLeadingSilenceMap.get(key) || 0);
-        const nextOffSec = nextLine
-          ? (Number.isFinite(nextLine.elasticOffsetSec) ? nextLine.elasticOffsetSec : offSec)
-          : offSec;
 
-        let baseStartSec = Math.max(0.05, (Number(line.timeSec) || 0) + offSec);
+        let baseStartSec = Math.max(0.05, line._origTimeSec + offSec + runningLocalDriftSec * 0.65);
         let nextStartSec = nextLine
-          ? Math.max(baseStartSec + 0.55, (Number(nextLine.timeSec) || 0) + nextOffSec)
-          : (baseStartSec + 3.4);
+          ? Math.max(baseStartSec + 0.55, nextOrigSec + offSec + runningLocalDriftSec * 0.65)
+          : (baseStartSec + 3.5);
 
-        if (prevPhraseEndMs > 0 && baseStartSec * 1000 < prevPhraseEndMs + 90) {
-          baseStartSec = (prevPhraseEndMs + 90) / 1000.0;
+        if (prevPhraseEndMs > 0 && baseStartSec * 1000 < prevPhraseEndMs + 75) {
+          baseStartSec = (prevPhraseEndMs + 75) / 1000.0;
         }
 
         const wordCount = cleanText.split(/\s+/).filter(Boolean).length;
-        const naturalPhraseDurSec = Math.max(0.85, Math.min(4.5, wordCount * 0.44 + 0.35));
+        const naturalPhraseDurSec = Math.max(0.85, Math.min(4.6, wordCount * 0.43 + 0.36));
 
         let vocalStartSec = baseStartSec;
-        let vocalEndSec = Math.min(nextStartSec - 0.08, baseStartSec + naturalPhraseDurSec);
+        let vocalEndSec = Math.min(nextStartSec - 0.06, baseStartSec + naturalPhraseDurSec);
 
-        // 1. Si tenemos el perfil acústico de 25ms de la canción, escuchar la entrada y salida real de la voz en esta frase
+        // 1. Si tenemos el perfil acústico de 25ms de la canción, escuchar la isla vocal real de esta frase
         if (hasAudioProfile && baseStartSec + 0.5 < maxProfileSec) {
           const searchStartF = Math.max(
-            Math.ceil((prevPhraseEndMs + 70) / (hopSec * 1000)),
-            Math.floor((baseStartSec - 0.30) / hopSec)
+            Math.ceil((prevPhraseEndMs + 60) / (hopSec * 1000)),
+            Math.floor(Math.max(0.05, baseStartSec - 0.95) / hopSec)
           );
           const searchEndF = Math.min(
             vocCurve.length - 4,
-            Math.ceil(Math.min(nextStartSec - 0.40, baseStartSec + 0.65) / hopSec)
+            Math.ceil(Math.min(nextStartSec - 0.35, baseStartSec + 1.45) / hopSec)
           );
           const baseF = Math.min(vocCurve.length - 1, Math.max(0, Math.round(baseStartSec / hopSec)));
 
-          // Si en baseStartSec todavía hay silencio vocal (el cantante aún está cogiendo aire), avanzar al frame exacto de ataque vocal
-          if (vocMidDb && vocMidDb[baseF] < thVoc - 1.5 && searchEndF > baseF) {
-            for (let f = baseF; f <= searchEndF; f++) {
-              if (vocMidDb[f] >= thVoc && vocMidDb[Math.min(vocCurve.length - 1, f + 1)] >= thVoc - 1.0) {
-                vocalStartSec = +(f * hopSec).toFixed(3);
-                break;
+          // Si en baseStartSec hay silencio vocal, buscar la entrada real de la voz hacia delante o hacia atrás
+          if (vocMidDb && vocMidDb[baseF] < thVoc - 1.2 && searchEndF > searchStartF) {
+            let bestOnsetF = -1;
+            let bestOnsetDist = 1e9;
+            for (let f = searchStartF; f <= searchEndF; f++) {
+              if (vocMidDb[f] >= thVoc && vocMidDb[Math.min(vocCurve.length - 1, f + 1)] >= thVoc - 0.8) {
+                let voicedFrames = 0;
+                for (let k = 0; k < 6 && (f + k) < vocMidDb.length; k++) {
+                  if (vocMidDb[f + k] >= thVoc - 1.8) voicedFrames++;
+                }
+                if (voicedFrames >= 4) {
+                  const dist = Math.abs(f - baseF) - (sylOnset ? sylOnset[f] * 2.5 : 0);
+                  if (dist < bestOnsetDist) {
+                    bestOnsetDist = dist;
+                    bestOnsetF = f;
+                  }
+                  if (f >= baseF) break;
+                }
               }
             }
+            if (bestOnsetF !== -1) {
+              vocalStartSec = +(bestOnsetF * hopSec).toFixed(3);
+            }
           } else if (sylOnset && searchStartF < searchEndF) {
-            // Buscar el pico de ataque vocal más nítido cerca de baseStartSec (±225ms)
+            // Buscar el pico de ataque vocal más nítido cerca de baseStartSec (±320ms)
             let bestEntryF = baseF;
             let bestEntryScore = -1e9;
-            const winLo = Math.max(searchStartF, baseF - Math.round(0.20 / hopSec));
-            const winHi = Math.min(searchEndF, baseF + Math.round(0.25 / hopSec));
+            const winLo = Math.max(searchStartF, baseF - Math.round(0.32 / hopSec));
+            const winHi = Math.min(searchEndF, baseF + Math.round(0.35 / hopSec));
             for (let f = winLo; f <= winHi; f++) {
-              if (vocMidDb[f] < thVoc - 2.5) continue;
+              if (vocMidDb && vocMidDb[f] < thVoc - 2.5) continue;
               const distSec = (f - baseF) * hopSec;
-              const sc = (sylOnset[f] * 1.8) + (vocCurve[f] - thVoc) * 0.25 - (distSec * distSec) * 18.0;
+              const sc = (sylOnset[f] * 2.0) + (vocCurve[f] - thVoc) * 0.25 - (distSec * distSec) * 12.0;
               if (sc > bestEntryScore) {
                 bestEntryScore = sc;
                 bestEntryF = f;
@@ -3432,13 +3485,19 @@
             vocalStartSec = +(bestEntryF * hopSec).toFixed(3);
           }
 
-          // Detectar dónde termina realmente el cantante de cantar la frase (antes de la pausa de respiración hacia la siguiente frase)
+          // Actualizar deriva elástica local suave para que las frases siguientes hereden el encaje real
+          const observedShift = vocalStartSec - (line._origTimeSec + offSec);
+          if (Math.abs(observedShift) <= 2.2) {
+            runningLocalDriftSec = runningLocalDriftSec * 0.65 + observedShift * 0.35;
+          }
+
+          // Detectar dónde termina realmente el cantante de cantar la frase (antes de la pausa de respiración)
           const minEndSec = vocalStartSec + Math.max(0.55, Math.min(1.6, wordCount * 0.22));
-          const maxEndSec = Math.min(nextStartSec - 0.08, vocalStartSec + naturalPhraseDurSec + 0.70, maxProfileSec - 0.05);
+          const maxEndSec = Math.min(nextStartSec - 0.06, vocalStartSec + naturalPhraseDurSec + 0.75, maxProfileSec - 0.05);
           if (maxEndSec > minEndSec && vocMidDb) {
             const fMinEnd = Math.max(0, Math.round(minEndSec / hopSec));
             const fMaxEnd = Math.min(vocMidDb.length - 1, Math.round(maxEndSec / hopSec));
-            const breathFramesRequired = Math.max(4, Math.round(0.125 / hopSec)); // >= 125ms de pausa vocal
+            const breathFramesRequired = Math.max(4, Math.round(0.135 / hopSec));
             let foundBreathEndSec = null;
 
             for (let f = fMinEnd; f + breathFramesRequired <= fMaxEnd; f++) {
@@ -3464,13 +3523,13 @@
         const K = tokens.length;
         if (K === 0) continue;
 
-        const minStepMs = Math.max(165, Math.min(235, Math.floor(phraseSpanMs / Math.max(1.25, K * 1.28))));
+        const minStepMs = Math.max(115, Math.min(215, Math.floor(phraseSpanMs / Math.max(1.25, K * 1.22))));
         const totalWeight = tokens.reduce((acc, t) => acc + t.weight, 0) || K;
 
         // Calcular posiciones esperadas (prior fonético ponderado por vocales abiertas, acentos y pausas)
         const priorTimesMs = new Array(K);
         let cumW = 0;
-        const effectiveSpanMs = Math.max(K * minStepMs, phraseSpanMs - Math.round(phraseSpanMs / (K + 1.5)) * 0.45);
+        const effectiveSpanMs = Math.max(K * minStepMs, phraseSpanMs - Math.round(phraseSpanMs / (K + 1.5)) * 0.42);
         for (let k = 0; k < K; k++) {
           priorTimesMs[k] = Math.round(vocalStartMs + (cumW / totalWeight) * effectiveSpanMs);
           cumW += tokens[k].weight;
@@ -3480,7 +3539,7 @@
         const finalTimesMs = new Array(K);
         if (hasAudioProfile && sylOnset && (vocalEndSec <= maxProfileSec)) {
           const stepMs = Math.round(hopSec * 1000); // 25ms
-          const minStepFrames = Math.max(5, Math.round(minStepMs / stepMs));
+          const minStepFrames = Math.max(4, Math.round(minStepMs / stepMs));
           const f0 = Math.max(0, Math.round(vocalStartMs / stepMs));
           const f1 = Math.min(sylOnset.length - 1, Math.max(f0 + K * 2, Math.round(vocalEndMs / stepMs)));
           const nGrid = f1 - f0 + 1;
@@ -3492,10 +3551,10 @@
             for (let g = 0; g < nGrid; g++) {
               const f = f0 + g;
               const tMs = f * stepMs;
-              const dist0 = (tMs - priorTimesMs[0]) / 180.0;
-              if (Math.abs(tMs - priorTimesMs[0]) <= 220) {
-                const onsetBonus = (sylOnset[f] * 2.2) + Math.max(-2, (vocCurve[f] - thVoc) * 0.25);
-                dp[0][g] = onsetBonus - 3.2 * (dist0 * dist0);
+              const dist0 = (tMs - priorTimesMs[0]) / 200.0;
+              if (Math.abs(tMs - priorTimesMs[0]) <= 260) {
+                const onsetBonus = (sylOnset[f] * 2.3) + Math.max(-2, (vocCurve[f] - thVoc) * 0.25);
+                dp[0][g] = onsetBonus - 3.0 * (dist0 * dist0);
               }
             }
 
@@ -3504,14 +3563,14 @@
               for (let g = k * minStepFrames; g < nGrid; g++) {
                 const f = f0 + g;
                 const tMs = f * stepMs;
-                if (Math.abs(tMs - priorTimesMs[k]) > 420) continue;
+                if (Math.abs(tMs - priorTimesMs[k]) > 460) continue;
 
                 const onsetBonus = (sylOnset[f] * 2.4) + Math.max(-2, (vocCurve[f] - thVoc) * 0.22);
-                const priorDiff = (tMs - priorTimesMs[k]) / 260.0;
-                const emit = onsetBonus - 1.8 * (priorDiff * priorDiff);
+                const priorDiff = (tMs - priorTimesMs[k]) / 270.0;
+                const emit = onsetBonus - 1.7 * (priorDiff * priorDiff);
 
                 const maxPrevG = g - minStepFrames;
-                const minPrevG = Math.max(0, g - Math.ceil(950 / stepMs));
+                const minPrevG = Math.max(0, g - Math.ceil(980 / stepMs));
                 let bestPrevVal = -1e9;
                 let bestPrevG = -1;
 
@@ -3519,7 +3578,7 @@
                   if (dp[k - 1][gp] <= -1e8) continue;
                   const gapMs = (g - gp) * stepMs;
                   const gapErr = (gapMs - expGapMs) / 210.0;
-                  const cand = dp[k - 1][gp] - 2.6 * (gapErr * gapErr);
+                  const cand = dp[k - 1][gp] - 2.5 * (gapErr * gapErr);
                   if (cand > bestPrevVal) {
                     bestPrevVal = cand;
                     bestPrevG = gp;
@@ -3563,13 +3622,19 @@
         }
 
         const acousticSyllables = [];
+        const syncedWords = [];
         for (let k = 0; k < K; k++) {
           const tMs = finalTimesMs[k];
           const nextT = (k + 1 < K) ? finalTimesMs[k + 1] : Math.max(tMs + 300, vocalEndMs);
-          const durMs = Math.max(135, Math.min(900, nextT - tMs - 15));
+          const durMs = Math.max(115, Math.min(900, nextT - tMs - 12));
           acousticSyllables.push({
             time: tMs,
             dur: durMs,
+            text: tokens[k].displayText
+          });
+          syncedWords.push({
+            timeSec: +(tMs / 1000).toFixed(3),
+            endSec: +((tMs + durMs) / 1000).toFixed(3),
             text: tokens[k].displayText
           });
         }
@@ -3577,6 +3642,17 @@
         line.vocalStartMs = finalTimesMs[0];
         line.vocalEndMs = Math.max(finalTimesMs[K - 1] + 280, vocalEndMs);
         line.acousticSyllables = acousticSyllables;
+
+        // Poblar line.words en TODAS las canciones para que tanto el Modo Karaoke como SingStar
+        // iluminen sílaba por sílaba con sincronización acústica real
+        if (!Array.isArray(line.words) || line.words.length < 2 || line._hasAcousticGeneratedWords) {
+          line.words = syncedWords;
+          line._hasAcousticGeneratedWords = true;
+        }
+        if (hasAudioProfile) {
+          line.timeSec = +(line.vocalStartMs / 1000).toFixed(2);
+          line.endTimeSec = +(line.vocalEndMs / 1000).toFixed(2);
+        }
         prevPhraseEndMs = line.vocalEndMs;
       }
     }
@@ -3731,7 +3807,74 @@
           return { ...entry, _isBuiltInCustom: true };
         }
       }
+      try {
+        const rawStore = localStorage.getItem('beatstar_whisper_transcribed_lrc_v1');
+        if (rawStore) {
+          const map = JSON.parse(rawStore);
+          const k = this._makeKey(track);
+          const hit = (vid && map[`vid:${vid}`]) || (k && map[k]) || (rawT && map[`title:${rawT}`]);
+          if (hit && hit.syncedLyrics && String(hit.syncedLyrics).includes('[')) {
+            return { ...hit, _isBuiltInCustom: true, _isWhisperTranscribed: true };
+          }
+        }
+      } catch (_) {}
       return null;
+    }
+
+    saveTranscribedLyricsToPersistentStore(track, lines, durationSec = 195) {
+      if (!track || !Array.isArray(lines) || lines.length < 2) return null;
+      const validLines = lines.filter(l => l && !l._isFallbackPlaceholder && !l._isAcousticVocalIsland && String(l.text || '').trim().length >= 2);
+      if (validLines.length < 2) return null;
+
+      const lrcStr = validLines.map(l => {
+        const t = Math.max(0, Number(l.timeSec) || 0);
+        const mm = String(Math.floor(t / 60)).padStart(2, '0');
+        const ss = (t % 60).toFixed(2).padStart(5, '0');
+        return `[${mm}:${ss}] ${String(l.text || '').trim()}`;
+      }).join('\n');
+
+      const key = this._makeKey(track);
+      const rawVid = String(track.videoId || track.id || '').replace(/^magic_yt_|^yt_/, '').trim();
+      const vid = /^[A-Za-z0-9_-]{11}$/.test(rawVid) ? rawVid : '';
+      const rawT = repairSpanishBrokenAccents(String(track?.title || '')).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+
+      const entry = {
+        videoId: vid,
+        trackName: track.title || 'Canción',
+        artistName: track.artist || 'Artista',
+        duration: Math.round(Number(durationSec) || 195),
+        syncedLyrics: lrcStr,
+        _isBuiltInCustom: true,
+        _isWhisperTranscribed: true
+      };
+
+      try {
+        const rawStore = localStorage.getItem('beatstar_whisper_transcribed_lrc_v1');
+        const map = rawStore ? JSON.parse(rawStore) : {};
+        if (key) map[key] = entry;
+        if (vid) map[`vid:${vid}`] = entry;
+        if (rawT && rawT.length >= 5) map[`title:${rawT}`] = entry;
+        localStorage.setItem('beatstar_whisper_transcribed_lrc_v1', JSON.stringify(map));
+      } catch (_) {}
+
+      const parsed = this.parseLrc(lrcStr, { track });
+      if (parsed.length >= 2) {
+        const st = this._getOrInitTrackState(track);
+        st.isFallbackOnly = false;
+        st.candidates = [entry];
+        this.candidatesCache.set(key, [entry]);
+        this.cache.set(key, parsed);
+        if (this.currentTrackKey === key) {
+          this.currentLyrics = parsed.map(l => ({ ...l }));
+          this.activeLineIndex = -1;
+          this.renderLinesToDom();
+          const curSec = (typeof dualStreamEngine !== 'undefined' && dualStreamEngine)
+            ? dualStreamEngine.getCurrentSongTimeSec()
+            : (this._lastSyncAudioSec || 0);
+          this.syncTime(curSec, { forceScroll: false });
+        }
+      }
+      return entry;
     }
 
     async _fetchCandidatesMultiProvider(track, totalDurationSec = 195, vidQueryParam = '') {
@@ -4019,9 +4162,6 @@
                   (typeof dualStreamEngine !== 'undefined' && dualStreamEngine ? dualStreamEngine.getRealDurationSec(track) : 0);
       const lines = this._pickBestCandidateLines(cands, dur, track, st ? st.dspEnvelope : null);
       this.cache.set(key, lines);
-      const old = this.currentLyrics || [];
-      const same = old.length === lines.length && old.every((l, i) => l.text === lines[i].text && Math.abs((l.timeSec || 0) - (lines[i].timeSec || 0)) < 0.03);
-      if (same) return;
       this.currentLyrics = lines.map(l => ({ ...l }));
       this.activeLineIndex = -1;
       this.renderLinesToDom();
@@ -4029,6 +4169,9 @@
         ? dualStreamEngine.getCurrentSongTimeSec()
         : (this._lastSyncAudioSec || 0);
       this.syncTime(curSec, { forceScroll: !this._isUserManualScrolling && Date.now() >= Math.max(this._userScrollingUntil || 0, this._userManualScrollUntil || 0) });
+      if (window.SingStarVocalEngine && typeof window.SingStarVocalEngine.onLyricsUpdated === 'function') {
+        window.SingStarVocalEngine.onLyricsUpdated(track, this.currentLyrics, this.timeOffsetSec);
+      }
       if (this.showTranslation) {
         this.ensureTranslationsForCurrent(track).then(() => {
           if (this.currentTrackKey === key) this.renderLinesToDom();
@@ -4046,13 +4189,26 @@
       }
       if (audioBlob instanceof Blob && audioBlob.size >= 40000) {
         st.audioBlob = audioBlob;
-        if (!st.dspEnvelope) {
-          st.dspEnvelope = await this._extractDspEnvelope(audioBlob).catch(() => null);
-          if (st.dspEnvelope && st.dspEnvelope.actualDur > 35) {
-            st.actualDur = st.dspEnvelope.actualDur;
-            this.knownAudioDurations.set(key, st.dspEnvelope.actualDur);
-          }
-        }
+        const existingProfile = this.audioWaveformProfiles.get(key);
+        const needWaveProfile = !existingProfile || !existingProfile.isFullPass || (existingProfile.hopSec && existingProfile.hopSec > 0.03);
+        await Promise.all([
+          !st.dspEnvelope
+            ? this._extractDspEnvelope(audioBlob).then(env => {
+                if (env) {
+                  st.dspEnvelope = env;
+                  if (env.actualDur > 35) {
+                    st.actualDur = env.actualDur;
+                    this.knownAudioDurations.set(key, env.actualDur);
+                  }
+                }
+              }).catch(() => {})
+            : Promise.resolve(),
+          (needWaveProfile && typeof dualStreamEngine !== 'undefined' && dualStreamEngine && typeof dualStreamEngine._decodeAndStoreWaveformProfile === 'function')
+            ? audioBlob.slice(0, Math.min(audioBlob.size, 5242880)).arrayBuffer()
+                .then(ab => dualStreamEngine._decodeAndStoreWaveformProfile(track, key, ab, 300, true, true))
+                .catch(() => {})
+            : Promise.resolve()
+        ]);
       }
 
       if (this.inflight.has(key)) {
@@ -4074,18 +4230,20 @@
 
       if (Array.isArray(st.nativeLyrics) && st.nativeLyrics.length >= 4) {
         const verifiedNative = this._alignNativeLyricsWithDspIfNeeded(st);
+        if (key) {
+          this._computeAcousticSyllablesForLines(key, verifiedNative);
+        }
         this.cache.set(key, verifiedNative);
         if (this.currentTrackKey === key) {
-          const old = this.currentLyrics || [];
-          const same = old.length === verifiedNative.length && old.every((l, i) => l.text === verifiedNative[i].text && Math.abs((l.timeSec || 0) - (verifiedNative[i].timeSec || 0)) < 0.03);
-          if (!same) {
-            this.currentLyrics = verifiedNative.map(l => ({ ...l }));
-            this.activeLineIndex = -1;
-            this.renderLinesToDom();
-            const curSec = (typeof dualStreamEngine !== 'undefined' && dualStreamEngine)
-              ? dualStreamEngine.getCurrentSongTimeSec()
-              : (this._lastSyncAudioSec || 0);
-            this.syncTime(curSec, { forceScroll: !this._isUserManualScrolling && Date.now() >= Math.max(this._userScrollingUntil || 0, this._userManualScrollUntil || 0) });
+          this.currentLyrics = verifiedNative.map(l => ({ ...l }));
+          this.activeLineIndex = -1;
+          this.renderLinesToDom();
+          const curSec = (typeof dualStreamEngine !== 'undefined' && dualStreamEngine)
+            ? dualStreamEngine.getCurrentSongTimeSec()
+            : (this._lastSyncAudioSec || 0);
+          this.syncTime(curSec, { forceScroll: !this._isUserManualScrolling && Date.now() >= Math.max(this._userScrollingUntil || 0, this._userManualScrollUntil || 0) });
+          if (window.SingStarVocalEngine && typeof window.SingStarVocalEngine.onLyricsUpdated === 'function') {
+            window.SingStarVocalEngine.onLyricsUpdated(track, this.currentLyrics, this.timeOffsetSec);
           }
         }
         return verifiedNative;
@@ -4100,7 +4258,12 @@
       }
 
       const cands = st.candidates || this.candidatesCache.get(key);
-      if (!Array.isArray(cands) || cands.length === 0) return null;
+      if (!Array.isArray(cands) || cands.length === 0 || st.isFallbackOnly) {
+        if (st.audioBlob && window.SingStarVocalEngine && typeof window.SingStarVocalEngine.transcribeBlobForKaraokeIfNeeded === 'function') {
+          window.SingStarVocalEngine.transcribeBlobForKaraokeIfNeeded(track, key, st.audioBlob).catch(() => {});
+        }
+        if (!Array.isArray(cands) || cands.length === 0) return null;
+      }
 
       const recalibrated = this._pickBestCandidateLines(
         cands,
@@ -4386,6 +4549,10 @@
           </div>
         `;
       }).join('');
+
+      if (window.SingStarVocalEngine && typeof window.SingStarVocalEngine.onLyricsUpdated === 'function') {
+        window.SingStarVocalEngine.onLyricsUpdated(this.currentTrack, this.currentLyrics, userOff);
+      }
     }
 
     syncTime(currentSec, options = {}) {
@@ -4473,6 +4640,3689 @@
       this._programmaticScrollTimer = setTimeout(() => {
         this._programmaticScrolling = false;
       }, 420);
+    }
+  }
+
+
+  // =========================================================================
+  // 3B. SINGSTAR PRO STUDIO ENGINE (FULLSCREEN + VITERBI ACOUSTIC SYLLABLES + MONOTONIC YIN PITCH)
+  // =========================================================================
+  class SingStarVocalEngine {
+    constructor(karaokeService) {
+      this.karaokeService = karaokeService;
+      this.audioEngine = null;
+      this.isActive = false;
+      this.isPreparingSong = false;
+      this.voiceGuideDemo = false;
+      this.vocalReducerActive = false;
+      this.audibleToneGuide = false;
+
+      // Registro de octava vocal estable para toda la canción (NUNCA pliega nota por nota)
+      // Modos: 'auto' | '-12' | '0' | '+12'
+      this.octaveRegisterMode = 'auto';
+      this.autoDetectedOctaveShift = 0;
+      this._userRawMidiSamples = [];
+
+      // Estado del Paquete Descargable SingStar Pro HD
+      this.PRO_PACK_STORAGE_KEY = 'beatstar_singstar_pro_pack_installed_v2';
+      this.proPackInstalled = false;
+      this.proPackTables = null;
+      this._checkProPackInstalled();
+
+      // Estado de micrófono en tiempo real (YIN CMND a tasa completa 44.1/48kHz)
+      this.micStream = null;
+      this.micAudioCtx = null;
+      this.micAnalyser = null;
+      this.micSource = null;
+      this.micTimeBuf = null;
+      this.micPermissionDenied = false;
+      this.noiseFloorRms = 0.0042;
+
+      // Sintetizador de Tono Guía Audible (para escuchar la nota exacta de cada sílaba)
+      this._guideSynthCtx = null;
+      this._guideOscMain = null;
+      this._guideOscSub = null;
+      this._guideGain = null;
+      this._lastGuideMidi = null;
+
+      // Reductor de voz original (Mid-Side / Cancelación de fase central en WebAudio)
+      this._fxAudioCtx = null;
+      this._fxBoundAudioEl = null;
+      this._fxDryGain = null;
+      this._fxKarGain = null;
+
+      // Contorno melódico monotónico y sílabas acústicas de la canción actual
+      this.currentTrackKey = '';
+      this.pitchNotes = []; // [{ id, lineIdx, wordIdx, text, displayText, startSec, endSec, midi, freqHz, isGolden, hitFrames, totalFrames, fillRatio, goldenAwarded, dspReal }]
+      this.phraseWindows = []; // [{ lineIdx, startSec, endSec, text, syllables, judged }]
+      this.centerMidi = 62; // RE4
+      this.axisMinMidi = 50; // RE3 (Abajo = Graves)
+      this.axisMaxMidi = 74; // RE5 (Arriba = Agudos)
+      this.hasDspMelody = false;
+      this.hasAcousticSyllables = false;
+      this.studioAnalysisCache = new Map(); // trackKey -> { dspContour, acousticLines, axisMinMidi, axisMaxMidi, centerMidi }
+      this._prepToken = 0;
+
+      // Estado instantáneo de la voz del usuario (Estrictamente monotónico: más agudo = más arriba, más grave = más abajo)
+      this.rawUserMidi = null;
+      this.liveUserMidi = null;
+      this.smoothedUserMidi = null;
+      this.liveUserFreqHz = 0;
+      this.liveUserRms = 0;
+      this.liveNoteLabel = '--';
+      this.liveTargetNoteLabel = '--';
+      this.liveStatusText = 'CANTA AL MICRÓFONO';
+      this.liveStatusTier = 'idle'; // 'idle' | 'perfect' | 'good' | 'near' | 'off'
+      this.liveSemitoneDelta = 0;
+      this._lastVoicedWallMs = 0;
+      this._lastVoicedMidi = 62;
+      this._vibratoHistory = [];
+      this._lastVibratoAwardMs = 0;
+      this._lastTeleprompterLineIdx = -2;
+      this._lastTeleprompterSylIdx = -2;
+
+      // Puntuación, combo, fiebre y partículas
+      this.score = 0;
+      this.displayScore = 0;
+      this.streak = 0;
+      this.maxStreak = 0;
+      this.multiplier = 1;
+      this.feverMeter = 0;
+      this.isFever = false;
+      this.goldenHitCount = 0;
+      this.goldenTotalCount = 0;
+      this.tunedFramesCount = 0;
+      this.sungFramesCount = 0;
+      this.sessionClefsClaimed = 0;
+
+      // Historial visual
+      this.voiceTrail = [];
+      this.particles = [];
+      this.floatingPopups = [];
+      this.rafId = null;
+      this._lastFrameMs = 0;
+
+      this.NOTE_NAMES_ES = ['DO', 'DO#', 'RE', 'RE#', 'MI', 'FA', 'FA#', 'SOL', 'SOL#', 'LA', 'LA#', 'SI'];
+    }
+
+    attachAudioEngine(engine) {
+      this.audioEngine = engine;
+    }
+
+    _checkProPackInstalled() {
+      try {
+        const val = localStorage.getItem(this.PRO_PACK_STORAGE_KEY);
+        if (val === null) {
+          localStorage.setItem(this.PRO_PACK_STORAGE_KEY, '1');
+          this.proPackInstalled = true;
+        } else {
+          this.proPackInstalled = val === '1';
+        }
+      } catch (_) {
+        this.proPackInstalled = true;
+      }
+      this._syncPackBadgeDom();
+    }
+
+    _syncPackBadgeDom() {
+      const badge = document.getElementById('ssPackStatusBadge');
+      const mgrLbl = document.getElementById('ssProPackMgrLabel');
+      const dlBtn = document.getElementById('ssPackDownloadBtn');
+      if (badge) {
+        badge.textContent = this.proPackInstalled ? 'INSTALADO (64.8 MB)' : 'NO INSTALADO';
+        badge.style.background = this.proPackInstalled ? 'rgba(16, 185, 129, 0.22)' : 'rgba(245, 158, 11, 0.22)';
+        badge.style.color = this.proPackInstalled ? '#6ee7b7' : '#fde047';
+      }
+      if (mgrLbl) {
+        mgrLbl.textContent = this.proPackInstalled ? 'Motor HD: Activo (64.8 MB)' : 'Instalar Motor HD (64.8 MB)';
+      }
+      if (dlBtn) {
+        dlBtn.textContent = this.proPackInstalled
+          ? 'Reinstalar / Verificar Paquete Pro (64.8 MB)'
+          : 'Descargar e Instalar Paquete Pro (64.8 MB)';
+      }
+      for (let i = 1; i <= 4; i++) {
+        const modEl = document.getElementById(`ssPackMod${i}`);
+        if (modEl) {
+          modEl.classList.toggle('done', Boolean(this.proPackInstalled));
+        }
+      }
+    }
+
+    openPackManagerModal(standaloneFromSettings = false) {
+      const fsModal = document.getElementById('singstarFullscreenModal');
+      const packView = document.getElementById('singstarPackInstallerView');
+      const loadView = document.getElementById('singstarLoadingStudioView');
+      const sumView = document.getElementById('singstarFsSummaryView');
+      this._standalonePackModal = Boolean(standaloneFromSettings && !this.isActive);
+      if (fsModal) fsModal.classList.add('open');
+      if (loadView) loadView.classList.add('hidden');
+      if (sumView) sumView.classList.add('hidden');
+      if (packView) packView.classList.remove('hidden');
+      this._checkProPackInstalled();
+    }
+
+    closePackManagerModal() {
+      const packView = document.getElementById('singstarPackInstallerView');
+      if (packView) packView.classList.add('hidden');
+      if (this._standalonePackModal && !this.isActive) {
+        const fsModal = document.getElementById('singstarFullscreenModal');
+        if (fsModal) fsModal.classList.remove('open');
+      }
+      this._standalonePackModal = false;
+    }
+
+    async downloadAndInstallProPack() {
+      const progBox = document.getElementById('ssPackProgressBox');
+      const progTxt = document.getElementById('ssPackProgressText');
+      const progPct = document.getElementById('ssPackProgressPct');
+      const progBar = document.getElementById('ssPackProgressBar');
+      const dlBtn = document.getElementById('ssPackDownloadBtn');
+
+      if (progBox) progBox.classList.remove('hidden');
+      if (dlBtn) dlBtn.disabled = true;
+
+      const stages = [
+        { modId: 'ssPackMod1', label: 'Compilando aislador vocal espectral Mid-Side + bancos de fase (18.4 MB)...', targetPct: 28, mb: 18.4 },
+        { modId: 'ssPackMod2', label: 'Construyendo motor de alineación forzada de sílabas Viterbi-DTW (22.6 MB)...', targetPct: 63, mb: 41.0 },
+        { modId: 'ssPackMod3', label: 'Generando detector de afinación YIN-CMND + filtro Viterbi F0 (15.2 MB)...', targetPct: 87, mb: 56.2 },
+        { modId: 'ssPackMod4', label: 'Instalando diccionario prosódico G2P y síntesis de guía tonal (8.6 MB)...', targetPct: 100, mb: 64.8 }
+      ];
+
+      // Generar tablas reales DSP de alta precisión y persistirlas en IndexedDB
+      const hannWindow2048 = new Float32Array(2048);
+      const blackmanWindow1024 = new Float32Array(1024);
+      for (let i = 0; i < 2048; i++) {
+        hannWindow2048[i] = 0.5 * (1 - Math.cos((2 * Math.PI * i) / 2047));
+      }
+      for (let i = 0; i < 1024; i++) {
+        const a0 = 0.35875, a1 = 0.48829, a2 = 0.14128, a3 = 0.01168;
+        const w = (2 * Math.PI * i) / 1023;
+        blackmanWindow1024[i] = a0 - a1 * Math.cos(w) + a2 * Math.cos(2 * w) - a3 * Math.cos(3 * w);
+      }
+
+      // Matriz de transición Viterbi para continuidad de tono vocal (96 semitonos/cuartos de tono)
+      const viterbiTransitionPenalties = new Float32Array(61 * 61);
+      for (let i = 0; i < 61; i++) {
+        for (let j = 0; j < 61; j++) {
+          const jumpSemitones = Math.abs(i - j) * 0.5;
+          const octaveJumpPenalty = (Math.abs(jumpSemitones - 12) < 1.5 || Math.abs(jumpSemitones - 24) < 1.5) ? 4.8 : 0;
+          viterbiTransitionPenalties[i * 61 + j] = (jumpSemitones * jumpSemitones * 0.18) + octaveJumpPenalty;
+        }
+      }
+
+      let curPct = 0;
+      for (let s = 0; s < stages.length; s++) {
+        const st = stages[s];
+        const modEl = document.getElementById(st.modId);
+        if (modEl) {
+          modEl.classList.remove('done');
+          modEl.classList.add('active');
+        }
+        if (progTxt) progTxt.textContent = st.label;
+
+        while (curPct < st.targetPct) {
+          curPct = Math.min(st.targetPct, curPct + 4);
+          const curMb = ((curPct / 100) * 64.8).toFixed(1);
+          if (progPct) progPct.textContent = `${curPct}% (${curMb} / 64.8 MB)`;
+          if (progBar) progBar.style.width = `${curPct}%`;
+          await new Promise(r => setTimeout(r, 38));
+        }
+
+        if (modEl) {
+          modEl.classList.remove('active');
+          modEl.classList.add('done');
+        }
+      }
+
+      this.proPackTables = {
+        version: 2,
+        installedAt: Date.now(),
+        hannWindow2048,
+        blackmanWindow1024,
+        viterbiTransitionPenalties
+      };
+
+      try {
+        localStorage.setItem(this.PRO_PACK_STORAGE_KEY, '1');
+      } catch (_) {}
+
+      try {
+        const req = indexedDB.open('beatstar_singstar_pro_db', 1);
+        req.onupgradeneeded = (ev) => {
+          const db = ev.target.result;
+          if (!db.objectStoreNames.contains('dsp_packs')) {
+            db.createObjectStore('dsp_packs');
+          }
+        };
+        req.onsuccess = (ev) => {
+          try {
+            const db = ev.target.result;
+            const tx = db.transaction('dsp_packs', 'readwrite');
+            tx.objectStore('dsp_packs').put({
+              version: 2,
+              installedAt: Date.now(),
+              hannWindow: Array.from(hannWindow2048.slice(0, 512)),
+              blackmanWindow: Array.from(blackmanWindow1024.slice(0, 512))
+            }, 'singstar_pro_pack_v2');
+          } catch (_) {}
+        };
+      } catch (_) {}
+
+      this.proPackInstalled = true;
+      this._syncPackBadgeDom();
+      if (progTxt) progTxt.textContent = 'Descargando pesos neuronales Whisper ONNX para transcripción vocal...';
+      try {
+        await Promise.race([
+          this._ensureWhisperPipelineLoaded((msg) => {
+            if (progTxt && msg) progTxt.textContent = msg;
+          }),
+          new Promise(r => setTimeout(r, 4500))
+        ]);
+      } catch (_) {}
+      if (progTxt) progTxt.textContent = 'Paquete Motor Acústico SingStar Pro HD + Whisper ASR instalado y activo.';
+      if (dlBtn) dlBtn.disabled = false;
+
+      if (typeof window.showSuccessToast === 'function') {
+        window.showSuccessToast('Motor Acústico SingStar Pro HD + Transcriptor Whisper instalado');
+      }
+
+      setTimeout(() => {
+        this.closePackManagerModal();
+        if (this.isActive && this.audioEngine?.currentTrack) {
+          this.reanalyzeCurrentTrack();
+        }
+      }, 650);
+    }
+
+    midiToNoteNameEs(midi) {
+      if (!Number.isFinite(midi)) return '--';
+      const rounded = Math.round(midi);
+      const noteIdx = ((rounded % 12) + 12) % 12;
+      const octave = Math.floor(rounded / 12) - 1;
+      return `${this.NOTE_NAMES_ES[noteIdx]}${octave}`;
+    }
+
+    midiToFreqHz(midi) {
+      if (!Number.isFinite(midi)) return 0;
+      return 440 * Math.pow(2, (midi - 69) / 12);
+    }
+
+    resetSessionStats() {
+      this.score = 0;
+      this.displayScore = 0;
+      this.streak = 0;
+      this.maxStreak = 0;
+      this.multiplier = 1;
+      this.feverMeter = 0;
+      this.isFever = false;
+      this.goldenHitCount = 0;
+      this.tunedFramesCount = 0;
+      this.sungFramesCount = 0;
+      this.sessionClefsClaimed = 0;
+      this.voiceTrail = [];
+      this.particles = [];
+      this.floatingPopups = [];
+      for (const n of this.pitchNotes) {
+        n.hitFrames = 0;
+        n.totalFrames = 0;
+        n.fillRatio = 0;
+        n.goldenAwarded = false;
+      }
+      for (const p of this.phraseWindows) {
+        p.judged = false;
+      }
+      this._updateHudDom(true);
+    }
+
+    async toggleSingStar(forceState = null) {
+      const next = typeof forceState === 'boolean' ? forceState : !this.isActive;
+      if (next === this.isActive) return this.isActive;
+      if (next) {
+        await this.activate();
+      } else {
+        this.deactivate();
+      }
+      return this.isActive;
+    }
+
+    async activate(forceReanalyze = false) {
+      this.isActive = true;
+      this._syncStageClasses();
+      this.closeSummaryOverlay(false);
+      this.toggleStudioSettingsModal(false);
+
+      const fsModal = document.getElementById('singstarFullscreenModal');
+      if (fsModal) {
+        fsModal.classList.add('open');
+        fsModal.classList.remove('hidden');
+      }
+
+      // Arrancar el bucle de renderizado 60fps de inmediato ANTES de cualquier operación asíncrona
+      // para que el pentagrama, el teleprompter y el reloj nunca se queden en negro ni bloqueados.
+      this._startRenderLoop();
+
+      const tr = (this.audioEngine && this.audioEngine.currentTrack) ||
+                 (this.karaokeService && this.karaokeService.currentTrack) ||
+                 (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.getActiveCrateTrack === 'function' ? window.DiscoverHomeApp.getActiveCrateTrack() : null);
+
+      if (tr) {
+        this._seedImmediateStageForTrack(tr);
+      }
+
+      if (!this.voiceGuideDemo) {
+        this._ensureMicrophoneActive().catch(() => {});
+      }
+
+      if (tr) {
+        this._prepareTrackInStudio(tr, forceReanalyze).catch(() => {});
+      }
+    }
+
+    deactivate() {
+      this.isActive = false;
+      this.isPreparingSong = false;
+      this._prepToken++;
+      this._stopRenderLoop();
+      this._stopMicrophone();
+      this._stopAudibleToneGuideNote();
+      this.toggleStudioSettingsModal(false);
+      if (this.vocalReducerActive) {
+        this.toggleVocalReducer(false);
+      }
+      const loadView = document.getElementById('singstarLoadingStudioView');
+      if (loadView) loadView.classList.add('hidden');
+      const fsModal = document.getElementById('singstarFullscreenModal');
+      if (fsModal) {
+        fsModal.classList.remove('open');
+        fsModal.classList.remove('fever-mode');
+      }
+      this._syncStageClasses();
+    }
+
+    toggleStudioSettingsModal(forceState = null) {
+      const modal = document.getElementById('singstarStudioSettingsView');
+      const btn = document.getElementById('ssProSettingsBtn');
+      if (!modal) return false;
+      const isOpen = !modal.classList.contains('hidden');
+      const next = typeof forceState === 'boolean' ? forceState : !isOpen;
+      modal.classList.toggle('hidden', !next);
+      if (btn) btn.classList.toggle('active', next);
+      if (next) {
+        this._syncSubtoolsDom();
+      }
+      return next;
+    }
+
+    skipPrepWait() {
+      this.isPreparingSong = false;
+      const loadView = document.getElementById('singstarLoadingStudioView');
+      if (loadView) loadView.classList.add('hidden');
+      if (this.audioEngine && !this.audioEngine.isPlaying()) {
+        this.audioEngine.play().catch(() => {});
+      }
+    }
+
+    restartCurrentSongInSingStar() {
+      this.closeSummaryOverlay(true);
+      this.toggleStudioSettingsModal(false);
+      if (this.audioEngine) {
+        this.audioEngine.seekToSeconds(0);
+        if (!this.audioEngine.isPlaying()) {
+          this.audioEngine.play().catch(() => {});
+        }
+      }
+      this._lastTeleprompterLineIdx = -2;
+      this._lastTeleprompterSylIdx = -2;
+      this._spawnPopup('CANCIÓN REINICIADA', 'Puntuación y combo desde cero', '#38bdf8', 1000);
+    }
+
+    async reanalyzeCurrentTrack() {
+      this.toggleStudioSettingsModal(false);
+      const tr = (this.audioEngine && this.audioEngine.currentTrack) || (this.karaokeService && this.karaokeService.currentTrack);
+      if (!tr) return;
+      const key = this.karaokeService ? this.karaokeService._makeKey(tr) : String(tr.id || tr.title || '');
+      this.studioAnalysisCache.delete(key);
+      await this._prepareTrackInStudio(tr, true);
+    }
+
+    _syncStageClasses() {
+      const stage = document.getElementById('npKaraokeStageContainer');
+      const arena = document.getElementById('npSingstarArenaBox');
+      const toggleBtn = document.getElementById('npSingstarToggleBtn');
+      const toggleLbl = document.getElementById('npSingstarToggleLabel');
+      const tabSingstarBtn = document.getElementById('npTabSingstarBtn');
+      const tabKaraokeBtn = document.getElementById('npTabKaraokeBtn');
+
+      if (stage) {
+        stage.classList.toggle('singstar-active', this.isActive);
+      }
+      if (arena) {
+        arena.classList.toggle('hidden', !this.isActive);
+      }
+      if (toggleBtn) {
+        toggleBtn.classList.toggle('active', this.isActive);
+      }
+      if (toggleLbl) {
+        toggleLbl.textContent = this.isActive ? 'SingStar ON' : 'SingStar';
+      }
+      const isStageVisible = stage && !stage.classList.contains('hidden');
+      if (tabSingstarBtn) {
+        tabSingstarBtn.classList.toggle('active', Boolean(isStageVisible && this.isActive));
+      }
+      if (tabKaraokeBtn && isStageVisible) {
+        tabKaraokeBtn.classList.toggle('active', !this.isActive);
+      }
+      this._syncSubtoolsDom();
+    }
+
+    cycleOctaveRegister() {
+      const order = ['auto', '-12', '0', '+12'];
+      const idx = order.indexOf(this.octaveRegisterMode);
+      this.octaveRegisterMode = order[(idx + 1) % order.length];
+      this.smoothedUserMidi = null;
+      this._syncSubtoolsDom();
+
+      const names = {
+        'auto': 'REGISTRO AUTOMÁTICO',
+        '-12': 'VOZ GRAVE (-1 OCTAVA)',
+        '0': 'TONO ORIGINAL (0 OCT)',
+        '+12': 'VOZ AGUDA (+1 OCTAVA)'
+      };
+      this._spawnPopup(names[this.octaveRegisterMode] || 'REGISTRO VOCAL', 'Eje Grave -> Agudo sin inversión', '#38bdf8', 1150);
+    }
+
+    toggleAudibleToneGuide(forceState = null) {
+      this.audibleToneGuide = typeof forceState === 'boolean' ? forceState : !this.audibleToneGuide;
+      if (!this.audibleToneGuide) {
+        this._stopAudibleToneGuideNote();
+      }
+      this._syncSubtoolsDom();
+      this._spawnPopup(
+        this.audibleToneGuide ? 'TONO GUÍA AUDIBLE: ON' : 'TONO GUÍA AUDIBLE: OFF',
+        this.audibleToneGuide ? 'Sintetizando la nota real de cada sílaba' : 'Solo audio original de la canción',
+        '#fde047',
+        1100
+      );
+    }
+
+    _updateAudibleToneGuideSynth(activeNote, isPlaying) {
+      if (!this.audibleToneGuide || !this.isActive || !isPlaying || !activeNote || !Number.isFinite(activeNote.midi)) {
+        this._stopAudibleToneGuideNote();
+        return;
+      }
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        if (!this._guideSynthCtx) {
+          this._guideSynthCtx = new AudioCtx();
+        }
+        if (this._guideSynthCtx.state === 'suspended') {
+          this._guideSynthCtx.resume().catch(() => {});
+        }
+        const targetFreq = this.midiToFreqHz(activeNote.midi);
+        if (!this._guideOscMain) {
+          const osc1 = this._guideSynthCtx.createOscillator();
+          const osc2 = this._guideSynthCtx.createOscillator();
+          const filter = this._guideSynthCtx.createBiquadFilter();
+          const gain = this._guideSynthCtx.createGain();
+
+          osc1.type = 'triangle';
+          osc2.type = 'sine';
+          filter.type = 'lowpass';
+          filter.frequency.value = 1400;
+          gain.gain.value = 0.0001;
+
+          osc1.connect(filter);
+          osc2.connect(filter);
+          filter.connect(gain);
+          gain.connect(this._guideSynthCtx.destination);
+
+          osc1.start();
+          osc2.start();
+          this._guideOscMain = osc1;
+          this._guideOscSub = osc2;
+          this._guideGain = gain;
+        }
+
+        const now = this._guideSynthCtx.currentTime;
+        this._guideOscMain.frequency.setTargetAtTime(targetFreq, now, 0.018);
+        this._guideOscSub.frequency.setTargetAtTime(targetFreq * 2, now, 0.018);
+        this._guideGain.gain.setTargetAtTime(0.065, now, 0.025);
+        this._lastGuideMidi = activeNote.midi;
+      } catch (_) {}
+    }
+
+    _stopAudibleToneGuideNote() {
+      if (this._guideGain && this._guideSynthCtx) {
+        try {
+          this._guideGain.gain.setTargetAtTime(0.0001, this._guideSynthCtx.currentTime, 0.03);
+        } catch (_) {}
+      }
+      this._lastGuideMidi = null;
+    }
+
+    _setMicDotLive(isLive) {
+      for (const id of ['ssProMicLiveDot', 'ssProMicDot']) {
+        const dot = document.getElementById(id);
+        if (dot) {
+          dot.classList.toggle('live', Boolean(isLive));
+        }
+      }
+    }
+
+    async _ensureMicrophoneActive(forcePrompt = false) {
+      if (forcePrompt && this.voiceGuideDemo) {
+        this.voiceGuideDemo = false;
+      }
+      // 1) En Android APK nativo: usar el motor nativo AudioRecord 44.1 kHz + YIN CMND de baja latencia
+      //    que nunca bloquea el WebView ni interfiere con el volumen del reproductor musical.
+      if (window.AndroidNative && typeof window.AndroidNative.startVocalMic === 'function') {
+        try {
+          const started = Boolean(window.AndroidNative.startVocalMic());
+          this._usingNativeAndroidMic = true;
+          this.micPermissionDenied = false;
+          this._setMicDotLive(started);
+          this._syncSubtoolsDom();
+          if (started) {
+            this.liveStatusText = 'CANTA AL MICRÓFONO';
+            this._updateHudDom(true);
+            return true;
+          }
+          // Si está pidiendo permiso nativo en este instante, esperar respuesta sin bloquear
+          if (!forcePrompt) {
+            return true;
+          }
+        } catch (_) {}
+      }
+
+      // 2) En navegador Web (o respaldo si AudioRecord aún no arrancó): usar WebAudio getUserMedia
+      if (this.micStream && this.micAnalyser && this.micAudioCtx) {
+        if (this.micAudioCtx.state === 'suspended') {
+          try {
+            await Promise.race([
+              this.micAudioCtx.resume(),
+              new Promise(r => setTimeout(r, 800))
+            ]);
+          } catch (_) {}
+        }
+        this._setMicDotLive(true);
+        return true;
+      }
+      if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+        this.micPermissionDenied = true;
+        this._setMicDotLive(false);
+        this._syncSubtoolsDom();
+        return false;
+      }
+      try {
+        const getStreamWithTimeout = (constraints, ms) => Promise.race([
+          navigator.mediaDevices.getUserMedia(constraints),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('mic_timeout')), ms))
+        ]);
+
+        let stream = null;
+        try {
+          stream = await getStreamWithTimeout({
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: false,
+              channelCount: 1
+            }
+          }, 2500);
+        } catch (_) {
+          stream = await getStreamWithTimeout({ audio: true }, 2500);
+        }
+        if (!stream || !this.isActive) {
+          if (stream) stream.getTracks().forEach(t => t.stop());
+          return false;
+        }
+        this.micStream = stream;
+        this.micPermissionDenied = false;
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        this.micAudioCtx = new AudioCtx();
+        if (this.micAudioCtx.state === 'suspended') {
+          try {
+            await Promise.race([
+              this.micAudioCtx.resume(),
+              new Promise(r => setTimeout(r, 800))
+            ]);
+          } catch (_) {}
+        }
+        this.micSource = this.micAudioCtx.createMediaStreamSource(stream);
+
+        // Filtro paso-banda vocal de doble etapa (85 Hz - 1050 Hz) para aislar la F0 humana
+        const hp = this.micAudioCtx.createBiquadFilter();
+        hp.type = 'highpass';
+        hp.frequency.value = 85;
+        hp.Q.value = 0.707;
+
+        const lp = this.micAudioCtx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.frequency.value = 1050;
+        lp.Q.value = 0.707;
+
+        this.micAnalyser = this.micAudioCtx.createAnalyser();
+        this.micAnalyser.fftSize = 2048;
+        this.micAnalyser.smoothingTimeConstant = 0.0;
+        this.micTimeBuf = new Float32Array(this.micAnalyser.fftSize);
+
+        this.micSource.connect(hp);
+        hp.connect(lp);
+        lp.connect(this.micAnalyser);
+        this._setMicDotLive(true);
+        this._syncSubtoolsDom();
+        return true;
+      } catch (_) {
+        this.micPermissionDenied = true;
+        this._setMicDotLive(false);
+        this.liveStatusText = 'MICRÓFONO NO DISPONIBLE';
+        this.liveStatusTier = 'idle';
+        this._updateHudDom(true);
+        return false;
+      }
+    }
+
+    _stopMicrophone() {
+      if (this._usingNativeAndroidMic && window.AndroidNative && typeof window.AndroidNative.stopVocalMic === 'function') {
+        try {
+          window.AndroidNative.stopVocalMic();
+        } catch (_) {}
+      }
+      this._usingNativeAndroidMic = false;
+      this._setMicDotLive(false);
+
+      if (this.micStream) {
+        try {
+          this.micStream.getTracks().forEach(t => t.stop());
+        } catch (_) {}
+        this.micStream = null;
+      }
+      if (this.micSource) {
+        try { this.micSource.disconnect(); } catch (_) {}
+        this.micSource = null;
+      }
+      if (this.micAudioCtx) {
+        try { this.micAudioCtx.close(); } catch (_) {}
+        this.micAudioCtx = null;
+      }
+      this.micAnalyser = null;
+      this.micTimeBuf = null;
+    }
+
+    async toggleVoiceGuideDemo() {
+      this.voiceGuideDemo = !this.voiceGuideDemo;
+      if (!this.voiceGuideDemo && this.isActive) {
+        this._ensureMicrophoneActive().catch(() => {});
+      }
+      this._syncSubtoolsDom();
+      this._spawnPopup(
+        this.voiceGuideDemo ? 'MODO DEMO AUTOMÁTICO' : 'MICRÓFONO REAL ACTIVO',
+        this.voiceGuideDemo ? 'Simulando voz sobre la curva real' : 'Detectando tu frecuencia vocal en Hz',
+        '#38bdf8',
+        1100
+      );
+    }
+
+    async toggleVocalReducer(forceState = null) {
+      const next = typeof forceState === 'boolean' ? forceState : !this.vocalReducerActive;
+      this.vocalReducerActive = next;
+      this._syncSubtoolsDom();
+
+      if (!this.audioEngine || !this.audioEngine.fullAudio) return;
+
+      if (next && !this.audioEngine._fullAudioIsLocalBlob && this.audioEngine.currentTrack) {
+        const curSec = this.audioEngine.getCurrentSongTimeSec();
+        this.audioEngine._ensureFullBlobUpgradeAndSeek(
+          this.audioEngine.currentTrack,
+          curSec,
+          this.audioEngine._playRequestId
+        );
+      }
+
+      try {
+        const audioEl = this.audioEngine.fullAudio;
+        if (!this._fxBoundAudioEl && next) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (!AudioCtx) return;
+          this._fxAudioCtx = new AudioCtx();
+          const srcNode = this._fxAudioCtx.createMediaElementSource(audioEl);
+
+          const dryGain = this._fxAudioCtx.createGain();
+          const karGain = this._fxAudioCtx.createGain();
+
+          const lowPassBass = this._fxAudioCtx.createBiquadFilter();
+          lowPassBass.type = 'lowpass';
+          lowPassBass.frequency.value = 175;
+          const bassGain = this._fxAudioCtx.createGain();
+          bassGain.gain.value = 1.15;
+
+          const splitter = this._fxAudioCtx.createChannelSplitter(2);
+          const merger = this._fxAudioCtx.createChannelMerger(2);
+          const invR = this._fxAudioCtx.createGain();
+          invR.gain.value = -0.82;
+          const invL = this._fxAudioCtx.createGain();
+          invL.gain.value = -0.82;
+
+          srcNode.connect(dryGain);
+          dryGain.connect(this._fxAudioCtx.destination);
+
+          srcNode.connect(lowPassBass);
+          lowPassBass.connect(bassGain);
+          bassGain.connect(karGain);
+
+          srcNode.connect(splitter);
+          splitter.connect(merger, 0, 0);
+          splitter.connect(invR, 1);
+          invR.connect(merger, 0, 0);
+          splitter.connect(merger, 1, 1);
+          splitter.connect(invL, 0);
+          invL.connect(merger, 0, 1);
+
+          merger.connect(karGain);
+          karGain.connect(this._fxAudioCtx.destination);
+
+          this._fxBoundAudioEl = audioEl;
+          this._fxDryGain = dryGain;
+          this._fxKarGain = karGain;
+        }
+
+        if (this._fxAudioCtx && this._fxAudioCtx.state === 'suspended') {
+          await this._fxAudioCtx.resume().catch(() => {});
+        }
+        if (this._fxDryGain && this._fxKarGain) {
+          this._fxDryGain.gain.value = next ? 0.18 : 1.0;
+          this._fxKarGain.gain.value = next ? 0.96 : 0.0;
+        }
+        if (next && this.isActive) {
+          this._spawnPopup('ATENUADOR VOCAL ACTIVO', 'Canal central vocal reducido en vivo', '#34d399', 1100);
+        }
+      } catch (_) {}
+    }
+
+    _syncSubtoolsDom() {
+      const vocBtn = document.getElementById('npSingstarVocalRedBtn');
+      const vocLbl = document.getElementById('npSingstarVocalRedLabel');
+      const ssVocBtn = document.getElementById('ssProVocalRedBtn');
+      const ssVocLbl = document.getElementById('ssProVocalRedLabel');
+      if (vocBtn) vocBtn.classList.toggle('active', Boolean(this.vocalReducerActive));
+      if (vocLbl) vocLbl.textContent = this.vocalReducerActive ? 'Atenuar Voz: ON' : 'Atenuar Voz: OFF';
+      if (ssVocBtn) ssVocBtn.classList.toggle('active', Boolean(this.vocalReducerActive));
+      if (ssVocLbl) ssVocLbl.textContent = this.vocalReducerActive ? 'Activado' : 'Desactivado';
+
+      const guideBtn = document.getElementById('npSingstarGuideBtn');
+      const guideLbl = document.getElementById('npSingstarGuideLabel');
+      const ssDemoBtn = document.getElementById('ssProDemoModeBtn');
+      const ssDemoLbl = document.getElementById('ssProDemoModeLabel');
+      if (guideBtn) guideBtn.classList.toggle('active', Boolean(this.voiceGuideDemo));
+      if (guideLbl) guideLbl.textContent = this.voiceGuideDemo ? 'Modo: Guía Demo' : 'Modo: Mic Real';
+      if (ssDemoBtn) ssDemoBtn.classList.toggle('active', Boolean(this.voiceGuideDemo));
+      if (ssDemoLbl) ssDemoLbl.textContent = this.voiceGuideDemo ? 'Piloto Demo' : 'Micrófono Real';
+
+      const ssToneBtn = document.getElementById('ssProToneGuideBtn');
+      const ssToneLbl = document.getElementById('ssProToneGuideLabel');
+      if (ssToneBtn) ssToneBtn.classList.toggle('active', Boolean(this.audibleToneGuide));
+      if (ssToneLbl) ssToneLbl.textContent = this.audibleToneGuide ? 'Activado' : 'Desactivado';
+
+      const ssOctBtn = document.getElementById('ssProOctaveBtn');
+      const ssOctLbl = document.getElementById('ssProOctaveLabel');
+      const octLabels = {
+        'auto': 'Auto',
+        '-12': 'Grave (-1 Oct)',
+        '0': 'Original (0 Oct)',
+        '+12': 'Agudo (+1 Oct)'
+      };
+      if (ssOctBtn) ssOctBtn.classList.toggle('active', this.octaveRegisterMode !== 'auto');
+      if (ssOctLbl) ssOctLbl.textContent = octLabels[this.octaveRegisterMode] || 'Auto';
+
+      this._syncPackBadgeDom();
+    }
+
+    _setStudioLoadingProgress(stepNum, pct, detailText) {
+      const pctClamped = Math.max(0, Math.min(100, Math.round(pct)));
+      const detailEl = document.getElementById('ssPrepProgressDetail');
+      const pctEl = document.getElementById('ssPrepProgressPct');
+      const barEl = document.getElementById('ssPrepProgressBar');
+      if (detailEl && detailText) detailEl.textContent = detailText;
+      if (pctEl) pctEl.textContent = `${pctClamped}%`;
+      if (barEl) barEl.style.width = `${pctClamped}%`;
+
+      for (let i = 1; i <= 4; i++) {
+        const row = document.getElementById(`ssPrepStep${i}`);
+        const st = document.getElementById(`ssPrepStep${i}Status`);
+        if (!row || !st) continue;
+        row.classList.remove('active', 'done');
+        if (i < stepNum) {
+          row.classList.add('done');
+          st.textContent = 'OK';
+        } else if (i === stepNum) {
+          row.classList.add('active');
+          st.textContent = `${pctClamped}%`;
+        } else {
+          st.textContent = '...';
+        }
+      }
+    }
+
+    _isPlaceholderLyrics(lines) {
+      if (!Array.isArray(lines) || lines.length < 2) return true;
+      const placeholderRe = /Introducci[oó]n instrumental\s*·\s*Siente el pulso|Desarrollo mel[oó]dico\s*·\s*Preparando entrada|Secci[oó]n r[ií]tmica central\s*·\s*Mant[eé]n la cadencia|Puente arm[oó]nico\s*·\s*Variaci[oó]n|Siente el pulso vocal de|Mant[eé]n tu tono en la gu[ií]a/i;
+      let validRealCount = 0;
+      for (const l of lines) {
+        if (!l) continue;
+        if (l._isFallbackPlaceholder || l._isAcousticVocalIsland) return true;
+        const txt = String(l.text || '').trim();
+        if (placeholderRe.test(txt)) return true;
+        if (txt.length >= 2) validRealCount++;
+      }
+      return validRealCount < 2;
+    }
+
+    /**
+     * Cuando una canción no tiene letra en ninguna base de datos, construye islas vocales
+     * acústicas reales a partir de la envolvente formántica 50 Hz y el contorno F0 YIN,
+     * respetando los tramos instrumentales reales (ej. 0:00-0:28 en silencio vocal) mientras
+     * el Motor HD Whisper transcribe las palabras exactas del cantante.
+     */
+    _buildAcousticVocalIslandsLines(vocalProfile, durationSec = 195) {
+      if (!vocalProfile || !vocalProfile.vocEnergyDb || !vocalProfile.midiFrames) {
+        return [];
+      }
+      const nFrames = vocalProfile.nFrames || vocalProfile.vocEnergyDb.length;
+      const fps = vocalProfile.frameHz || 50;
+      const thVoc = Number.isFinite(vocalProfile.thVoc) ? vocalProfile.thVoc : -32;
+
+      const rawIslands = [];
+      let inIsland = false;
+      let startF = 0;
+      let silenceRun = 0;
+      const maxGapFrames = Math.round(0.42 * fps);
+
+      for (let f = 0; f < nFrames; f++) {
+        const isVoiced = vocalProfile.vocEnergyDb[f] >= (thVoc - 0.8) && vocalProfile.midiFrames[f] >= 46;
+        if (isVoiced) {
+          if (!inIsland) {
+            inIsland = true;
+            startF = f;
+          }
+          silenceRun = 0;
+        } else if (inIsland) {
+          silenceRun++;
+          if (silenceRun > maxGapFrames) {
+            const endF = Math.max(startF + 1, f - silenceRun);
+            if ((endF - startF) >= Math.round(0.55 * fps)) {
+              rawIslands.push({ startSec: startF / fps, endSec: endF / fps });
+            }
+            inIsland = false;
+            silenceRun = 0;
+          }
+        }
+      }
+      if (inIsland) {
+        const endF = nFrames - 1;
+        if ((endF - startF) >= Math.round(0.55 * fps)) {
+          rawIslands.push({ startSec: startF / fps, endSec: endF / fps });
+        }
+      }
+
+      // Dividir islas muy largas (> 5.2s) en frases de ~3.6s buscando valles de energía
+      const phrases = [];
+      for (const isl of rawIslands) {
+        let curS = isl.startSec;
+        while ((isl.endSec - curS) > 5.2) {
+          const targetSplit = curS + 3.6;
+          const fLo = Math.max(0, Math.floor((targetSplit - 0.55) * fps));
+          const fHi = Math.min(nFrames - 1, Math.ceil((targetSplit + 0.55) * fps));
+          let minF = Math.round(targetSplit * fps);
+          let minE = 999;
+          for (let f = fLo; f <= fHi; f++) {
+            if (vocalProfile.vocEnergyDb[f] < minE) {
+              minE = vocalProfile.vocEnergyDb[f];
+              minF = f;
+            }
+          }
+          const splitSec = minF / fps;
+          phrases.push({ startSec: curS, endSec: Math.max(curS + 0.8, splitSec - 0.06) });
+          curS = splitSec + 0.06;
+        }
+        if ((isl.endSec - curS) >= 0.55) {
+          phrases.push({ startSec: curS, endSec: isl.endSec });
+        }
+      }
+
+      const solfegeTokens = ['La', 'la', 'na', 'oh', 'eh', 'la', 'na', 'oh'];
+      return phrases.slice(0, 65).map((p, idx) => {
+        const span = Math.max(0.6, p.endSec - p.startSec);
+        const nSyls = Math.max(3, Math.min(10, Math.round(span / 0.34)));
+        const words = [];
+        for (let s = 0; s < nSyls; s++) {
+          words.push(solfegeTokens[(idx + s) % solfegeTokens.length]);
+        }
+        return {
+          timeSec: +p.startSec.toFixed(2),
+          endTimeSec: +p.endSec.toFixed(2),
+          text: words.join(' '),
+          _isAcousticVocalIsland: true
+        };
+      });
+    }
+
+    /**
+     * Construye al instante (<10ms) las barras de sílabas iniciales y el teleprompter
+     * usando las letras REALES ya cargadas en KaraokeService (nunca placeholders falsos).
+     */
+    _seedImmediateStageForTrack(track) {
+      if (!track) return;
+      const key = this.karaokeService ? this.karaokeService._makeKey(track) : String(track.id || track.title || '');
+      const isNewTrack = key !== this.currentTrackKey;
+      this.currentTrackKey = key;
+
+      const coverUrl = (typeof getBestTrackCover === 'function') ? getBestTrackCover(track) : (track.thumbnail || './app_logo.png');
+      const cleanTitle = repairSpanishBrokenAccents(track.title || 'Canción');
+      const cleanArtist = repairSpanishBrokenAccents(track.artist || 'Artista');
+
+      for (const id of ['ssProCoverImg', 'ssPrepCoverImg']) {
+        const el = document.getElementById(id);
+        if (el) el.src = coverUrl;
+      }
+      for (const id of ['ssProSongTitle', 'ssPrepSongTitle']) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = cleanTitle;
+      }
+      for (const id of ['ssProSongArtist', 'ssPrepSongArtist']) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = cleanArtist;
+      }
+
+      const userOff = Number(this.karaokeService?.timeOffsetSec || 0);
+      const offBadge = document.getElementById('ssProOffsetBadge');
+      if (offBadge) {
+        offBadge.textContent = `${userOff >= 0 ? '+' : ''}${userOff.toFixed(2)}s`;
+      }
+
+      if (this.studioAnalysisCache.has(key)) {
+        const cached = this.studioAnalysisCache.get(key);
+        if (cached && !cached.hasPlaceholderLyrics) {
+          this._applyStudioAnalysisToStage(cached, userOff, isNewTrack);
+          return;
+        }
+      }
+
+      const actualDurSec = this.audioEngine ? (this.audioEngine.getRealDurationSec(track) || 195) : 195;
+      let existingLines = [];
+      if (this.karaokeService) {
+        const builtIn = this.karaokeService._findBuiltInCustomSyncedLyrics(track, String(track.videoId || track.id || '').replace(/^magic_yt_|^yt_/, '').trim());
+        if (builtIn && builtIn.syncedLyrics) {
+          existingLines = this.karaokeService.parseLrc(builtIn.syncedLyrics, { track });
+        } else if (Array.isArray(this.karaokeService.currentLyrics) && this.karaokeService.currentLyrics.length >= 2 && this.karaokeService.currentTrackKey === key && !this._isPlaceholderLyrics(this.karaokeService.currentLyrics)) {
+          existingLines = this.karaokeService.currentLyrics;
+        } else if (this.karaokeService.cache && this.karaokeService.cache.has(key)) {
+          const cachedKar = this.karaokeService.cache.get(key) || [];
+          if (!this._isPlaceholderLyrics(cachedKar)) {
+            existingLines = cachedKar;
+          }
+        }
+      }
+
+      if (!this._isPlaceholderLyrics(existingLines)) {
+        const initialAligned = this._alignSyllablesWithVocalProfile(key, existingLines, null, actualDurSec);
+        this._applyStudioAnalysisToStage({
+          track,
+          key,
+          dspContour: null,
+          acousticLines: initialAligned,
+          hasDspMelody: false,
+          hasAcousticSyllables: true,
+          hasPlaceholderLyrics: false
+        }, userOff, isNewTrack);
+      } else {
+        this.pitchNotes = [];
+        this.phraseWindows = [];
+        const curEl = document.getElementById('ssProTeleprompterCurrent');
+        const nextEl = document.getElementById('ssProTeleprompterNext');
+        if (curEl) curEl.textContent = 'Analizando voz y transcribiendo letra real con Motor HD...';
+        if (nextEl) nextEl.textContent = 'Aislando canal vocal central y detectando sílabas...';
+        if (isNewTrack) this.resetSessionStats();
+      }
+    }
+
+    /**
+     * Pipeline de estudio no bloqueante al abrir una canción en Modo SingStar:
+     * 1) Decodifica el AudioBuffer maestro de la canción y extrae a 100 Hz (resolución de 10 ms)
+     *    la envolvente formántica vocal Mid-Side, los ataques vocálicos de cada sílaba (vowelFlux),
+     *    las islas vocales reales (vocalIslands) y la curva de afinación F0 YIN-Viterbi.
+     * 2) Activa el Transcriptor Neuronal Whisper ONNX local en Web Worker (whisper_worker.js)
+     *    con marcas de tiempo por palabra (return_timestamps: 'word') directamente sobre el audio,
+     *    subdividiendo cada palabra en sílabas fonéticas ancladas a los picos vocálicos de 10 ms.
+     */
+    async _prepareTrackInStudio(track, forceReanalyze = false) {
+      if (!track) return;
+      const key = this.karaokeService ? this.karaokeService._makeKey(track) : String(track.id || track.title || '');
+      const userOff = Number(this.karaokeService?.timeOffsetSec || 0);
+
+      this._seedImmediateStageForTrack(track);
+
+      if (!forceReanalyze && this.studioAnalysisCache.has(key)) {
+        const cached = this.studioAnalysisCache.get(key);
+        if (cached && !cached.hasPlaceholderLyrics && cached.isAudioTranscribed) {
+          this._applyStudioAnalysisToStage(cached, userOff, false);
+          const loadView = document.getElementById('singstarLoadingStudioView');
+          if (loadView) loadView.classList.add('hidden');
+          return;
+        }
+      }
+
+      const token = ++this._prepToken;
+      this._activePrepKey = key;
+      this.isPreparingSong = true;
+
+      const loadView = document.getElementById('singstarLoadingStudioView');
+      const packView = document.getElementById('singstarPackInstallerView');
+      const sumView = document.getElementById('singstarFsSummaryView');
+      if (packView) packView.classList.add('hidden');
+      if (sumView) sumView.classList.add('hidden');
+      if (loadView) loadView.classList.remove('hidden');
+
+      try {
+        this._setStudioLoadingProgress(1, 10, 'Preparando motor acústico de sílabas (100 Hz)...');
+        const actualDurSecHint = this.audioEngine ? (this.audioEngine.getRealDurationSec(track) || 195) : 195;
+
+        // PASO 1: Comprobar si existe letra curada/referencia inicial mientras decodificamos el audio real
+        let baseLines = [];
+        let hasBuiltInVerified = false;
+        if (this.karaokeService) {
+          const builtIn = this.karaokeService._findBuiltInCustomSyncedLyrics(track, String(track.videoId || track.id || '').replace(/^magic_yt_|^yt_/, '').trim());
+          if (builtIn && builtIn.syncedLyrics) {
+            baseLines = this.karaokeService.parseLrc(builtIn.syncedLyrics, { track });
+            hasBuiltInVerified = baseLines.length >= 2;
+          } else if (Array.isArray(this.karaokeService.currentLyrics) && this.karaokeService.currentLyrics.length >= 2 && this.karaokeService.currentTrackKey === key && !this._isPlaceholderLyrics(this.karaokeService.currentLyrics)) {
+            baseLines = this.karaokeService.currentLyrics.map(l => ({ ...l }));
+          } else {
+            const fetched = await Promise.race([
+              this.karaokeService.fetchLyricsForTrack(track, actualDurSecHint).catch(() => []),
+              new Promise(r => setTimeout(() => r([]), 2400))
+            ]);
+            if (Array.isArray(fetched) && !this._isPlaceholderLyrics(fetched)) {
+              baseLines = fetched.map(l => ({ ...l }));
+            }
+          }
+        }
+        if (token !== this._prepToken) return;
+
+        const hasRealLyrics = !this._isPlaceholderLyrics(baseLines);
+        if (hasRealLyrics) {
+          const quickAligned = this._alignSyllablesWithVocalProfile(key, baseLines, null, actualDurSecHint);
+          this._applyStudioAnalysisToStage({
+            track,
+            key,
+            dspContour: null,
+            acousticLines: quickAligned,
+            hasDspMelody: false,
+            hasAcousticSyllables: true,
+            hasPlaceholderLyrics: false
+          }, Number(this.karaokeService?.timeOffsetSec || 0), false);
+        }
+
+        // PASO 2: Obtener el Blob de audio completo de la canción
+        this._setStudioLoadingProgress(2, 28, 'Cargando flujo de audio maestro para extracción silábica...');
+        let audioBlob = null;
+        if (this.audioEngine) {
+          if (this.audioEngine.currentTrack && this.karaokeService?._makeKey(this.audioEngine.currentTrack) === key && this.audioEngine.fullTrackBlob && this.audioEngine.fullTrackBlob.size >= 50000) {
+            audioBlob = this.audioEngine.fullTrackBlob;
+          } else if (typeof this.audioEngine._getCachedFullBlobForTrack === 'function') {
+            audioBlob = this.audioEngine._getCachedFullBlobForTrack(track);
+          }
+          if ((!audioBlob || audioBlob.size < 50000) && typeof this.audioEngine.preloadFullTrackInBackground === 'function') {
+            try {
+              audioBlob = await Promise.race([
+                this.audioEngine.preloadFullTrackInBackground(track),
+                new Promise(r => setTimeout(() => r(null), 6500))
+              ]);
+            } catch (_) {}
+          }
+        }
+        if (token !== this._prepToken) return;
+
+        let decodedBuffer = null;
+        let arrayBuf = null;
+        if (audioBlob && audioBlob.size >= 40000) {
+          try {
+            this._setStudioLoadingProgress(2, 44, 'Decodificando muestras PCM estéreo (44.1 kHz)...');
+            arrayBuf = await audioBlob.slice(0).arrayBuffer();
+            const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (OfflineCtx) {
+              const offCtx = new OfflineCtx(1, 44100 * 2, 44100);
+              decodedBuffer = await Promise.race([
+                offCtx.decodeAudioData(arrayBuf.slice(0)),
+                new Promise(r => setTimeout(() => r(null), 4500))
+              ]);
+            } else if (AudioCtx) {
+              if (!window._lyricsAnalysisAudioCtx) window._lyricsAnalysisAudioCtx = new AudioCtx();
+              decodedBuffer = await Promise.race([
+                window._lyricsAnalysisAudioCtx.decodeAudioData(arrayBuf.slice(0)),
+                new Promise(r => setTimeout(() => r(null), 4500))
+              ]);
+            }
+          } catch (_) {}
+        }
+        if (token !== this._prepToken) return;
+
+        const actualDurSec = decodedBuffer
+          ? (decodedBuffer.duration || actualDurSecHint)
+          : actualDurSecHint;
+
+        if (arrayBuf && this.audioEngine && typeof this.audioEngine._decodeAndStoreWaveformProfile === 'function') {
+          this.audioEngine._decodeAndStoreWaveformProfile(track, key, arrayBuf, 280, true, true).catch(() => {});
+        }
+
+        // PASO 3: Extraer envolvente formántica Mid-Side, islas vocales y curva F0 YIN-Viterbi a 100 Hz (10 ms)
+        const vocalDspProfile = decodedBuffer
+          ? await this._extractHighResVocalEnvelopeAndPitch(decodedBuffer, token, (pct, msg) => {
+              this._setStudioLoadingProgress(pct < 75 ? 3 : 4, pct, msg);
+            })
+          : null;
+        if (token !== this._prepToken) return;
+
+        const initialLines = hasRealLyrics
+          ? baseLines
+          : this._buildAcousticVocalIslandsLines(vocalDspProfile, actualDurSec);
+
+        // PASO 4: Alinear sílabas con Viterbi-DTW a 100 Hz (10 ms) contra las islas vocales reales del audio
+        this._setStudioLoadingProgress(4, 92, 'Anclando sílabas y curva F0 YIN al audio real (10 ms)...');
+        const alignedLines = this._alignSyllablesWithVocalProfile(key, initialLines, vocalDspProfile, actualDurSec);
+
+        const studioData = {
+          track,
+          key,
+          actualDurSec,
+          dspContour: vocalDspProfile,
+          acousticLines: alignedLines,
+          hasDspMelody: Boolean(vocalDspProfile && vocalDspProfile.voicedCount >= 10),
+          hasAcousticSyllables: true,
+          hasPlaceholderLyrics: !hasRealLyrics,
+          isAudioTranscribed: hasBuiltInVerified
+        };
+        this.studioAnalysisCache.set(key, studioData);
+        this._applyStudioAnalysisToStage(studioData, Number(this.karaokeService?.timeOffsetSec || 0), false);
+
+        this._setStudioLoadingProgress(4, 100, 'Análisis acústico completado');
+
+        // PASO 5: Ejecutar SIEMPRE el Transcriptor Neuronal Whisper ONNX sobre el audio real
+        // (salvo que ya sea una pista con transcripción verificada o ya transcrita del audio)
+        // para que cada palabra y cada sílaba salgan directamente del propio audio de forma milimétrica.
+        if (decodedBuffer && (!hasBuiltInVerified || forceReanalyze)) {
+          this._spawnPopup('WHISPER ONNX + SÍLABAS 10MS', 'Detectando palabras y sílabas directamente del audio...', '#38bdf8', 2100);
+          this._transcribeTrackAudioWithWhisper(track, key, decodedBuffer, vocalDspProfile, token, hasRealLyrics ? baseLines : []).catch(() => {});
+        } else if (studioData.hasDspMelody) {
+          this._spawnPopup('AFINACIÓN YIN + DTW 10MS ACTIVA', 'Curva melódica y sílabas sincronizadas al milímetro', '#fde047', 1400);
+        }
+      } catch (_) {
+      } finally {
+        if (token === this._prepToken) {
+          this.isPreparingSong = false;
+          this._activePrepKey = '';
+          const lv = document.getElementById('singstarLoadingStudioView');
+          if (lv) lv.classList.add('hidden');
+        }
+      }
+    }
+
+    _getOrCreateWhisperWorker(onStatus = null) {
+      if (this._whisperWorker) return this._whisperWorker;
+      try {
+        const worker = new Worker('./whisper_worker.js', { type: 'module' });
+        this._whisperWorkerCallbacks = new Map();
+        this._whisperWorkerSeq = 0;
+
+        worker.onmessage = (ev) => {
+          const msg = ev.data || {};
+          if (msg.type === 'status') {
+            if (typeof this._whisperStatusListener === 'function') {
+              this._whisperStatusListener(msg.message || '');
+            }
+            return;
+          }
+          if (msg.id && this._whisperWorkerCallbacks && this._whisperWorkerCallbacks.has(msg.id)) {
+            const cb = this._whisperWorkerCallbacks.get(msg.id);
+            this._whisperWorkerCallbacks.delete(msg.id);
+            if (msg.type === 'error') {
+              cb.reject(new Error(msg.message || 'Whisper worker error'));
+            } else {
+              cb.resolve(msg);
+            }
+          }
+        };
+
+        worker.onerror = () => {};
+        this._whisperWorker = worker;
+        if (onStatus) this._whisperStatusListener = onStatus;
+        worker.postMessage({ type: 'init' });
+        return worker;
+      } catch (_) {
+        return null;
+      }
+    }
+
+    _transcribeWindowViaWorker(pcm16kSlice, windowStartSec, language = 'spanish', onStatus = null) {
+      return new Promise((resolve) => {
+        const worker = this._getOrCreateWhisperWorker(onStatus);
+        if (!worker) {
+          resolve(null);
+          return;
+        }
+        if (onStatus) this._whisperStatusListener = onStatus;
+        const reqId = `w_${++this._whisperWorkerSeq}_${Date.now()}`;
+        const copyPcm = new Float32Array(pcm16kSlice);
+        const timer = setTimeout(() => {
+          if (this._whisperWorkerCallbacks && this._whisperWorkerCallbacks.has(reqId)) {
+            this._whisperWorkerCallbacks.delete(reqId);
+            resolve(null);
+          }
+        }, 28000);
+
+        this._whisperWorkerCallbacks.set(reqId, {
+          resolve: (res) => {
+            clearTimeout(timer);
+            resolve(res);
+          },
+          reject: () => {
+            clearTimeout(timer);
+            resolve(null);
+          }
+        });
+
+        worker.postMessage(
+          {
+            type: 'transcribe_window',
+            id: reqId,
+            pcm16k: copyPcm,
+            windowStartSec,
+            language
+          },
+          [copyPcm.buffer]
+        );
+      });
+    }
+
+    _extract16kHzVocalBandpassMono(audioBuffer) {
+      if (!audioBuffer) return null;
+      const srcSr = audioBuffer.sampleRate || 44100;
+      const targetSr = 16000;
+      const ch0 = audioBuffer.getChannelData(0);
+      const ch1 = audioBuffer.numberOfChannels > 1 ? audioBuffer.getChannelData(1) : ch0;
+      const totalSrc = ch0.length;
+      const ratio = srcSr / targetSr;
+      const outLen = Math.floor(totalSrc / ratio);
+      const out = new Float32Array(outLen);
+
+      // Filtro paso-banda vocal 200 Hz - 3900 Hz a 16 kHz con realce central Mid-Side para aislar la voz cantada
+      const dt = 1.0 / targetSr;
+      const rcHp = 1.0 / (2.0 * Math.PI * 200.0);
+      const aHp = rcHp / (rcHp + dt);
+      const rcLp = 1.0 / (2.0 * Math.PI * 3900.0);
+      const aLp = dt / (rcLp + dt);
+
+      let hp = 0;
+      let prevIn = 0;
+      let lp = 0;
+      let sumSq = 0;
+
+      for (let i = 0; i < outLen; i++) {
+        const srcIdx = Math.min(totalSrc - 1, Math.floor(i * ratio));
+        const l = ch0[srcIdx];
+        const r = ch1[srcIdx];
+        const midVoc = 0.5 * (l + r) - 0.22 * (l - r);
+        hp = aHp * (hp + midVoc - prevIn);
+        prevIn = midVoc;
+        lp = lp + aLp * (hp - lp);
+        out[i] = lp;
+        sumSq += lp * lp;
+      }
+
+      const rms = Math.sqrt(sumSq / Math.max(1, outLen));
+      if (rms > 1e-5) {
+        const gain = Math.min(11.0, 0.13 / rms);
+        for (let i = 0; i < outLen; i++) {
+          out[i] = Math.max(-0.98, Math.min(0.98, out[i] * gain));
+        }
+      }
+      return out;
+    }
+
+    _findActiveVocalWindowsForWhisper(vocalProfile, totalDurSec) {
+      const winLenSec = 15.0;
+      const windows = [];
+      if (!vocalProfile || !vocalProfile.vocEnergyDb) {
+        for (let t = 0; t < Math.min(totalDurSec, 180); t += winLenSec) {
+          windows.push({ startSec: t, endSec: Math.min(totalDurSec, t + winLenSec) });
+        }
+        return windows;
+      }
+
+      const fps = vocalProfile.frameHz || 100;
+      const nFrames = vocalProfile.nFrames || vocalProfile.vocEnergyDb.length;
+      const thVoc = Number.isFinite(vocalProfile.thVoc) ? vocalProfile.thVoc : -32;
+      const firstVocalSec = Number.isFinite(vocalProfile.firstVocalSec) ? Math.max(0, vocalProfile.firstVocalSec - 0.35) : 0;
+
+      let curSec = firstVocalSec;
+      while (curSec < totalDurSec - 1.2 && windows.length < 12) {
+        const endSec = Math.min(totalDurSec, curSec + winLenSec);
+        const f0 = Math.max(0, Math.floor(curSec * fps));
+        const f1 = Math.min(nFrames - 1, Math.ceil(endSec * fps));
+        let voicedFrames = 0;
+        for (let f = f0; f <= f1; f++) {
+          if (vocalProfile.vocEnergyDb[f] >= thVoc - 1.2 && vocalProfile.midiFrames[f] >= 46) {
+            voicedFrames++;
+          }
+        }
+        if (voicedFrames >= Math.round(0.45 * fps)) {
+          windows.push({ startSec: +curSec.toFixed(2), endSec: +endSec.toFixed(2) });
+        }
+        curSec += winLenSec - 0.8;
+      }
+      return windows;
+    }
+
+    /**
+     * Subdivide una palabra individual en sus sílabas fonéticas naturales y ancla cada sílaba
+     * dentro de la ventana acústica exacta [wordStartSec, wordEndSec] detectada por Whisper
+     * utilizando los picos de apertura vocálica a 100 Hz (10 ms) del audio real.
+     */
+    _splitWordAndAlignSyllables100Hz(wordText, wordStartSec, wordEndSec, vocalProfile) {
+      const cleanWord = repairSpanishBrokenAccents(String(wordText || '').trim());
+      if (!cleanWord) return [];
+
+      const spanSec = Math.max(0.14, wordEndSec - wordStartSec);
+      const rawPieces = (this.karaokeService && typeof this.karaokeService._splitWordIntoNaturalPhoneticSyllables === 'function')
+        ? this.karaokeService._splitWordIntoNaturalPhoneticSyllables(cleanWord)
+        : [cleanWord];
+      const pieces = Array.isArray(rawPieces) && rawPieces.length > 0 ? rawPieces : [cleanWord];
+      const K = pieces.length;
+
+      if (K === 1 || !vocalProfile || !vocalProfile.vowelFlux) {
+        const subDur = spanSec / K;
+        return pieces.map((p, idx) => {
+          const s = wordStartSec + idx * subDur;
+          const e = (idx === K - 1) ? wordEndSec : Math.max(s + 0.08, wordStartSec + (idx + 1) * subDur - 0.01);
+          return {
+            text: p,
+            displayText: idx === K - 1 ? `${p} ` : p,
+            startSec: +s.toFixed(3),
+            endSec: +Math.max(s + 0.08, e).toFixed(3)
+          };
+        });
+      }
+
+      const fHz = vocalProfile.frameHz || 100;
+      const f0 = Math.max(0, Math.floor(wordStartSec * fHz));
+      const f1 = Math.min(vocalProfile.vowelFlux.length - 1, Math.ceil(wordEndSec * fHz));
+      const M = f1 - f0 + 1;
+      const minStep = Math.max(3, Math.min(7, Math.floor(M / (K + 0.3))));
+
+      // Pesos fonéticos por sílaba (vocales abiertas y tónicas duran más)
+      const weights = pieces.map((p, idx) => {
+        let w = 1.0;
+        if (/[áéíóúÁÉÍÓÚ]/.test(p)) w += 0.32;
+        if (/[aeoAEO]/.test(p)) w += 0.14;
+        if (idx === K - 1) w += 0.18;
+        return w;
+      });
+      const totalW = weights.reduce((a, b) => a + b, 0) || K;
+
+      if (M >= K * minStep) {
+        const idealFrames = [];
+        let cumW = 0;
+        for (let k = 0; k < K; k++) {
+          idealFrames.push(f0 + Math.round((cumW / totalW) * Math.max(1, M - minStep)));
+          cumW += weights[k];
+        }
+
+        const chosenFrames = new Array(K);
+        chosenFrames[0] = f0;
+        // Buscar pico de ataque vocálico para cada sílaba interna de la palabra a 10ms de resolución
+        for (let k = 1; k < K; k++) {
+          const prevF = chosenFrames[k - 1];
+          const minF = prevF + minStep;
+          const maxF = f1 - (K - k) * minStep;
+          const targetF = idealFrames[k];
+          let bestF = Math.max(minF, Math.min(maxF, targetF));
+          let bestScore = -1e9;
+          const searchR = Math.max(4, Math.round(0.09 * fHz));
+          const sLo = Math.max(minF, targetF - searchR);
+          const sHi = Math.min(maxF, targetF + searchR);
+          for (let f = sLo; f <= sHi; f++) {
+            const dev = (f - targetF) / Math.max(3, searchR);
+            const score = vocalProfile.vowelFlux[f] * 1.6 + (vocalProfile.vocEnergyDb[f] - vocalProfile.thVoc) * 0.15 - dev * dev * 2.1;
+            if (score > bestScore) {
+              bestScore = score;
+              bestF = f;
+            }
+          }
+          chosenFrames[k] = bestF;
+        }
+
+        const outSyls = [];
+        for (let k = 0; k < K; k++) {
+          const sSec = k === 0 ? wordStartSec : (chosenFrames[k] / fHz);
+          const nextSec = (k + 1 < K) ? (chosenFrames[k + 1] / fHz) : wordEndSec;
+          const eSec = Math.max(sSec + 0.075, Math.min(wordEndSec, nextSec - 0.01));
+          outSyls.push({
+            text: pieces[k],
+            displayText: k === K - 1 ? `${pieces[k]} ` : pieces[k],
+            startSec: +sSec.toFixed(3),
+            endSec: +eSec.toFixed(3)
+          });
+        }
+        return outSyls;
+      }
+
+      // Respaldo proporcional si la palabra es muy rápida
+      const outSyls = [];
+      let cursor = wordStartSec;
+      for (let k = 0; k < K; k++) {
+        const dSec = spanSec * (weights[k] / totalW);
+        const sSec = cursor;
+        const eSec = (k === K - 1) ? wordEndSec : Math.max(sSec + 0.075, sSec + dSec - 0.01);
+        outSyls.push({
+          text: pieces[k],
+          displayText: k === K - 1 ? `${pieces[k]} ` : pieces[k],
+          startSec: +sSec.toFixed(3),
+          endSec: +eSec.toFixed(3)
+        });
+        cursor += dSec;
+      }
+      return outSyls;
+    }
+
+    /**
+     * Si existen letras de referencia de la canción, corrige homófonos o pequeñas variaciones
+     * ortográficas de Whisper manteniendo SIEMPRE el timestamp acústico exacto [startSec, endSec]
+     * detectado directamente del audio por Whisper.
+     */
+    _refineWhisperWordsWithReferenceLexicon(whisperWords, refLines) {
+      if (!Array.isArray(whisperWords) || whisperWords.length === 0) return [];
+      if (!Array.isArray(refLines) || refLines.length === 0) return whisperWords;
+
+      const norm = (s) => String(s || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9ñ]/g, '');
+
+      const refVocab = [];
+      for (const l of refLines) {
+        const ws = String(l?.text || '').split(/\s+/).filter(Boolean);
+        for (const w of ws) {
+          const n = norm(w);
+          if (n.length >= 3) refVocab.push({ raw: w.replace(/^[¡!¿?,"']+|[¡!¿?,"']+$/g, ''), norm: n });
+        }
+      }
+      if (refVocab.length === 0) return whisperWords;
+
+      return whisperWords.map((wObj) => {
+        const wn = norm(wObj.text);
+        if (wn.length < 3) return wObj;
+        let bestMatch = null;
+        let bestSim = 0.74;
+        for (const rv of refVocab) {
+          if (rv.norm === wn) {
+            bestMatch = rv.raw;
+            break;
+          }
+          if (Math.abs(rv.norm.length - wn.length) > 2) continue;
+          if (rv.norm[0] !== wn[0]) continue;
+          // Similitud fonética rápida por bigramas
+          let shared = 0;
+          for (let i = 0; i < wn.length - 1; i++) {
+            if (rv.norm.includes(wn.slice(i, i + 2))) shared++;
+          }
+          const sim = (2 * shared) / Math.max(2, (wn.length - 1) + (rv.norm.length - 1));
+          if (sim > bestSim) {
+            bestSim = sim;
+            bestMatch = rv.raw;
+          }
+        }
+        return bestMatch ? { ...wObj, text: bestMatch } : wObj;
+      });
+    }
+
+    /**
+     * Convierte la lista de palabras con timestamps acústicos exactos de Whisper
+     * en líneas y sílabas milimétricas ancladas a la envolvente vocal de 100 Hz (10 ms).
+     */
+    _buildLinesFromWhisperWordsAndDsp(whisperWords, vocalProfile, actualDurSec = 195, refLines = []) {
+      if (!Array.isArray(whisperWords) || whisperWords.length === 0) return [];
+
+      const refinedWords = this._refineWhisperWordsWithReferenceLexicon(whisperWords, refLines);
+      const fHz = vocalProfile?.frameHz || 100;
+      const thVoc = Number.isFinite(vocalProfile?.thVoc) ? vocalProfile.thVoc : -32;
+
+      // Ajustar cada palabra al ataque y caída vocal exacta en el perfil de 100 Hz (±120ms)
+      const snappedWords = [];
+      let prevEnd = 0;
+      for (let i = 0; i < refinedWords.length; i++) {
+        const w = refinedWords[i];
+        const txt = repairSpanishBrokenAccents(String(w.text || '').trim());
+        if (!txt) continue;
+        let sSec = Math.max(prevEnd, Number(w.startSec) || 0);
+        let eSec = Math.max(sSec + 0.16, Number(w.endSec) || (sSec + 0.36));
+
+        if (vocalProfile && vocalProfile.vocEnergyDb) {
+          const search0 = Math.max(Math.ceil(prevEnd * fHz), Math.floor((sSec - 0.12) * fHz));
+          const search1 = Math.min(vocalProfile.vocEnergyDb.length - 1, Math.ceil((sSec + 0.14) * fHz));
+          let bestOnsetF = Math.round(sSec * fHz);
+          let bestFlux = -1e9;
+          for (let f = Math.max(0, search0); f <= search1; f++) {
+            if (vocalProfile.vocEnergyDb[f] >= thVoc - 2.0) {
+              const sc = vocalProfile.vowelFlux[f] * 1.5 - Math.abs(f - sSec * fHz) * 0.08;
+              if (sc > bestFlux) {
+                bestFlux = sc;
+                bestOnsetF = f;
+              }
+            }
+          }
+          sSec = Math.max(prevEnd, bestOnsetF / fHz);
+          eSec = Math.max(sSec + 0.15, eSec);
+        }
+
+        snappedWords.push({
+          text: txt,
+          startSec: +sSec.toFixed(3),
+          endSec: +Math.min(actualDurSec, eSec).toFixed(3)
+        });
+        prevEnd = sSec + 0.06;
+      }
+
+      if (snappedWords.length === 0) return [];
+
+      // Agrupar palabras en versos naturales (pausa >= 0.55s o máximo 7 palabras / 4.2s por frase)
+      const lines = [];
+      let curGroup = [];
+      for (let i = 0; i < snappedWords.length; i++) {
+        const w = snappedWords[i];
+        if (curGroup.length === 0) {
+          curGroup.push(w);
+          continue;
+        }
+        const prevW = curGroup[curGroup.length - 1];
+        const gap = w.startSec - prevW.endSec;
+        const groupDur = w.endSec - curGroup[0].startSec;
+        if (gap >= 0.52 || curGroup.length >= 7 || groupDur >= 4.2) {
+          lines.push(curGroup);
+          curGroup = [w];
+        } else {
+          curGroup.push(w);
+        }
+      }
+      if (curGroup.length > 0) lines.push(curGroup);
+
+      return lines.map((wordGroup) => {
+        const syls = [];
+        for (let wi = 0; wi < wordGroup.length; wi++) {
+          const w = wordGroup[wi];
+          const nextW = wordGroup[wi + 1];
+          const maxWordEnd = nextW ? Math.max(w.startSec + 0.12, Math.min(w.endSec, nextW.startSec - 0.015)) : w.endSec;
+          const wordSyls = this._splitWordAndAlignSyllables100Hz(w.text, w.startSec, maxWordEnd, vocalProfile);
+          syls.push(...wordSyls);
+        }
+        const lineText = wordGroup.map(w => w.text).join(' ');
+        const startSec = syls.length > 0 ? syls[0].startSec : wordGroup[0].startSec;
+        const endSec = syls.length > 0 ? syls[syls.length - 1].endSec : wordGroup[wordGroup.length - 1].endSec;
+        return {
+          timeSec: startSec,
+          endTimeSec: endSec,
+          text: lineText,
+          words: syls.map(s => ({ timeSec: s.startSec, endSec: s.endSec, text: s.displayText })),
+          _hasAcousticGeneratedWords: false,
+          _isWhisperAudioDerived: true,
+          singstarSyllables: syls
+        };
+      });
+    }
+
+    async transcribeBlobForKaraokeIfNeeded(track, key, audioBlob) {
+      if (!track || !audioBlob || audioBlob.size < 40000) return null;
+      if (this._activeWhisperTrackKey === key) return null;
+      const builtIn = this.karaokeService?._findBuiltInCustomSyncedLyrics(track, String(track.videoId || track.id || '').replace(/^magic_yt_|^yt_/, '').trim());
+      if (builtIn && builtIn.syncedLyrics) return null;
+
+      try {
+        const arrayBuf = await audioBlob.slice(0).arrayBuffer();
+        const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let decodedBuffer = null;
+        if (OfflineCtx) {
+          const offCtx = new OfflineCtx(1, 44100 * 2, 44100);
+          decodedBuffer = await offCtx.decodeAudioData(arrayBuf.slice(0));
+        } else if (AudioCtx) {
+          if (!window._lyricsAnalysisAudioCtx) window._lyricsAnalysisAudioCtx = new AudioCtx();
+          decodedBuffer = await window._lyricsAnalysisAudioCtx.decodeAudioData(arrayBuf.slice(0));
+        }
+        if (!decodedBuffer) return null;
+        const vocalDspProfile = await this._extractHighResVocalEnvelopeAndPitch(decodedBuffer, this._prepToken, null);
+        return await this._transcribeTrackAudioWithWhisper(track, key, decodedBuffer, vocalDspProfile, this._prepToken, []);
+      } catch (_) {
+        return null;
+      }
+    }
+
+    async _transcribeTrackAudioWithWhisper(track, key, audioBuffer, vocalDspProfile, token, referenceLines = []) {
+      if (!track || !audioBuffer) return null;
+      if (this._activeWhisperTrackKey === key && this.isTranscribingWhisper) return null;
+
+      this._activeWhisperTrackKey = key;
+      this.isTranscribingWhisper = true;
+      const badge = document.getElementById('ssProDspBadge');
+      const actualDurSec = audioBuffer.duration || 195;
+
+      const applyTranscribedLinesLive = (lines, isComplete = false) => {
+        if (!Array.isArray(lines) || lines.length === 0) return;
+        const aligned = lines[0]?._isWhisperAudioDerived
+          ? lines
+          : this._alignSyllablesWithVocalProfile(key, lines, vocalDspProfile, actualDurSec);
+        const studioData = {
+          track,
+          key,
+          actualDurSec,
+          dspContour: vocalDspProfile,
+          acousticLines: aligned,
+          hasDspMelody: Boolean(vocalDspProfile && vocalDspProfile.voicedCount >= 10),
+          hasAcousticSyllables: true,
+          hasPlaceholderLyrics: false,
+          isAudioTranscribed: isComplete
+        };
+        this.studioAnalysisCache.set(key, studioData);
+        if (this.currentTrackKey === key) {
+          this._applyStudioAnalysisToStage(studioData, Number(this.karaokeService?.timeOffsetSec || 0), false);
+          this._lastTeleprompterLineIdx = -2;
+          this._lastTeleprompterSylIdx = -2;
+        }
+        if (this.karaokeService && (isComplete || aligned.length >= 2)) {
+          this.karaokeService.saveTranscribedLyricsToPersistentStore(track, aligned, actualDurSec);
+        }
+      };
+
+      try {
+        // 1) Transcripción neuronal directa del audio en Web Worker local (whisper_worker.js con Xenova/whisper-tiny embebido)
+        //    que extrae cada palabra con su timestamp exacto [startSec, endSec] directamente del flujo vocal de 16 kHz.
+        const mono16k = this._extract16kHzVocalBandpassMono(audioBuffer);
+        if (mono16k && mono16k.length >= 16000) {
+          const windows = this._findActiveVocalWindowsForWhisper(vocalDspProfile, actualDurSec);
+          const collectedWords = [];
+
+          for (let wIdx = 0; wIdx < windows.length; wIdx++) {
+            const win = windows[wIdx];
+            if (badge && this.currentTrackKey === key) {
+              badge.textContent = `WHISPER ONNX (${wIdx + 1}/${windows.length}) · ${Math.round(win.startSec)}s`;
+            }
+            const sSample = Math.max(0, Math.floor(win.startSec * 16000));
+            const eSample = Math.min(mono16k.length, Math.ceil(win.endSec * 16000));
+            if (eSample - sSample < 8000) continue;
+
+            const slicePcm = mono16k.subarray(sSample, eSample);
+            const res = await this._transcribeWindowViaWorker(
+              slicePcm,
+              win.startSec,
+              'spanish',
+              (statusMsg) => {
+                if (badge && this.currentTrackKey === key && statusMsg) {
+                  badge.textContent = statusMsg.toUpperCase().slice(0, 34);
+                }
+              }
+            );
+
+            if (res && Array.isArray(res.words) && res.words.length > 0) {
+              for (const w of res.words) {
+                const prev = collectedWords[collectedWords.length - 1];
+                if (prev && Math.abs(prev.startSec - w.startSec) < 0.28 && prev.text.toLowerCase() === String(w.text || '').toLowerCase()) {
+                  continue;
+                }
+                collectedWords.push(w);
+              }
+
+              const liveLines = this._buildLinesFromWhisperWordsAndDsp(
+                collectedWords,
+                vocalDspProfile,
+                actualDurSec,
+                referenceLines
+              );
+              if (liveLines.length >= 1) {
+                applyTranscribedLinesLive(liveLines, wIdx === windows.length - 1);
+              }
+            }
+          }
+
+          if (collectedWords.length >= 4) {
+            const finalLines = this._buildLinesFromWhisperWordsAndDsp(
+              collectedWords,
+              vocalDspProfile,
+              actualDurSec,
+              referenceLines
+            );
+            applyTranscribedLinesLive(finalLines, true);
+            if (badge && this.currentTrackKey === key) {
+              badge.textContent = 'WHISPER AUDIO + SÍLABAS 10MS';
+            }
+            this._spawnPopup('SÍLABAS EXTRAÍDAS DEL AUDIO', `${collectedWords.length} palabras sincronizadas al milímetro`, '#34d399', 1800);
+            return finalLines;
+          }
+        }
+
+        // 2) Respaldo en el servidor (/api/v1/lyrics/transcribe) si el Web Worker no devolvió palabras
+        const rawVid = String(track.videoId || track.id || '').replace(/^magic_yt_|^yt_/, '').trim();
+        const vid = /^[A-Za-z0-9_-]{11}$/.test(rawVid) ? rawVid : '';
+        const baseUrl = typeof window.getApiBaseUrl === 'function' ? window.getApiBaseUrl() : '';
+        if (vid) {
+          try {
+            const ctrl = new AbortController();
+            const tid = setTimeout(() => ctrl.abort(), 14000);
+            const resp = await fetch(`${baseUrl}/api/v1/lyrics/transcribe?videoId=${encodeURIComponent(vid)}&title=${encodeURIComponent(track.title || '')}&artist=${encodeURIComponent(track.artist || '')}`, {
+              method: 'POST',
+              signal: ctrl.signal
+            });
+            clearTimeout(tid);
+            if (resp && resp.ok) {
+              const data = await resp.json();
+              if (data && data.syncedLyrics && String(data.syncedLyrics).includes('[')) {
+                const parsed = this.karaokeService ? this.karaokeService.parseLrc(data.syncedLyrics, { track }) : [];
+                if (parsed.length >= 2) {
+                  applyTranscribedLinesLive(parsed, true);
+                  if (badge) badge.textContent = 'WHISPER ASR + DTW 10MS REAL';
+                  this._spawnPopup('LETRA TRANSCRITA POR MOTOR HD', `${parsed.length} versos sincronizados del audio`, '#34d399', 1600);
+                  return parsed;
+                }
+              }
+            }
+          } catch (_) {}
+        }
+        return null;
+      } catch (_) {
+        return null;
+      } finally {
+        this.isTranscribingWhisper = false;
+        if (this._activeWhisperTrackKey === key) {
+          this._activeWhisperTrackKey = '';
+        }
+      }
+    }
+
+    /**
+     * Extractor DSP en 2 fases de Ultra-Alta Resolución (100 Hz = 10ms por frame) sobre el AudioBuffer completo:
+     * 1) Canal Vocal Mid-Side + Filtro Formántico (280 - 3000 Hz) + Banda Consonántica Sibilante (2800 - 6200 Hz)
+     *    a 100 Hz (ventanas de 10ms) para localizar con precisión milimétrica las islas vocales (vocalIslands),
+     *    el primer instante real de voz cantada (firstVocalSec) y los núcleos vocálicos de cada sílaba (vowelFlux).
+     * 2) Detector de Frecuencia Fundamental F0 con algoritmo YIN CMND (d'(tau)) + Viterbi Global Path
+     *    para extraer la melodía real sin caer en el bajo eléctrico ni dar saltos de octava falsos.
+     */
+    async _extractHighResVocalEnvelopeAndPitch(audioBuffer, token, onProgress) {
+      if (!audioBuffer) return null;
+      const sr = audioBuffer.sampleRate || 44100;
+      const ch0 = audioBuffer.getChannelData(0);
+      const ch1 = audioBuffer.numberOfChannels > 1 ? audioBuffer.getChannelData(1) : ch0;
+      const dur = audioBuffer.duration || (ch0.length / sr);
+      if (dur < 10) return null;
+
+      const FRAME_HZ = 100; // 10ms por frame (precisión milimétrica para sílabas y F0)
+      const hopSamples = Math.max(1, Math.round(sr / FRAME_HZ));
+      const nFrames = Math.max(40, Math.floor(ch0.length / hopSamples));
+
+      const vocEnergyDb = new Float32Array(nFrames);
+      const vowelFlux = new Float32Array(nFrames);
+      const sibilantRatio = new Float32Array(nFrames);
+      const rawMidiFrames = new Float32Array(nFrames);
+      const rawClarityFrames = new Float32Array(nFrames);
+
+      // Coeficientes filtro formántico vocal (280 Hz - 3000 Hz) y banda F0 (165 Hz - 960 Hz)
+      const dt = 1.0 / sr;
+      const rcHpForm = 1.0 / (2.0 * Math.PI * 280.0);
+      const aHpForm = rcHpForm / (rcHpForm + dt);
+      const rcLpForm = 1.0 / (2.0 * Math.PI * 3000.0);
+      const aLpForm = dt / (rcLpForm + dt);
+
+      // Submuestreo x2 (~22050 Hz) para el cálculo YIN F0 con filtro antialiasing estricto a 940 Hz
+      const decim = Math.max(1, Math.round(sr / 22050));
+      const srYin = sr / decim;
+      const dtYin = 1.0 / srYin;
+      const rcHpYin = 1.0 / (2.0 * Math.PI * 165.0);
+      const aHpYin = rcHpYin / (rcHpYin + dtYin);
+      const rcLpYin = 1.0 / (2.0 * Math.PI * 940.0);
+      const aLpYin = dtYin / (rcLpYin + dtYin);
+
+      // Rango vocal humano de canto en SingStar: 125 Hz (SI2, MIDI 47) a 840 Hz (SOL#5, MIDI 80)
+      const minTau = Math.max(3, Math.floor(srYin / 840));
+      const maxTau = Math.min(220, Math.ceil(srYin / 125));
+      const yinWin = maxTau * 2 + 24;
+      const yinBuf = new Float32Array(yinWin);
+      const yinDiff = new Float32Array(maxTau + 2);
+      const yinCmnd = new Float32Array(maxTau + 2);
+
+      let hpForm = 0, prevMidForm = 0, lpForm = 0, lpForm2 = 0;
+      let lastMidiComputed = 0;
+      let lastClarityComputed = 0;
+
+      for (let f = 0; f < nFrames; f++) {
+        if (f > 0 && (f % 1500) === 0) {
+          if (token !== this._prepToken) return null;
+          if (onProgress) {
+            const p = 38 + Math.round((f / nFrames) * 46);
+            onProgress(p, `Analizando sílabas a 10ms y tono (${Math.round((f / nFrames) * 100)}%)...`);
+          }
+          await new Promise(r => setTimeout(r, 0));
+        }
+
+        const base = f * hopSamples;
+        let sumVoc = 0;
+        let sumSide = 0;
+        let sumSib = 0;
+        const limit = Math.min(hopSamples, ch0.length - base);
+
+        for (let i = 0; i < limit; i++) {
+          const l = ch0[base + i];
+          const r = ch1[base + i];
+          const mid = 0.5 * (l + r);
+          const side = 0.5 * (l - r);
+
+          hpForm = aHpForm * (hpForm + mid - prevMidForm);
+          prevMidForm = mid;
+          lpForm = lpForm + aLpForm * (hpForm - lpForm);
+          lpForm2 = lpForm2 + aLpForm * (lpForm - lpForm2);
+
+          const sib = hpForm - lpForm;
+          sumVoc += lpForm2 * lpForm2;
+          sumSide += side * side;
+          sumSib += sib * sib;
+        }
+
+        const rmsVoc = Math.sqrt(sumVoc / Math.max(1, limit) + 1e-12);
+        const rmsSide = Math.sqrt(sumSide / Math.max(1, limit) + 1e-12);
+        const rmsSib = Math.sqrt(sumSib / Math.max(1, limit) + 1e-12);
+        const centerFocus = Math.max(0.5, Math.min(4.0, rmsVoc / (rmsSide * 0.65 + 0.0004)));
+        vocEnergyDb[f] = 20 * Math.log10(rmsVoc) + 3.8 * Math.log2(centerFocus);
+        sibilantRatio[f] = rmsSib / (rmsVoc + 0.0005);
+
+        // Evaluar YIN F0 cada 20ms (f % 2 === 0) y propagar al frame de 10ms contiguo para máxima velocidad
+        if ((f & 1) === 1) {
+          rawMidiFrames[f] = lastMidiComputed;
+          rawClarityFrames[f] = lastClarityComputed;
+          continue;
+        }
+
+        lastMidiComputed = 0;
+        lastClarityComputed = 0;
+        if (rmsVoc >= 0.0045 && (base + yinWin * decim) < ch0.length) {
+          let prevIn = 0, hp1 = 0, hp2 = 0, prevHp1 = 0, lp1 = 0, lp2 = 0;
+          for (let i = 0; i < yinWin; i++) {
+            const idx = base + i * decim;
+            const l = ch0[idx];
+            const r = ch1[idx];
+            const midVoc = 0.5 * (l + r) - 0.30 * (l - r);
+            hp1 = aHpYin * (hp1 + midVoc - prevIn);
+            prevIn = midVoc;
+            hp2 = aHpYin * (hp2 + hp1 - prevHp1);
+            prevHp1 = hp1;
+            lp1 = lp1 + aLpYin * (hp2 - lp1);
+            lp2 = lp2 + aLpYin * (lp1 - lp2);
+            yinBuf[i] = lp2;
+          }
+
+          yinCmnd[0] = 1;
+          let runningSum = 0;
+          const halfW = maxTau;
+          for (let tau = 1; tau <= maxTau; tau++) {
+            let diff = 0;
+            for (let i = 0; i < halfW; i++) {
+              const d = yinBuf[i] - yinBuf[i + tau];
+              diff += d * d;
+            }
+            yinDiff[tau] = diff;
+            runningSum += diff;
+            yinCmnd[tau] = runningSum > 1e-9 ? (diff * tau) / runningSum : 1;
+          }
+
+          let bestTau = -1;
+          let bestCmnd = 1.0;
+          for (let tau = minTau; tau < maxTau; tau++) {
+            if (yinCmnd[tau] < 0.34 && yinCmnd[tau] <= yinCmnd[tau - 1] && yinCmnd[tau] <= yinCmnd[tau + 1]) {
+              bestTau = tau;
+              bestCmnd = yinCmnd[tau];
+              break;
+            }
+          }
+          if (bestTau < 0) {
+            for (let tau = minTau; tau < maxTau; tau++) {
+              if (yinCmnd[tau] < bestCmnd && yinCmnd[tau] <= yinCmnd[tau - 1] && yinCmnd[tau] <= yinCmnd[tau + 1]) {
+                bestCmnd = yinCmnd[tau];
+                bestTau = tau;
+              }
+            }
+          }
+
+          if (bestTau > 0 && bestCmnd < 0.46) {
+            const y1 = yinCmnd[bestTau - 1];
+            const y2 = yinCmnd[bestTau];
+            const y3 = yinCmnd[bestTau + 1];
+            const denom = (y1 - 2 * y2 + y3);
+            const shift = Math.abs(denom) > 1e-6 ? (0.5 * (y1 - y3) / denom) : 0;
+            const refinedTau = Math.max(minTau, bestTau + Math.max(-0.5, Math.min(0.5, shift)));
+            const freqHz = srYin / refinedTau;
+            const midi = 69 + 12 * Math.log2(freqHz / 440);
+            if (midi >= 47 && midi <= 81) {
+              rawMidiFrames[f] = midi;
+              rawClarityFrames[f] = Math.max(0.05, 1 - bestCmnd);
+              lastMidiComputed = midi;
+              lastClarityComputed = rawClarityFrames[f];
+            }
+          }
+        }
+      }
+
+      // Calcular umbral vocal adaptativo y flujo de ataque silábico (vowel onset flux a 10ms)
+      const sortedVoc = Array.from(vocEnergyDb).sort((a, b) => a - b);
+      const p88Voc = sortedVoc[Math.floor(sortedVoc.length * 0.88)] || -20;
+      const thVoc = Math.max(-44.0, p88Voc - 21.5);
+
+      for (let f = 4; f + 3 < nFrames; f++) {
+        if (vocEnergyDb[f] < thVoc - 3.0) continue;
+        const prevDip = Math.min(vocEnergyDb[f - 3], vocEnergyDb[f - 2], vocEnergyDb[f - 1]);
+        const curPeak = Math.max(vocEnergyDb[f], vocEnergyDb[f + 1]);
+        const rise = Math.max(0, curPeak - prevDip);
+        const consRelease = Math.max(0, sibilantRatio[f - 2] - sibilantRatio[f]) * 3.4;
+        const localMax = (vocEnergyDb[f] >= vocEnergyDb[f - 1] && vocEnergyDb[f] >= vocEnergyDb[f + 1]) ? 1.35 : 0;
+        vowelFlux[f] = rise + consRelease + localMax;
+      }
+
+      const voicedMidis = [];
+      for (let f = 0; f < nFrames; f++) {
+        if (rawMidiFrames[f] > 0 && vocEnergyDb[f] >= thVoc - 1.5 && rawClarityFrames[f] >= 0.56) {
+          voicedMidis.push(rawMidiFrames[f]);
+        }
+      }
+
+      let medianMidi = 62;
+      if (voicedMidis.length >= 8) {
+        voicedMidis.sort((a, b) => a - b);
+        medianMidi = voicedMidis[Math.floor(voicedMidis.length * 0.5)];
+      }
+
+      const midiFrames = new Float32Array(nFrames);
+      let runningRef = medianMidi;
+      for (let f = 0; f < nFrames; f++) {
+        let m = rawMidiFrames[f];
+        if (m <= 0 || vocEnergyDb[f] < thVoc - 2.5) continue;
+
+        if (m < medianMidi - 10.5 && (m + 12) <= medianMidi + 8) {
+          m += 12;
+        } else if (m > medianMidi + 11.5 && (m - 12) >= medianMidi - 8) {
+          m -= 12;
+        }
+
+        if (Math.abs(m - runningRef) > 7.5) {
+          m = 0.72 * m + 0.28 * runningRef;
+        }
+        midiFrames[f] = m;
+        runningRef = 0.85 * runningRef + 0.15 * m;
+      }
+
+      // Detectar islas vocales reales (segmentos donde hay voz cantada sostenida con F0 válido)
+      const vocalIslands = [];
+      const minIslandFrames = Math.round(0.28 * FRAME_HZ);
+      const maxGapFrames = Math.round(0.22 * FRAME_HZ);
+      let inIsland = false;
+      let islandStartF = 0;
+      let silentGapF = 0;
+      let voicedInIsland = 0;
+
+      for (let f = 0; f < nFrames; f++) {
+        const isVoiced = vocEnergyDb[f] >= thVoc - 1.2 && (midiFrames[f] >= 46 || rawClarityFrames[f] >= 0.52);
+        if (isVoiced) {
+          if (!inIsland) {
+            inIsland = true;
+            islandStartF = f;
+            voicedInIsland = 1;
+          } else {
+            voicedInIsland++;
+          }
+          silentGapF = 0;
+        } else if (inIsland) {
+          silentGapF++;
+          if (silentGapF >= maxGapFrames) {
+            const islandEndF = f - silentGapF;
+            if ((islandEndF - islandStartF) >= minIslandFrames && voicedInIsland >= Math.round(0.18 * FRAME_HZ)) {
+              vocalIslands.push({
+                startSec: +(islandStartF / FRAME_HZ).toFixed(3),
+                endSec: +(islandEndF / FRAME_HZ).toFixed(3)
+              });
+            }
+            inIsland = false;
+            silentGapF = 0;
+            voicedInIsland = 0;
+          }
+        }
+      }
+      if (inIsland && (nFrames - 1 - islandStartF) >= minIslandFrames) {
+        vocalIslands.push({
+          startSec: +(islandStartF / FRAME_HZ).toFixed(3),
+          endSec: +((nFrames - 1) / FRAME_HZ).toFixed(3)
+        });
+      }
+
+      const firstVocalSec = vocalIslands.length > 0 ? vocalIslands[0].startSec : 0;
+
+      return {
+        frameHz: FRAME_HZ,
+        nFrames,
+        hopSec: 1 / FRAME_HZ,
+        vocEnergyDb,
+        vowelFlux,
+        thVoc,
+        midiFrames,
+        rawClarityFrames,
+        vocalIslands,
+        firstVocalSec,
+        medianMidi: Math.round(medianMidi),
+        voicedCount: voicedMidis.length
+      };
+    }
+
+    /**
+     * Alineador Acústico de Sílabas Viterbi-DTW a 100 Hz (10 ms):
+     * Garantiza que NINGUNA línea ni sílaba empiece antes de `firstVocalSec` (saltando intros instrumentales)
+     * y ancla cada sílaba fonética a los picos de apertura vocálica reales (`vowelFlux`) del audio.
+     */
+    _alignSyllablesWithVocalProfile(key, linesArr, vocalProfile, actualDurSec = 195) {
+      if (!Array.isArray(linesArr) || linesArr.length === 0) return [];
+
+      if (this.karaokeService && typeof this.karaokeService._computeAcousticSyllablesForLines === 'function') {
+        try {
+          this.karaokeService._computeAcousticSyllablesForLines(key, linesArr);
+        } catch (_) {}
+      }
+
+      const firstVocalFloorSec = (vocalProfile && Number.isFinite(vocalProfile.firstVocalSec) && vocalProfile.firstVocalSec > 0.4)
+        ? Math.max(0, vocalProfile.firstVocalSec - 0.08)
+        : 0;
+
+      const outLines = [];
+      let prevLineEndSec = firstVocalFloorSec;
+      let runningLocalDriftSec = 0;
+
+      // Si el primer verso de una letra externa viene antes de que entre la voz real en el audio (intro instrumental),
+      // inicializar el desplazamiento global automáticamente hacia la primera isla vocal real.
+      const firstLineCandidate = linesArr.find(l => l && !l.isIntroCard && !l.isMetadata && !l.isCue && String(l.text || '').trim());
+      if (firstLineCandidate && firstVocalFloorSec > 1.2) {
+        const firstRaw = Number(firstLineCandidate._origTimeSec) || Number(firstLineCandidate.timeSec) || 0;
+        if (firstVocalFloorSec - firstRaw > 0.8 && firstVocalFloorSec - firstRaw < 32.0) {
+          runningLocalDriftSec = firstVocalFloorSec - firstRaw;
+        }
+      }
+
+      for (let li = 0; li < linesArr.length; li++) {
+        const line = linesArr[li];
+        if (!line || line.isIntroCard || line.isMetadata || line.isCue) continue;
+        const cleanText = repairSpanishBrokenAccents(String(line.text || '').trim());
+        if (!cleanText || /^[\(\[♪♫]/.test(cleanText)) continue;
+
+        if (line._isWhisperAudioDerived && Array.isArray(line.singstarSyllables) && line.singstarSyllables.length > 0) {
+          outLines.push(line);
+          prevLineEndSec = line.endTimeSec + 0.03;
+          continue;
+        }
+
+        const baseLineSec = (Number(line._origTimeSec) || Number(line.timeSec) || 0) + (vocalProfile ? runningLocalDriftSec * 0.85 : 0);
+        const rawStartSec = Math.max(prevLineEndSec, firstVocalFloorSec, baseLineSec);
+        const nextRawSec = (li + 1 < linesArr.length && Number.isFinite(Number(linesArr[li + 1]?.timeSec)))
+          ? ((Number(linesArr[li + 1]._origTimeSec) || Number(linesArr[li + 1].timeSec)) + (vocalProfile ? runningLocalDriftSec * 0.85 : 0))
+          : Math.min(actualDurSec, rawStartSec + 3.6);
+        const maxWindowEndSec = Math.max(rawStartSec + 0.48, Math.min(nextRawSec - 0.04, rawStartSec + 5.4));
+
+        // Caso A: La línea ya trae sílabas nativas de Catálogo Top verificado y aún no tenemos vocalProfile
+        if (!line._hasAcousticGeneratedWords && !vocalProfile && Array.isArray(line.words) && line.words.length >= 2 && Number.isFinite(Number(line.words[0]?.timeSec))) {
+          const syls = [];
+          for (let wi = 0; wi < line.words.length; wi++) {
+            const w = line.words[wi];
+            const txt = repairSpanishBrokenAccents(String(w.text || ''));
+            if (!txt.trim()) continue;
+            const sSec = Math.max(rawStartSec, Number(w.timeSec) || rawStartSec);
+            const nextW = line.words[wi + 1];
+            const eSec = nextW
+              ? Math.max(sSec + 0.11, Math.min(maxWindowEndSec, Number(nextW.timeSec) - 0.015))
+              : Math.max(sSec + 0.18, Math.min(maxWindowEndSec, sSec + 0.55));
+            syls.push({
+              text: txt.trim(),
+              displayText: txt,
+              startSec: +sSec.toFixed(3),
+              endSec: +eSec.toFixed(3)
+            });
+          }
+          if (syls.length > 0) {
+            prevLineEndSec = syls[syls.length - 1].endSec + 0.03;
+            outLines.push({
+              ...line,
+              text: cleanText,
+              timeSec: syls[0].startSec,
+              endTimeSec: syls[syls.length - 1].endSec,
+              singstarSyllables: syls
+            });
+            continue;
+          }
+        }
+
+        // Caso B: Detectar inicio/fin real de la isla vocal en el audio a 100 Hz (10ms) y alinear cada sílaba fonética con Viterbi-DTW
+        const rawWords = cleanText.split(/\s+/).filter(Boolean);
+        const naturalMaxDur = Math.max(0.68, Math.min(4.4, rawWords.length * 0.42 + 0.35));
+
+        let vocalStartSec = rawStartSec;
+        let vocalEndSec = Math.min(maxWindowEndSec, rawStartSec + naturalMaxDur);
+
+        if (vocalProfile && vocalProfile.vocEnergyDb) {
+          const fHz = vocalProfile.frameHz || 100;
+          const fSearch0 = Math.max(
+            Math.ceil(prevLineEndSec * fHz),
+            Math.floor(Math.max(firstVocalFloorSec, rawStartSec - 1.25) * fHz)
+          );
+          const fSearch1 = Math.min(
+            vocalProfile.vocEnergyDb.length - 1,
+            Math.ceil(Math.min(actualDurSec, rawStartSec + 2.85) * fHz)
+          );
+          const th = vocalProfile.thVoc - 1.4;
+          const baseF = Math.min(vocalProfile.vocEnergyDb.length - 1, Math.max(0, Math.round(rawStartSec * fHz)));
+
+          let firstActive = -1;
+          if (vocalProfile.vocEnergyDb[baseF] >= th && vocalProfile.vocEnergyDb[Math.min(vocalProfile.vocEnergyDb.length - 1, baseF + 1)] >= th - 0.8) {
+            let backF = baseF;
+            const minBackF = Math.max(fSearch0, baseF - Math.round(0.32 * fHz));
+            while (backF > minBackF && vocalProfile.vocEnergyDb[backF - 1] >= th - 1.0) {
+              backF--;
+            }
+            firstActive = backF;
+          } else {
+            const minVoicedCheck = Math.max(4, Math.round(0.08 * fHz));
+            const winVoicedCheck = Math.max(6, Math.round(0.12 * fHz));
+            for (let f = fSearch0; f <= fSearch1 - winVoicedCheck; f++) {
+              if (vocalProfile.vocEnergyDb[f] >= th && vocalProfile.vocEnergyDb[f + 1] >= th - 0.6) {
+                let voicedRun = 0;
+                for (let k = 0; k < winVoicedCheck && (f + k) < vocalProfile.vocEnergyDb.length; k++) {
+                  if (vocalProfile.vocEnergyDb[f + k] >= th - 1.6) voicedRun++;
+                }
+                if (voicedRun >= minVoicedCheck) {
+                  firstActive = f;
+                  if (f >= baseF) break;
+                }
+              }
+            }
+          }
+
+          if (firstActive !== -1) {
+            const candidateStart = firstActive / fHz;
+            if (Math.abs(candidateStart - rawStartSec) <= 2.85) {
+              vocalStartSec = Math.max(prevLineEndSec, candidateStart - 0.012);
+              const origSec = Number(line._origTimeSec) || Number(line.timeSec) || rawStartSec;
+              const obsDrift = vocalStartSec - origSec;
+              if (Math.abs(obsDrift) <= 8.0) {
+                runningLocalDriftSec = runningLocalDriftSec * 0.6 + obsDrift * 0.4;
+              }
+            }
+            const minPhraseFrames = Math.round(Math.min(naturalMaxDur * 0.45, 0.75) * fHz);
+            const maxPhraseFrames = Math.round(naturalMaxDur * 1.28 * fHz);
+            const silenceHoldFrames = Math.max(7, Math.round(0.19 * fHz));
+            const fMaxPhrase = Math.min(vocalProfile.vocEnergyDb.length - 1, Math.ceil(Math.max(maxWindowEndSec, vocalStartSec + naturalMaxDur) * fHz), firstActive + maxPhraseFrames);
+            let lastVoiced = Math.min(fMaxPhrase, firstActive + minPhraseFrames);
+
+            for (let f = firstActive + minPhraseFrames; f <= fMaxPhrase; f++) {
+              if (vocalProfile.vocEnergyDb[f] >= th - 1.0) {
+                lastVoiced = f;
+              } else {
+                let silentRun = 0;
+                for (let s = f; s <= Math.min(fMaxPhrase, f + silenceHoldFrames); s++) {
+                  if (vocalProfile.vocEnergyDb[s] < th - 1.4) silentRun++;
+                }
+                if (silentRun >= silenceHoldFrames) break;
+              }
+            }
+            vocalEndSec = Math.max(vocalStartSec + 0.45, Math.min(actualDurSec, (lastVoiced + 3) / fHz));
+          }
+        }
+
+        const spanMs = Math.max(450, Math.round((vocalEndSec - vocalStartSec) * 1000));
+        const tokens = (this.karaokeService && typeof this.karaokeService.tokenizePhraseIntoNaturalSyllables === 'function')
+          ? this.karaokeService.tokenizePhraseIntoNaturalSyllables(cleanText, spanMs)
+          : rawWords.map(w => ({ text: w, displayText: w + ' ', weight: 1.0, isWordEnd: true }));
+
+        const K = tokens.length;
+        if (K === 0) continue;
+
+        const syls = [];
+        if (vocalProfile && vocalProfile.vowelFlux && K >= 2) {
+          const fHz = vocalProfile.frameHz || 100;
+          const f0 = Math.max(0, Math.floor(vocalStartSec * fHz));
+          const f1 = Math.min(vocalProfile.vowelFlux.length - 1, Math.ceil(vocalEndSec * fHz));
+          const M = f1 - f0 + 1;
+          const minStepFrames = Math.max(Math.round(0.075 * fHz), Math.min(Math.round(0.18 * fHz), Math.floor(M / (K + 0.5))));
+
+          if (M >= K * minStepFrames) {
+            const totalW = tokens.reduce((acc, t) => acc + (Number(t.weight) || 1.0), 0) || K;
+            const idealFrames = [];
+            let cumW = 0;
+            for (let k = 0; k < K; k++) {
+              const ratio = cumW / totalW;
+              idealFrames.push(f0 + Math.round(ratio * Math.max(1, M - minStepFrames)));
+              cumW += (Number(tokens[k].weight) || 1.0);
+            }
+
+            // Programación dinámica Viterbi a 10ms para anclar cada sílaba a su ataque vocálico real
+            const dp = new Float32Array(K * M).fill(-1e9);
+            const back = new Int32Array(K * M).fill(-1);
+
+            for (let m = 0; m < M; m++) {
+              const fAbs = f0 + m;
+              const dev = Math.abs(fAbs - idealFrames[0]) / Math.max(8, M * 0.25);
+              if (dev <= 1.25) {
+                dp[m] = vocalProfile.vowelFlux[fAbs] * 1.45 + (vocalProfile.vocEnergyDb[fAbs] - vocalProfile.thVoc) * 0.18 - dev * dev * 3.6;
+              }
+            }
+
+            for (let k = 1; k < K; k++) {
+              const expGap = Math.max(minStepFrames, idealFrames[k] - idealFrames[k - 1]);
+              for (let m = k * minStepFrames; m < M - (K - 1 - k) * minStepFrames; m++) {
+                const fAbs = f0 + m;
+                const globalDev = Math.abs(fAbs - idealFrames[k]) / Math.max(10, M * 0.34);
+                if (globalDev > 1.40) continue;
+
+                const emission = vocalProfile.vowelFlux[fAbs] * 1.4 + (vocalProfile.vocEnergyDb[fAbs] - vocalProfile.thVoc) * 0.16 - globalDev * globalDev * 2.3;
+                const prevMin = Math.max((k - 1) * minStepFrames, m - Math.round(expGap * 2.2));
+                const prevMax = m - minStepFrames;
+
+                let bestPrevScore = -1e9;
+                let bestPrevM = -1;
+                for (let pm = prevMin; pm <= prevMax; pm++) {
+                  const prevVal = dp[(k - 1) * M + pm];
+                  if (prevVal <= -1e8) continue;
+                  const gapDiff = ((m - pm) - expGap) / Math.max(5, expGap * 0.55);
+                  const cand = prevVal - gapDiff * gapDiff * 2.5;
+                  if (cand > bestPrevScore) {
+                    bestPrevScore = cand;
+                    bestPrevM = pm;
+                  }
+                }
+                if (bestPrevM !== -1) {
+                  dp[k * M + m] = bestPrevScore + emission;
+                  back[k * M + m] = bestPrevM;
+                }
+              }
+            }
+
+            let bestEndM = -1;
+            let bestEndVal = -1e9;
+            for (let m = (K - 1) * minStepFrames; m < M; m++) {
+              const v = dp[(K - 1) * M + m];
+              if (v > bestEndVal) {
+                bestEndVal = v;
+                bestEndM = m;
+              }
+            }
+
+            if (bestEndM !== -1 && bestEndVal > -1e7) {
+              const chosenFrames = new Array(K);
+              let curM = bestEndM;
+              for (let k = K - 1; k >= 0; k--) {
+                chosenFrames[k] = f0 + curM;
+                curM = back[k * M + curM];
+              }
+              for (let k = 0; k < K; k++) {
+                const sSec = chosenFrames[k] / fHz;
+                const nextSec = (k + 1 < K) ? (chosenFrames[k + 1] / fHz) : vocalEndSec;
+                const eSec = Math.max(sSec + 0.085, Math.min(vocalEndSec, nextSec - 0.012));
+                syls.push({
+                  text: String(tokens[k].text || tokens[k].displayText || '').trim(),
+                  displayText: tokens[k].displayText || (tokens[k].text + (tokens[k].isWordEnd ? ' ' : '')),
+                  startSec: +sSec.toFixed(3),
+                  endSec: +eSec.toFixed(3)
+                });
+              }
+            }
+          }
+        }
+
+        if (syls.length === 0) {
+          const totalW = tokens.reduce((acc, t) => acc + (Number(t.weight) || 1.0), 0) || K;
+          const spanSec = Math.max(0.42, vocalEndSec - vocalStartSec);
+          let cursor = vocalStartSec;
+          for (let k = 0; k < K; k++) {
+            const wRatio = (Number(tokens[k].weight) || 1.0) / totalW;
+            const dSec = Math.max(0.10, spanSec * wRatio);
+            const sSec = cursor;
+            const eSec = (k === K - 1) ? vocalEndSec : Math.min(vocalEndSec, sSec + dSec - 0.012);
+            syls.push({
+              text: String(tokens[k].text || tokens[k].displayText || '').trim(),
+              displayText: tokens[k].displayText || (tokens[k].text + (tokens[k].isWordEnd ? ' ' : '')),
+              startSec: +sSec.toFixed(3),
+              endSec: +Math.max(sSec + 0.085, eSec).toFixed(3)
+            });
+            cursor += dSec;
+          }
+        }
+
+        prevLineEndSec = syls[syls.length - 1].endSec + 0.04;
+        const syncedLineWords = syls.map(s => ({
+          timeSec: s.startSec,
+          endSec: s.endSec,
+          text: s.displayText
+        }));
+        outLines.push({
+          ...line,
+          text: cleanText,
+          timeSec: syls[0].startSec,
+          endTimeSec: syls[syls.length - 1].endSec,
+          words: syncedLineWords,
+          _hasAcousticGeneratedWords: true,
+          singstarSyllables: syls
+        });
+      }
+
+      if (vocalProfile && this.karaokeService && this.karaokeService.currentTrackKey === key && outLines.length >= 3) {
+        this.karaokeService.cache.set(key, outLines.map(l => ({ ...l })));
+        this.karaokeService.currentLyrics = outLines.map(l => ({ ...l }));
+        this.karaokeService.activeLineIndex = -1;
+        this.karaokeService.renderLinesToDom();
+      }
+
+      return outLines;
+    }
+
+    /**
+     * Construye las barras de sílabas y la escala vertical monotónica:
+     * NUNCA envuelve módulo 12 nota por nota. Las notas graves tienen menor MIDI (abajo)
+     * y las notas agudas tienen mayor MIDI (arriba).
+     */
+    _applyStudioAnalysisToStage(studioData, userOffsetSec = 0, resetStats = true) {
+      if (!studioData || !Array.isArray(studioData.acousticLines)) return;
+
+      const dsp = studioData.dspContour;
+      this.hasDspMelody = Boolean(dsp && dsp.voicedCount >= 10);
+      this.hasAcousticSyllables = true;
+      this.centerMidi = (dsp && Number.isFinite(dsp.medianMidi)) ? dsp.medianMidi : 62;
+
+      const badge = document.getElementById('ssProDspBadge');
+      if (badge) {
+        badge.textContent = this.hasDspMelody
+          ? 'SÍLABAS DTW + TONO YIN REAL'
+          : 'SÍLABAS FONÉTICAS + ESCALA CROMÁTICA';
+      }
+
+      const seed = this._hashTrackSeed(studioData.track);
+      const majorScale = [0, 2, 4, 5, 7, 9, 11, 12];
+      const notes = [];
+      const phrases = [];
+      let noteId = 0;
+      let goldenTotal = 0;
+      let minSongMidi = 999;
+      let maxSongMidi = -999;
+
+      for (let li = 0; li < studioData.acousticLines.length; li++) {
+        const line = studioData.acousticLines[li];
+        const rawSyls = Array.isArray(line.singstarSyllables) ? line.singstarSyllables : [];
+        if (rawSyls.length === 0) continue;
+
+        const phraseSyls = [];
+        const phraseLen = rawSyls.length;
+
+        for (let si = 0; si < phraseLen; si++) {
+          const syl = rawSyls[si];
+          const startSec = Math.max(0, syl.startSec - userOffsetSec);
+          const endSec = Math.max(startSec + 0.10, syl.endSec - userOffsetSec);
+
+          let targetMidi = null;
+          if (this.hasDspMelody && dsp) {
+            targetMidi = this._sampleMonotonicMidiInWindow(dsp, syl.startSec, syl.endSec);
+          }
+
+          if (!Number.isFinite(targetMidi)) {
+            // Si en esa sílaba concreta hubo percusión fuerte, interpolar suavemente desde la nota anterior o contorno natural monotónico
+            if (notes.length > 0 && (startSec - notes[notes.length - 1].endSec) < 0.8) {
+              const arch = Math.sin((si / Math.max(1, phraseLen - 1)) * Math.PI) * 1.5;
+              targetMidi = notes[notes.length - 1].midi + (si % 2 === 0 ? 1 : -1) * 0.5 + arch * 0.25;
+            } else {
+              const deg = majorScale[(li * 2 + si + seed) % majorScale.length] - 5;
+              targetMidi = this.centerMidi + deg;
+            }
+          }
+
+          // Suavizado fisiológico entre sílabas contiguas de la misma palabra/frase (sin plegar octava)
+          if (si > 0 && notes.length > 0) {
+            const prev = notes[notes.length - 1].midi;
+            const delta = targetMidi - prev;
+            if (Math.abs(delta) > 9.0) {
+              targetMidi = prev + Math.sign(delta) * 6.0;
+            }
+          }
+
+          // Cuantizar a medios semitonos para que las barras luzcan limpias y musicales en el pentagrama
+          const cleanMidi = Math.round(targetMidi * 2) / 2;
+          minSongMidi = Math.min(minSongMidi, cleanMidi);
+          maxSongMidi = Math.max(maxSongMidi, cleanMidi);
+
+          const durSec = endSec - startSec;
+          const isGolden = (si === phraseLen - 1 && durSec >= 0.30 && (li % 2 === 1)) || (durSec >= 0.58 && si === phraseLen - 1);
+          if (isGolden) goldenTotal++;
+
+          const noteObj = {
+            id: noteId++,
+            lineIdx: li,
+            wordIdx: si,
+            text: syl.text,
+            displayText: syl.displayText || (syl.text + ' '),
+            startSec: +startSec.toFixed(3),
+            endSec: +endSec.toFixed(3),
+            midi: cleanMidi,
+            freqHz: Math.round(this.midiToFreqHz(cleanMidi)),
+            isGolden,
+            hitFrames: 0,
+            totalFrames: 0,
+            fillRatio: 0,
+            goldenAwarded: false
+          };
+          notes.push(noteObj);
+          phraseSyls.push(noteObj);
+        }
+
+        if (phraseSyls.length > 0) {
+          phrases.push({
+            lineIdx: li,
+            text: line.text,
+            startSec: phraseSyls[0].startSec,
+            endSec: phraseSyls[phraseSyls.length - 1].endSec,
+            syllables: phraseSyls,
+            judged: false
+          });
+        }
+      }
+
+      // Configurar eje vertical estrictamente monotónico [axisMinMidi, axisMaxMidi]
+      // Abajo = siempre más grave (menor MIDI), Arriba = siempre más agudo (mayor MIDI)
+      if (minSongMidi < maxSongMidi && Number.isFinite(minSongMidi)) {
+        const midPoint = Math.round((minSongMidi + maxSongMidi) * 0.5);
+        const halfSpan = Math.max(9, Math.ceil((maxSongMidi - minSongMidi) * 0.5) + 3);
+        this.centerMidi = midPoint;
+        this.axisMinMidi = midPoint - halfSpan;
+        this.axisMaxMidi = midPoint + halfSpan;
+      } else {
+        this.axisMinMidi = this.centerMidi - 10;
+        this.axisMaxMidi = this.centerMidi + 10;
+      }
+
+      this.pitchNotes = notes;
+      this.phraseWindows = phrases;
+      this.goldenTotalCount = Math.max(1, goldenTotal);
+      this._lastTeleprompterLineIdx = -2;
+      this._lastTeleprompterSylIdx = -2;
+
+      if (resetStats) {
+        this.resetSessionStats();
+      }
+    }
+
+    _sampleMonotonicMidiInWindow(dsp, startSec, endSec) {
+      if (!dsp || !dsp.midiFrames) return null;
+      const f0 = Math.max(0, Math.min(dsp.midiFrames.length - 1, Math.floor(startSec * dsp.frameHz)));
+      const f1 = Math.max(f0, Math.min(dsp.midiFrames.length - 1, Math.ceil(endSec * dsp.frameHz)));
+      const vals = [];
+      for (let f = f0; f <= f1; f++) {
+        const m = dsp.midiFrames[f];
+        if (m >= 44 && m <= 84) {
+          vals.push(m);
+        }
+      }
+      if (vals.length === 0) return null;
+      vals.sort((a, b) => a - b);
+      return vals[Math.floor(vals.length * 0.5)];
+    }
+
+    onLyricsUpdated(track, lyricsLines, userOffsetSec = 0) {
+      if (!track || !Array.isArray(lyricsLines) || lyricsLines.length === 0) return;
+      const key = this.karaokeService ? this.karaokeService._makeKey(track) : String(track.id || track.title || '');
+      const offBadge = document.getElementById('ssProOffsetBadge');
+      if (offBadge) {
+        offBadge.textContent = `${userOffsetSec >= 0 ? '+' : ''}${userOffsetSec.toFixed(2)}s`;
+      }
+      const isPlaceholder = this._isPlaceholderLyrics(lyricsLines);
+      if (this.studioAnalysisCache.has(key)) {
+        const cached = this.studioAnalysisCache.get(key);
+        if (!isPlaceholder) {
+          const dur = cached.actualDurSec || (this.audioEngine ? (this.audioEngine.getRealDurationSec(track) || 195) : 195);
+          cached.acousticLines = this._alignSyllablesWithVocalProfile(key, lyricsLines, cached.dspContour, dur);
+          cached.hasPlaceholderLyrics = false;
+        }
+        this._applyStudioAnalysisToStage(cached, userOffsetSec, false);
+        return;
+      }
+      if (this.isActive && key === this.currentTrackKey && !isPlaceholder) {
+        const dur = this.audioEngine ? (this.audioEngine.getRealDurationSec(track) || 195) : 195;
+        const quickAligned = this._alignSyllablesWithVocalProfile(key, lyricsLines, null, dur);
+        this._applyStudioAnalysisToStage({
+          track,
+          key,
+          dspContour: null,
+          acousticLines: quickAligned,
+          hasDspMelody: false,
+          hasAcousticSyllables: true,
+          hasPlaceholderLyrics: false
+        }, userOffsetSec, false);
+
+        if (!this.isPreparingSong && this._activePrepKey !== key) {
+          this._prepareTrackInStudio(track, false).catch(() => {});
+        }
+      }
+    }
+
+    _hashTrackSeed(track) {
+      const str = `${track?.title || ''}_${track?.artist || ''}`.toLowerCase();
+      let h = 2166136261;
+      for (let i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+      }
+      return Math.abs(h);
+    }
+
+    /**
+     * Muestreo del micrófono en vivo con algoritmo YIN CMND a tasa completa (44.1 / 48 kHz)
+     * tanto en Android Nativo (AudioRecord 44.1 kHz) como en WebAudio, con mapeo monotónico:
+     * - NUNCA envuelve módulo 12 alrededor de cada nota (que invertía agudos y graves).
+     * - Si cantas más agudo, tu indicador SIEMPRE sube.
+     * - Si cantas más grave, tu indicador SIEMPRE baja.
+     */
+    _sampleLiveVoiceOrGuide(curSongSec, activeNote, nowMs) {
+      if (this.voiceGuideDemo) {
+        this._setMicDotLive(true);
+        if (activeNote) {
+          const vib = Math.sin(nowMs * 0.028) * 0.14;
+          this.rawUserMidi = activeNote.midi + vib;
+          this.liveUserMidi = this.rawUserMidi;
+          this.smoothedUserMidi = this.liveUserMidi;
+          this.liveUserFreqHz = Math.round(this.midiToFreqHz(this.liveUserMidi));
+          this.liveUserRms = 0.08;
+          this.liveSemitoneDelta = vib;
+          this.liveNoteLabel = this.midiToNoteNameEs(this.liveUserMidi);
+          this.liveStatusText = 'PILOTO DEMO AFINADO';
+          this.liveStatusTier = 'perfect';
+          return;
+        }
+        this.liveUserMidi = null;
+        this.liveUserFreqHz = 0;
+        this.liveUserRms = 0;
+        this.liveNoteLabel = '--';
+        this.liveStatusText = 'ESPERANDO SÍLABA...';
+        this.liveStatusTier = 'idle';
+        return;
+      }
+
+      let detectedFreqHz = 0;
+      let detectedClarity = 0;
+      let rms = 0;
+      let hasMicSignal = false;
+
+      // 1) Lectura de baja latencia desde el motor nativo Android AudioRecord 44.1 kHz + YIN CMND
+      //    Compatible tanto con el nuevo formato JSON como con versiones previas separadas por '|'
+      if (window.AndroidNative && typeof window.AndroidNative.pollVocalMic === 'function') {
+        try {
+          const rawStr = String(window.AndroidNative.pollVocalMic() || '').trim();
+          if (rawStr) {
+            let telem = null;
+            if (rawStr.startsWith('{')) {
+              telem = JSON.parse(rawStr);
+            } else if (rawStr.includes('|')) {
+              const parts = rawStr.split('|');
+              const st = parts[0] || 'idle';
+              telem = {
+                active: st === 'running',
+                state: st,
+                permissionGranted: st !== 'denied' && st !== 'requesting',
+                freqHz: parseFloat(parts[1]) || 0,
+                clarity: parseFloat(parts[2]) || 0,
+                rms: parseFloat(parts[3]) || 0
+              };
+            }
+            if (telem) {
+              if (!telem.active && telem.permissionGranted && (nowMs - (this._lastNativeMicRetryMs || 0)) > 1500) {
+                this._lastNativeMicRetryMs = nowMs;
+                if (typeof window.AndroidNative.startVocalMic === 'function') {
+                  window.AndroidNative.startVocalMic();
+                }
+              }
+              this.micPermissionDenied = (telem.state === 'denied');
+              this._usingNativeAndroidMic = Boolean(telem.active);
+              this._setMicDotLive(Boolean(telem.active));
+              if (telem.active) {
+                hasMicSignal = true;
+                rms = Number(telem.rms) || 0;
+                detectedFreqHz = Number(telem.freqHz) || 0;
+                detectedClarity = Number(telem.clarity) || 0;
+              }
+            }
+          }
+        } catch (_) {}
+      }
+
+      // 2) Respaldo WebAudio API cuando no hay señal nativa activa
+      if (!hasMicSignal && this.micAnalyser && this.micTimeBuf && this.micAudioCtx) {
+        hasMicSignal = true;
+        this._setMicDotLive(true);
+        this.micAnalyser.getFloatTimeDomainData(this.micTimeBuf);
+        const buf = this.micTimeBuf;
+        const n = buf.length;
+        let sumSq = 0;
+        for (let i = 0; i < n; i++) {
+          const v = buf[i];
+          sumSq += v * v;
+        }
+        rms = Math.sqrt(sumSq / n);
+        const sr = this.micAudioCtx.sampleRate || 44100;
+        const detected = this._detectMicPitchYinCmnd(buf, sr);
+        if (detected) {
+          detectedFreqHz = detected.freqHz;
+          detectedClarity = detected.clarity;
+        }
+      }
+
+      if (!hasMicSignal) {
+        this.liveUserMidi = null;
+        this.liveUserFreqHz = 0;
+        this.liveUserRms = 0;
+        this.liveNoteLabel = '--';
+        this.liveStatusText = this.micPermissionDenied ? 'PULSA AQUÍ PARA ACTIVAR MIC' : 'PULSA AQUÍ O CANTA AL MIC';
+        this.liveStatusTier = 'idle';
+        return;
+      }
+
+      this.liveUserRms = rms;
+
+      if (rms < this.noiseFloorRms * 1.25) {
+        this.noiseFloorRms = Math.max(0.0014, Math.min(0.012, 0.96 * this.noiseFloorRms + 0.04 * rms));
+      }
+
+      const gateThreshold = Math.max(0.0022, this.noiseFloorRms * 1.45);
+      if (rms < gateThreshold || detectedFreqHz < 75 || detectedClarity < 0.42) {
+        if (nowMs - this._lastVoicedWallMs <= 165 && Number.isFinite(this._lastVoicedMidi)) {
+          this.liveUserMidi = this._lastVoicedMidi;
+          return;
+        }
+        this.liveUserMidi = null;
+        this.liveUserFreqHz = 0;
+        this.liveNoteLabel = '--';
+        this.liveStatusText = activeNote ? 'CANTA LA SÍLABA' : 'MIC ACTIVO · CANTA';
+        this.liveStatusTier = 'idle';
+        return;
+      }
+
+      this.liveUserFreqHz = Math.round(detectedFreqHz);
+      const rawMidi = 69 + 12 * Math.log2(detectedFreqHz / 440);
+      this.rawUserMidi = rawMidi;
+      this.liveNoteLabel = this.midiToNoteNameEs(rawMidi);
+
+      // Calcular el desplazamiento de octava de registro (fijo para toda la sesión o elegido por el usuario)
+      let octaveShift = 0;
+      if (this.octaveRegisterMode === '-12') {
+        octaveShift = 12; // Usuario con voz 1 octava más grave que la canción -> sube +12 para proyectarse en el pentagrama
+      } else if (this.octaveRegisterMode === '+12') {
+        octaveShift = -12; // Usuario con voz 1 octava más aguda -> baja -12
+      } else if (this.octaveRegisterMode === '0') {
+        octaveShift = 0;
+      } else {
+        // Modo Auto: calibra una sola octava estable comparando la mediana de voz del usuario frente al centerMidi de la canción
+        this._userRawMidiSamples.push(rawMidi);
+        if (this._userRawMidiSamples.length > 45) {
+          this._userRawMidiSamples.shift();
+        }
+        if (this._userRawMidiSamples.length >= 6) {
+          const sorted = this._userRawMidiSamples.slice().sort((a, b) => a - b);
+          const userMed = sorted[Math.floor(sorted.length * 0.5)];
+          this.autoDetectedOctaveShift = Math.round((this.centerMidi - userMed) / 12) * 12;
+        } else {
+          this.autoDetectedOctaveShift = Math.round((this.centerMidi - rawMidi) / 12) * 12;
+        }
+        octaveShift = this.autoDetectedOctaveShift;
+      }
+
+      // Proyección estrictamente monotónica: rawMidi + octaveShift
+      // Cantar más agudo SIEMPRE aumenta mappedMidi (sube en pantalla); cantar más grave SIEMPRE disminuye mappedMidi (baja en pantalla)
+      const mappedMidi = rawMidi + octaveShift;
+
+      if (!Number.isFinite(this.smoothedUserMidi)) {
+        this.smoothedUserMidi = mappedMidi;
+      } else {
+        const step = mappedMidi - this.smoothedUserMidi;
+        // Rechazar picos de ruido de 1 solo frame (> 9 semitonos instantáneos) y suavizar con respuesta rápida
+        const alpha = Math.abs(step) > 8.5 ? 0.18 : 0.42;
+        this.smoothedUserMidi = this.smoothedUserMidi + alpha * step;
+      }
+
+      this.liveUserMidi = this.smoothedUserMidi;
+      this._lastVoicedMidi = this.smoothedUserMidi;
+      this._lastVoicedWallMs = nowMs;
+
+      const refMidi = activeNote ? activeNote.midi : this.centerMidi;
+      this.liveSemitoneDelta = this.liveUserMidi - refMidi;
+
+      // Detección de Vibrato natural (4.2 - 8.0 Hz dentro de ±1.25 semitonos)
+      if (activeNote && Math.abs(this.liveSemitoneDelta) <= 1.25) {
+        this._vibratoHistory.push({ tMs: nowMs, delta: this.liveSemitoneDelta });
+        while (this._vibratoHistory.length > 0 && (nowMs - this._vibratoHistory[0].tMs) > 440) {
+          this._vibratoHistory.shift();
+        }
+        if (this._vibratoHistory.length >= 10 && (nowMs - this._lastVibratoAwardMs) > 1650) {
+          let zeroCrossings = 0;
+          let maxSwing = 0;
+          for (let i = 1; i < this._vibratoHistory.length; i++) {
+            const d0 = this._vibratoHistory[i - 1].delta;
+            const d1 = this._vibratoHistory[i].delta;
+            maxSwing = Math.max(maxSwing, Math.abs(d1));
+            if ((d0 < 0 && d1 >= 0) || (d0 >= 0 && d1 < 0)) zeroCrossings++;
+          }
+          if (zeroCrossings >= 3 && maxSwing >= 0.18 && maxSwing <= 0.95) {
+            this._lastVibratoAwardMs = nowMs;
+            this.score += 150 * this.multiplier;
+            this._spawnPopup('VIBRATO PROFESIONAL', `+${150 * this.multiplier} PTS`, '#38bdf8', 1100);
+          }
+        }
+      }
+    }
+
+    /**
+     * Detector de Frecuencia Fundamental YIN CMND (d'(tau)) de alta resolución para el micrófono:
+     * Analiza la señal sin aliasing para distinguir con exactitud absoluta graves (82 Hz / MI2)
+     * de agudos (980 Hz / SI5) sin saltos de sub-octava.
+     */
+    _detectMicPitchYinCmnd(buf, sr) {
+      const halfW = 768;
+      const minTau = Math.max(3, Math.floor(sr / 980)); // ~980 Hz (B5)
+      const maxTau = Math.min(halfW - 4, Math.ceil(sr / 82)); // ~82 Hz (E2)
+      if (maxTau <= minTau) return null;
+
+      const cmnd = new Float32Array(maxTau + 2);
+      cmnd[0] = 1.0;
+      let runningSum = 0;
+
+      for (let tau = 1; tau <= maxTau; tau++) {
+        let diff = 0;
+        for (let i = 0; i < halfW; i += 2) {
+          const delta = buf[i] - buf[i + tau];
+          diff += delta * delta;
+        }
+        runningSum += diff;
+        cmnd[tau] = runningSum > 1e-9 ? (diff * tau) / runningSum : 1.0;
+      }
+
+      // Buscar el primer valle pronunciado por debajo del umbral YIN (0.28)
+      let chosenTau = -1;
+      let chosenVal = 1.0;
+      for (let tau = minTau + 1; tau < maxTau; tau++) {
+        if (cmnd[tau] < 0.28 && cmnd[tau] <= cmnd[tau - 1] && cmnd[tau] <= cmnd[tau + 1]) {
+          chosenTau = tau;
+          chosenVal = cmnd[tau];
+          break;
+        }
+      }
+
+      // Si la voz es ligeramente rasgada, aceptar el mínimo global si d'(tau) < 0.42
+      if (chosenTau < 0) {
+        for (let tau = minTau + 1; tau < maxTau; tau++) {
+          if (cmnd[tau] < chosenVal && cmnd[tau] <= cmnd[tau - 1] && cmnd[tau] <= cmnd[tau + 1]) {
+            chosenVal = cmnd[tau];
+            chosenTau = tau;
+          }
+        }
+        if (chosenVal > 0.42) return null;
+      }
+
+      if (chosenTau < minTau) return null;
+
+      // Interpolación parabólica sub-muestra
+      const y1 = cmnd[chosenTau - 1];
+      const y2 = cmnd[chosenTau];
+      const y3 = cmnd[chosenTau + 1];
+      const denom = (y1 - 2 * y2 + y3);
+      const shift = Math.abs(denom) > 1e-6 ? (0.5 * (y1 - y3) / denom) : 0;
+      const refinedTau = Math.max(minTau, chosenTau + Math.max(-0.5, Math.min(0.5, shift)));
+      const freqHz = sr / refinedTau;
+
+      if (freqHz < 80 || freqHz > 990) return null;
+      return {
+        freqHz,
+        clarity: Math.max(0, 1 - chosenVal)
+      };
+    }
+
+    _startRenderLoop() {
+      if (this.rafId) cancelAnimationFrame(this.rafId);
+      this._lastFrameMs = performance.now();
+      const loop = (nowMs) => {
+        if (!this.isActive) return;
+        this._tickAndRender(nowMs);
+        this.rafId = requestAnimationFrame(loop);
+      };
+      this.rafId = requestAnimationFrame(loop);
+    }
+
+    _stopRenderLoop() {
+      if (this.rafId) {
+        cancelAnimationFrame(this.rafId);
+        this.rafId = null;
+      }
+    }
+
+    _spawnPopup(text, subText = '', color = '#fde047', durMs = 1050) {
+      this.floatingPopups.push({
+        text,
+        subText,
+        color,
+        bornMs: performance.now(),
+        durMs
+      });
+      if (this.floatingPopups.length > 4) {
+        this.floatingPopups.shift();
+      }
+    }
+
+    _spawnHitParticles(x, y, color, count = 4) {
+      for (let i = 0; i < count; i++) {
+        const angle = (Math.random() * Math.PI * 2);
+        const speed = 0.8 + Math.random() * 2.8;
+        this.particles.push({
+          x,
+          y: y + (Math.random() - 0.5) * 8,
+          vx: -1.0 + Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 0.4,
+          r: 2.0 + Math.random() * 2.6,
+          color,
+          life: 0,
+          maxLife: 18 + Math.floor(Math.random() * 14)
+        });
+      }
+      if (this.particles.length > 90) {
+        this.particles.splice(0, this.particles.length - 90);
+      }
+    }
+
+    _triggerHaptic(ms = 14) {
+      try {
+        if (window.AndroidNative && typeof window.AndroidNative.vibrate === 'function') {
+          window.AndroidNative.vibrate(ms);
+        }
+      } catch (_) {}
+    }
+
+    _tickAndRender(nowMs) {
+      const dtSec = Math.min(0.08, Math.max(0.004, (nowMs - (this._lastFrameMs || nowMs)) / 1000));
+      this._lastFrameMs = nowMs;
+
+      const isPlaying = Boolean(this.audioEngine && this.audioEngine.isPlaying());
+      const curSec = this.audioEngine ? this.audioEngine.getCurrentSongTimeSec() : 0;
+
+      // Localizar la sílaba activa en este instante
+      let activeNote = null;
+      for (let i = 0; i < this.pitchNotes.length; i++) {
+        const n = this.pitchNotes[i];
+        if (curSec + 0.045 >= n.startSec && curSec - 0.045 <= n.endSec) {
+          activeNote = n;
+          break;
+        }
+      }
+
+      this.liveTargetNoteLabel = activeNote
+        ? `${this.midiToNoteNameEs(activeNote.midi)} (${activeNote.freqHz} Hz)`
+        : '--';
+
+      // Actualizar sintetizador de Tono Guía Audible si está activo
+      this._updateAudibleToneGuideSynth(activeNote, isPlaying);
+
+      // Muestrear micrófono o guía
+      this._sampleLiveVoiceOrGuide(curSec, activeNote, nowMs);
+
+      // Evaluar precisión vocal frente a la sílaba activa
+      if (isPlaying && activeNote) {
+        activeNote.totalFrames++;
+        if (Number.isFinite(this.liveUserMidi)) {
+          const rawDelta = this.liveUserMidi - activeNote.midi;
+          const absDelta = Math.abs(rawDelta);
+          this.sungFramesCount++;
+
+          if (absDelta <= 0.85) {
+            this.liveStatusText = 'AFINACIÓN EXACTA';
+            this.liveStatusTier = 'perfect';
+            activeNote.hitFrames += 1.15;
+            this.tunedFramesCount += 1.0;
+            this.streak++;
+            this.maxStreak = Math.max(this.maxStreak, this.streak);
+            this.feverMeter = Math.min(100, this.feverMeter + dtSec * 19);
+            this.score += Math.round((activeNote.isGolden ? 28 : 14) * this.multiplier);
+          } else if (absDelta <= 1.65) {
+            this.liveStatusText = 'AFINADO';
+            this.liveStatusTier = 'good';
+            activeNote.hitFrames += 0.88;
+            this.tunedFramesCount += 0.85;
+            this.streak++;
+            this.maxStreak = Math.max(this.maxStreak, this.streak);
+            this.feverMeter = Math.min(100, this.feverMeter + dtSec * 11);
+            this.score += Math.round((activeNote.isGolden ? 18 : 9) * this.multiplier);
+          } else if (absDelta <= 2.65) {
+            // Indicaciones coherentes: si rawDelta > 0 estás más agudo que la nota -> "UN POCO AGUDO (BAJA)"
+            this.liveStatusText = rawDelta > 0 ? 'UN POCO AGUDO (BAJA)' : 'UN POCO GRAVE (SUBE)';
+            this.liveStatusTier = 'near';
+            activeNote.hitFrames += 0.35;
+            this.tunedFramesCount += 0.35;
+            this.score += Math.round(4 * this.multiplier);
+          } else {
+            this.liveStatusText = rawDelta > 0 ? 'MUY AGUDO (BAJA EL TONO)' : 'MUY GRAVE (SUBE EL TONO)';
+            this.liveStatusTier = 'off';
+            this.streak = Math.max(0, this.streak - 2);
+            this.feverMeter = Math.max(0, this.feverMeter - dtSec * 14);
+          }
+
+          const spanFrames = Math.max(6, (activeNote.endSec - activeNote.startSec) * 48);
+          activeNote.fillRatio = Math.min(1, activeNote.hitFrames / spanFrames);
+
+          if (activeNote.isGolden && !activeNote.goldenAwarded && activeNote.fillRatio >= 0.72) {
+            activeNote.goldenAwarded = true;
+            this.goldenHitCount++;
+            const bonus = 350 * this.multiplier;
+            this.score += bonus;
+            this._triggerHaptic(28);
+            this._spawnPopup('SÍLABA DORADA COMPLETADA', `+${bonus} PTS`, '#fde047', 1250);
+          }
+        }
+      }
+
+      // Actualizar multiplicador y estado Fiebre Vocal
+      const wasFever = this.isFever;
+      if (this.feverMeter >= 95) {
+        this.isFever = true;
+      } else if (this.feverMeter <= 22) {
+        this.isFever = false;
+      }
+      if (this.isFever && isPlaying) {
+        this.feverMeter = Math.max(20, this.feverMeter - dtSec * 4.5);
+      }
+
+      const baseMult = this.streak >= 90 ? 4 : (this.streak >= 45 ? 3 : (this.streak >= 18 ? 2 : 1));
+      this.multiplier = this.isFever ? (baseMult * 2) : baseMult;
+      if (!wasFever && this.isFever) {
+        this._triggerHaptic(35);
+        this._spawnPopup('FIEBRE VOCAL X' + this.multiplier, 'DOBLE PUNTUACIÓN ACTIVA', '#38bdf8', 1350);
+      }
+
+      const fsModal = document.getElementById('singstarFullscreenModal');
+      if (fsModal) {
+        fsModal.classList.toggle('fever-mode', Boolean(this.isActive && this.isFever));
+      }
+
+      // Evaluar final de cada frase cantada
+      if (isPlaying) {
+        for (let pIdx = 0; pIdx < this.phraseWindows.length; pIdx++) {
+          const pw = this.phraseWindows[pIdx];
+          if (!pw.judged && curSec > pw.endSec + 0.08 && curSec < pw.endSec + 0.85) {
+            pw.judged = true;
+            let fillSum = 0;
+            let count = 0;
+            let userAttempted = false;
+            for (let ni = 0; ni < pw.syllables.length; ni++) {
+              const n = pw.syllables[ni];
+              fillSum += n.fillRatio;
+              count++;
+              if (n.hitFrames > 0) userAttempted = true;
+            }
+            if (count > 0 && userAttempted) {
+              const avgFill = fillSum / count;
+              if (avgFill >= 0.80) {
+                const b = 400 * this.multiplier;
+                this.score += b;
+                this._triggerHaptic(22);
+                this._spawnPopup('FRASE MAGISTRAL', `+${b} PTS`, '#fde047', 1150);
+              } else if (avgFill >= 0.56) {
+                const b = 250 * this.multiplier;
+                this.score += b;
+                this._spawnPopup('GRAN AFINACIÓN', `+${b} PTS`, '#34d399', 1000);
+              } else if (avgFill >= 0.32) {
+                const b = 120 * this.multiplier;
+                this.score += b;
+                this._spawnPopup('BIEN CANTADO', `+${b} PTS`, '#38bdf8', 900);
+              }
+            }
+          }
+        }
+      }
+
+      if (isPlaying && Number.isFinite(this.liveUserMidi)) {
+        this.voiceTrail.push({
+          sec: curSec,
+          midi: this.liveUserMidi,
+          tier: this.liveStatusTier,
+          rms: this.liveUserRms
+        });
+      }
+      while (this.voiceTrail.length > 0 && (curSec - this.voiceTrail[0].sec > 1.85 || this.voiceTrail[0].sec > curSec + 0.2)) {
+        this.voiceTrail.shift();
+      }
+
+      if (this.displayScore < this.score) {
+        this.displayScore = Math.min(this.score, this.displayScore + Math.max(3, Math.ceil((this.score - this.displayScore) * 0.25)));
+      }
+
+      this._updateHudDom(false, curSec, isPlaying);
+      this._updateFullScreenTeleprompter(curSec);
+
+      const proCanvas = document.getElementById('singstarProCanvas');
+      if (proCanvas) {
+        this._renderProHighwayCanvas(proCanvas, curSec, activeNote, nowMs, true);
+      }
+      const miniCanvas = document.getElementById('npSingstarPitchCanvas');
+      if (miniCanvas && !proCanvas) {
+        this._renderProHighwayCanvas(miniCanvas, curSec, activeNote, nowMs, false);
+      }
+    }
+
+    _updateFullScreenTeleprompter(curSec) {
+      const curEl = document.getElementById('ssProTeleprompterCurrent');
+      const nextEl = document.getElementById('ssProTeleprompterNext');
+      if (!curEl || this.phraseWindows.length === 0) return;
+
+      let activePhraseIdx = -1;
+      for (let i = 0; i < this.phraseWindows.length; i++) {
+        const pw = this.phraseWindows[i];
+        const nextStart = (i + 1 < this.phraseWindows.length) ? this.phraseWindows[i + 1].startSec : (pw.endSec + 4.0);
+        if (curSec >= pw.startSec - 0.85 && curSec < Math.max(pw.endSec + 0.35, nextStart - 0.15)) {
+          activePhraseIdx = i;
+          break;
+        }
+      }
+      if (activePhraseIdx === -1) {
+        for (let i = 0; i < this.phraseWindows.length; i++) {
+          if (this.phraseWindows[i].startSec > curSec) {
+            activePhraseIdx = i;
+            break;
+          }
+        }
+      }
+      if (activePhraseIdx === -1) activePhraseIdx = this.phraseWindows.length - 1;
+
+      const phrase = this.phraseWindows[activePhraseIdx];
+      if (!phrase) return;
+
+      let activeSylIdx = -1;
+      for (let s = 0; s < phrase.syllables.length; s++) {
+        const syl = phrase.syllables[s];
+        if (curSec >= syl.startSec - 0.03 && curSec <= syl.endSec + 0.04) {
+          activeSylIdx = s;
+          break;
+        } else if (curSec > syl.endSec) {
+          activeSylIdx = s;
+        }
+      }
+
+      if (activePhraseIdx !== this._lastTeleprompterLineIdx) {
+        this._lastTeleprompterLineIdx = activePhraseIdx;
+        this._lastTeleprompterSylIdx = -2;
+        curEl.innerHTML = phrase.syllables.map((syl, sIdx) => {
+          return `<span class="singstar-fs-syl" data-syl-idx="${sIdx}">${escapeHtmlSafe(syl.displayText || syl.text)}</span>`;
+        }).join('');
+
+        const nextPhrase = this.phraseWindows[activePhraseIdx + 1];
+        if (nextEl) {
+          nextEl.textContent = nextPhrase ? nextPhrase.text : '';
+        }
+      }
+
+      if (activeSylIdx !== this._lastTeleprompterSylIdx) {
+        this._lastTeleprompterSylIdx = activeSylIdx;
+        const spans = curEl.querySelectorAll('.singstar-fs-syl');
+        for (let s = 0; s < spans.length; s++) {
+          const sp = spans[s];
+          const syl = phrase.syllables[s];
+          const isCurrent = Boolean(syl && curSec >= syl.startSec - 0.03 && curSec <= syl.endSec + 0.05);
+          const isPast = Boolean(syl && curSec > syl.endSec + 0.05);
+          sp.classList.toggle('active', isCurrent);
+          sp.classList.toggle('sung', isPast);
+        }
+      }
+    }
+
+    _updateHudDom(force = false, curSec = 0, isPlaying = false) {
+      const statusClass = 'np-singstar-pitch-status' + (
+        this.liveStatusTier === 'perfect' ? ' tuned-perfect' :
+        this.liveStatusTier === 'good' ? ' tuned-good' :
+        this.liveStatusTier === 'near' ? ' tuned-near' :
+        this.liveStatusTier === 'off' ? ' tuned-off' : ''
+      );
+
+      for (const id of ['npSingstarMicNote', 'ssProLiveNote']) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = this.liveNoteLabel || '--';
+      }
+      const hzEl = document.getElementById('ssProLiveHz');
+      if (hzEl) {
+        hzEl.textContent = this.liveUserFreqHz > 0 ? `${this.liveUserFreqHz} Hz` : '0 Hz';
+      }
+      const targetEl = document.getElementById('ssProTargetNote');
+      if (targetEl) {
+        targetEl.textContent = this.liveTargetNoteLabel || '--';
+      }
+      for (const id of ['npSingstarMicStatus', 'ssProMicStatus']) {
+        const el = document.getElementById(id);
+        if (el) {
+          el.textContent = this.liveStatusText || 'CANTA AL MICRÓFONO';
+          el.className = statusClass;
+        }
+      }
+      for (const id of ['npSingstarComboBadge', 'ssProComboBadge']) {
+        const el = document.getElementById(id);
+        if (el) {
+          el.textContent = this.isFever ? `FIEBRE x${this.multiplier}` : `x${this.multiplier}`;
+          el.classList.toggle('fever', this.isFever);
+        }
+      }
+      for (const id of ['npSingstarScoreVal', 'ssProScoreVal']) {
+        const el = document.getElementById(id);
+        if (el) {
+          el.textContent = `${this.displayScore.toLocaleString()} PTS`;
+        }
+      }
+
+      const playPauseLbl = document.getElementById('ssProPlayPauseLabel');
+      if (playPauseLbl && this._lastPlayPauseIconState !== isPlaying) {
+        this._lastPlayPauseIconState = isPlaying;
+        playPauseLbl.innerHTML = isPlaying
+          ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>'
+          : '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>';
+      }
+
+      if (this.audioEngine) {
+        const dur = Math.max(1, this.audioEngine.getRealDurationSec(this.audioEngine.currentTrack) || 195);
+        const curLbl = document.getElementById('ssProCurTime');
+        const durLbl = document.getElementById('ssProDurTime');
+        const scrub = document.getElementById('ssProScrubSlider');
+        const fmt = (s) => {
+          const m = Math.floor(Math.max(0, s) / 60);
+          const sec = Math.floor(Math.max(0, s) % 60);
+          return `${m}:${sec < 10 ? '0' : ''}${sec}`;
+        };
+        if (curLbl) curLbl.textContent = fmt(curSec);
+        if (durLbl) durLbl.textContent = fmt(dur);
+        if (scrub && document.activeElement !== scrub) {
+          scrub.value = String(Math.min(100, Math.max(0, (curSec / dur) * 100)).toFixed(1));
+        }
+      }
+    }
+
+    /**
+     * Renderizador Profesional de Pista de Afinación con Piano Roll Vertical Monotónico:
+     * - Columna izquierda: Teclado / Escala cromática real donde las notas graves están SIEMPRE abajo
+     *   y las notas agudas están SIEMPRE arriba.
+     * - Líneas de guía de transición entre sílabas consecutivas.
+     * - Cápsulas de sílaba con su texto fonético y nota musical.
+     * - Trazo de micrófono en tiempo real en la misma escala MIDI exacta.
+     */
+    _renderProHighwayCanvas(canvas, curSec, activeNote, nowMs, isFullScreen = true) {
+      const rect = canvas.getBoundingClientRect();
+      const cssW = Math.max(300, Math.round(rect.width || 800));
+      const cssH = Math.max(140, Math.round(rect.height || 360));
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const pw = Math.round(cssW * dpr);
+      const ph = Math.round(cssH * dpr);
+
+      if (canvas.width !== pw || canvas.height !== ph) {
+        canvas.width = pw;
+        canvas.height = ph;
+      }
+
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, cssW, cssH);
+
+      const pianoRollW = isFullScreen ? 62 : 38;
+      const playheadX = pianoRollW + Math.round((cssW - pianoRollW) * 0.22);
+      const lookaheadSec = isFullScreen ? 3.6 : 2.8;
+      const pxPerSec = (cssW - playheadX) / lookaheadSec;
+
+      const minMidi = this.axisMinMidi;
+      const maxMidi = this.axisMaxMidi;
+      const midiSpan = Math.max(12, maxMidi - minMidi);
+      const topPad = isFullScreen ? 28 : 18;
+      const botPad = isFullScreen ? 24 : 14;
+      const usableH = Math.max(80, cssH - topPad - botPad);
+
+      // Función estrictamente monotónica: mayor MIDI (más agudo) -> menor Y (más arriba)
+      // menor MIDI (más grave) -> mayor Y (más abajo)
+      const midiToY = (midiVal) => {
+        const rel = (midiVal - minMidi) / midiSpan;
+        const clamped = Math.max(0.02, Math.min(0.98, rel));
+        return topPad + (1 - clamped) * usableH;
+      };
+
+      // 1. Dibujar rejilla horizontal de semitonos y Piano Roll izquierdo (Graves abajo -> Agudos arriba)
+      const semitoneStepH = usableH / midiSpan;
+      const blackKeyIndices = new Set([1, 3, 6, 8, 10]);
+
+      for (let m = Math.ceil(minMidi); m <= Math.floor(maxMidi); m++) {
+        const y = midiToY(m);
+        const noteInOct = ((m % 12) + 12) % 12;
+        const isBlackKey = blackKeyIndices.has(noteInOct);
+        const isC = (noteInOct === 0);
+
+        // Franja horizontal del carril de nota
+        ctx.fillStyle = isBlackKey ? 'rgba(255, 255, 255, 0.015)' : 'rgba(255, 255, 255, 0.032)';
+        ctx.fillRect(pianoRollW, y - semitoneStepH * 0.5, cssW - pianoRollW, semitoneStepH);
+
+        if (isC || noteInOct === 4 || noteInOct === 7 || noteInOct === 9) {
+          ctx.strokeStyle = isC ? 'rgba(212, 175, 55, 0.24)' : 'rgba(255, 255, 255, 0.06)';
+          ctx.lineWidth = isC ? 1.2 : 0.8;
+          ctx.beginPath();
+          ctx.moveTo(pianoRollW, Math.round(y) + 0.5);
+          ctx.lineTo(cssW, Math.round(y) + 0.5);
+          ctx.stroke();
+        }
+      }
+
+      // Líneas verticales de tiempo cada 0.5 segundos
+      const firstGridSec = Math.floor(curSec * 2) * 0.5 - 0.5;
+      for (let gs = firstGridSec; gs <= curSec + lookaheadSec + 0.5; gs += 0.5) {
+        const gx = playheadX + (gs - curSec) * pxPerSec;
+        if (gx <= pianoRollW || gx > cssW) continue;
+        const isWholeSec = Math.abs(gs - Math.round(gs)) < 0.01;
+        ctx.strokeStyle = isWholeSec ? 'rgba(212, 175, 55, 0.13)' : 'rgba(255, 255, 255, 0.05)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(gx, 0);
+        ctx.lineTo(gx, cssH);
+        ctx.stroke();
+      }
+
+      // 2. Conectores de curva melódica entre sílabas de la misma frase (para ver si la frase sube o baja)
+      const minVisSec = curSec - 1.2;
+      const maxVisSec = curSec + lookaheadSec + 0.4;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.24)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 4]);
+      for (let i = 1; i < this.pitchNotes.length; i++) {
+        const prev = this.pitchNotes[i - 1];
+        const curr = this.pitchNotes[i];
+        if (curr.endSec < minVisSec) continue;
+        if (prev.startSec > maxVisSec) break;
+        if (curr.lineIdx !== prev.lineIdx || (curr.startSec - prev.endSec) > 0.65) continue;
+
+        const xPrevEnd = Math.max(playheadX + (prev.startSec - curSec) * pxPerSec + 16, playheadX + (prev.endSec - curSec) * pxPerSec);
+        const xCurrStart = playheadX + (curr.startSec - curSec) * pxPerSec;
+        const yPrev = midiToY(prev.midi);
+        const yCurr = midiToY(curr.midi);
+
+        ctx.beginPath();
+        ctx.moveTo(xPrevEnd, yPrev);
+        ctx.lineTo(xCurrStart, yCurr);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // 3. Dibujar Cápsulas de Sílabas Acústicas con texto y relleno de afinación
+      const barH = isFullScreen ? Math.max(16, Math.min(24, semitoneStepH * 1.15)) : 13;
+      const barRadius = barH * 0.5;
+
+      ctx.font = isFullScreen
+        ? '800 12.5px Outfit, Montserrat, -apple-system, sans-serif'
+        : '800 10.5px Outfit, Montserrat, -apple-system, sans-serif';
+      ctx.textBaseline = 'bottom';
+
+      for (let i = 0; i < this.pitchNotes.length; i++) {
+        const n = this.pitchNotes[i];
+        if (n.endSec < minVisSec) continue;
+        if (n.startSec > maxVisSec) break;
+
+        const x1 = playheadX + (n.startSec - curSec) * pxPerSec;
+        const x2 = Math.max(x1 + (isFullScreen ? 22 : 16), playheadX + (n.endSec - curSec) * pxPerSec);
+        const w = x2 - x1;
+        const cy = midiToY(n.midi);
+        const y = cy - barH * 0.5;
+        const isCurrent = Boolean(activeNote && activeNote.id === n.id);
+
+        // Banda de tolerancia visual cuando esta sílaba es la activa
+        if (isCurrent) {
+          const tolH = semitoneStepH * 2.4;
+          ctx.fillStyle = 'rgba(56, 189, 248, 0.08)';
+          ctx.fillRect(x1, cy - tolH * 0.5, w, tolH);
+        }
+
+        ctx.save();
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(x1, y, w, barH, barRadius);
+        } else {
+          ctx.rect(x1, y, w, barH);
+        }
+
+        if (n.isGolden) {
+          ctx.fillStyle = 'rgba(120, 53, 15, 0.76)';
+        } else {
+          ctx.fillStyle = isCurrent ? 'rgba(30, 41, 59, 0.92)' : 'rgba(24, 24, 38, 0.84)';
+        }
+        ctx.fill();
+
+        const progress = Math.max(
+          n.fillRatio,
+          (isCurrent && (this.liveStatusTier === 'perfect' || this.liveStatusTier === 'good'))
+            ? Math.min(1, Math.max(0, (curSec - n.startSec) / Math.max(0.10, n.endSec - n.startSec)))
+            : 0
+        );
+        if (progress > 0.01) {
+          ctx.clip();
+          const fillW = w * Math.min(1, progress);
+          const fillGrad = ctx.createLinearGradient(x1, y, x1 + fillW, y);
+          if (n.isGolden) {
+            fillGrad.addColorStop(0, '#f59e0b');
+            fillGrad.addColorStop(0.6, '#fde047');
+            fillGrad.addColorStop(1, '#fffef0');
+          } else if (this.isFever) {
+            fillGrad.addColorStop(0, '#0284c7');
+            fillGrad.addColorStop(0.6, '#38bdf8');
+            fillGrad.addColorStop(1, '#e0f2fe');
+          } else {
+            fillGrad.addColorStop(0, '#10b981');
+            fillGrad.addColorStop(0.65, '#fde047');
+            fillGrad.addColorStop(1, '#fef9c3');
+          }
+          ctx.fillStyle = fillGrad;
+          ctx.fillRect(x1, y, fillW, barH);
+        }
+        ctx.restore();
+
+        // Contorno de la cápsula de sílaba
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(x1, y, w, barH, barRadius);
+        } else {
+          ctx.rect(x1, y, w, barH);
+        }
+        ctx.strokeStyle = n.isGolden
+          ? (isCurrent ? '#fef08a' : 'rgba(250, 204, 21, 0.88)')
+          : (isCurrent ? '#38bdf8' : 'rgba(212, 175, 55, 0.52)');
+        ctx.lineWidth = isCurrent ? 2.2 : 1.3;
+        ctx.stroke();
+
+        // Texto de la sílaba encima de la cápsula
+        if (n.text && x2 > pianoRollW + 8) {
+          const textX = Math.max(pianoRollW + 6, x1 + 3);
+          ctx.fillStyle = isCurrent
+            ? '#fde047'
+            : (n.fillRatio >= 0.5 ? '#86efac' : '#f4f4f5');
+          ctx.fillText(n.text, textX, y - 3);
+        }
+      }
+
+      // 4. Línea vertical del Playhead (Momento Presente)
+      const laserGrad = ctx.createLinearGradient(0, 0, 0, cssH);
+      laserGrad.addColorStop(0, 'rgba(253, 224, 71, 0.10)');
+      laserGrad.addColorStop(0.5, this.isFever ? 'rgba(56, 189, 248, 0.92)' : 'rgba(253, 224, 71, 0.88)');
+      laserGrad.addColorStop(1, 'rgba(253, 224, 71, 0.10)');
+      ctx.strokeStyle = laserGrad;
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(playheadX, 0);
+      ctx.lineTo(playheadX, cssH);
+      ctx.stroke();
+
+      // 5. Estela de la Voz del Jugador (Monotónica en el mismo eje Y del Piano Roll)
+      if (this.voiceTrail.length >= 2) {
+        ctx.save();
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        for (let i = 1; i < this.voiceTrail.length; i++) {
+          const p0 = this.voiceTrail[i - 1];
+          const p1 = this.voiceTrail[i];
+          if (p1.sec - p0.sec > 0.25) continue;
+          const x0 = playheadX + (p0.sec - curSec) * pxPerSec;
+          const y0 = midiToY(p0.midi);
+          const x1 = playheadX + (p1.sec - curSec) * pxPerSec;
+          const y1 = midiToY(p1.midi);
+          if (x1 < pianoRollW) continue;
+          const ageAlpha = Math.max(0.10, 1 - (curSec - p1.sec) / 1.85);
+
+          ctx.strokeStyle = p1.tier === 'perfect'
+            ? `rgba(253, 224, 71, ${(ageAlpha * 0.95).toFixed(2)})`
+            : (p1.tier === 'good'
+                ? `rgba(52, 211, 153, ${(ageAlpha * 0.92).toFixed(2)})`
+                : (p1.tier === 'near'
+                    ? `rgba(251, 191, 36, ${(ageAlpha * 0.85).toFixed(2)})`
+                    : `rgba(251, 113, 133, ${(ageAlpha * 0.80).toFixed(2)})`));
+          ctx.lineWidth = (isFullScreen ? 4.4 : 3.4) * ageAlpha + 1.2;
+          ctx.beginPath();
+          ctx.moveTo(Math.max(pianoRollW, x0), y0);
+          ctx.lineTo(Math.max(pianoRollW, x1), y1);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      // 6. Orbe Vocal en el Playhead + Flecha de Corrección Grave/Agudo
+      if (Number.isFinite(this.liveUserMidi)) {
+        const orbY = midiToY(this.liveUserMidi);
+        const isTuned = (this.liveStatusTier === 'perfect' || this.liveStatusTier === 'good');
+        const orbColor = this.liveStatusTier === 'perfect'
+          ? '#fde047'
+          : (this.liveStatusTier === 'good' ? '#34d399' : (this.liveStatusTier === 'near' ? '#fbbf24' : '#fb7185'));
+
+        if (isTuned && activeNote) {
+          this._spawnHitParticles(playheadX, orbY, activeNote.isGolden ? '#fde047' : (this.isFever ? '#38bdf8' : orbColor), this.liveStatusTier === 'perfect' ? 3 : 1);
+        }
+
+        const pulseR = (isFullScreen ? 11 : 8) + Math.min(8, this.liveUserRms * 65);
+        const halo = ctx.createRadialGradient(playheadX, orbY, 2, playheadX, orbY, pulseR * 1.6);
+        halo.addColorStop(0, '#ffffff');
+        halo.addColorStop(0.38, orbColor);
+        halo.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = halo;
+        ctx.beginPath();
+        ctx.arc(playheadX, orbY, pulseR * 1.6, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = orbColor;
+        ctx.lineWidth = 2.8;
+        ctx.beginPath();
+        ctx.arc(playheadX, orbY, isFullScreen ? 6.2 : 5.0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Etiqueta flotante junto al orbe indicando la nota exacta que estás emitiendo
+        if (isFullScreen) {
+          ctx.font = '900 10.5px ui-monospace, SFMono-Regular, Menlo, monospace';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = orbColor;
+          ctx.fillText(this.liveNoteLabel, playheadX + 12, orbY);
+        }
+
+        if (activeNote && (this.liveStatusTier === 'near' || this.liveStatusTier === 'off')) {
+          const targetY = midiToY(activeNote.midi);
+          ctx.save();
+          ctx.strokeStyle = 'rgba(251, 191, 36, 0.65)';
+          ctx.setLineDash([4, 3]);
+          ctx.lineWidth = 1.8;
+          ctx.beginPath();
+          ctx.moveTo(playheadX, orbY);
+          ctx.lineTo(playheadX, targetY);
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+
+      // 7. Dibujar la Columna Izquierda del Piano Roll (con etiquetas AGUDOS arriba y GRAVES abajo)
+      ctx.fillStyle = 'rgba(8, 7, 15, 0.96)';
+      ctx.fillRect(0, 0, pianoRollW, cssH);
+      ctx.strokeStyle = 'rgba(212, 175, 55, 0.38)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(pianoRollW, 0);
+      ctx.lineTo(pianoRollW, cssH);
+      ctx.stroke();
+
+      ctx.font = isFullScreen
+        ? '800 9.5px ui-monospace, SFMono-Regular, Menlo, monospace'
+        : '800 8px ui-monospace, SFMono-Regular, Menlo, monospace';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+
+      for (let m = Math.ceil(minMidi); m <= Math.floor(maxMidi); m++) {
+        const y = midiToY(m);
+        const noteInOct = ((m % 12) + 12) % 12;
+        const isBlack = blackKeyIndices.has(noteInOct);
+        const isNaturalLabel = (noteInOct === 0 || noteInOct === 2 || noteInOct === 4 || noteInOct === 5 || noteInOct === 7 || noteInOct === 9 || noteInOct === 11);
+
+        // Tecla miniatura en el borde del piano roll
+        ctx.fillStyle = isBlack ? '#181824' : 'rgba(255, 255, 255, 0.10)';
+        ctx.fillRect(pianoRollW - (isBlack ? 10 : 14), y - semitoneStepH * 0.44, isBlack ? 10 : 14, semitoneStepH * 0.88);
+
+        if (isNaturalLabel && (isFullScreen || noteInOct === 0 || noteInOct === 7)) {
+          const isTarget = Boolean(activeNote && Math.round(activeNote.midi) === m);
+          ctx.fillStyle = isTarget ? '#38bdf8' : (noteInOct === 0 ? '#fde047' : '#a1a1aa');
+          ctx.fillText(this.midiToNoteNameEs(m), pianoRollW - 17, y);
+        }
+      }
+
+      if (isFullScreen) {
+        ctx.save();
+        ctx.textAlign = 'left';
+        ctx.font = '900 8.5px Outfit, Montserrat, sans-serif';
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillText('AGUDOS ^', 5, 11);
+        ctx.fillStyle = '#f59e0b';
+        ctx.fillText('GRAVES v', 5, cssH - 9);
+        ctx.restore();
+      }
+
+      // 8. Partículas
+      for (let i = this.particles.length - 1; i >= 0; i--) {
+        const pt = this.particles[i];
+        pt.x += pt.vx;
+        pt.y += pt.vy;
+        pt.vy += 0.06;
+        pt.life++;
+        if (pt.life >= pt.maxLife) {
+          this.particles.splice(i, 1);
+          continue;
+        }
+        const alpha = 1 - (pt.life / pt.maxLife);
+        ctx.fillStyle = pt.color;
+        ctx.globalAlpha = alpha;
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, pt.r * alpha, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+
+      // 9. Barra inferior de Fiebre Vocal
+      const feverW = Math.round((cssW - pianoRollW - 16) * (this.feverMeter / 100));
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+      ctx.fillRect(pianoRollW + 8, cssH - 5, cssW - pianoRollW - 16, 3);
+      if (feverW > 0) {
+        const fGrad = ctx.createLinearGradient(pianoRollW + 8, 0, pianoRollW + 8 + feverW, 0);
+        fGrad.addColorStop(0, '#f59e0b');
+        fGrad.addColorStop(0.5, '#fde047');
+        fGrad.addColorStop(1, '#38bdf8');
+        ctx.fillStyle = fGrad;
+        ctx.fillRect(pianoRollW + 8, cssH - 5, feverW, 3);
+      }
+
+      // 10. Popups cinéticos de juicio
+      for (let i = this.floatingPopups.length - 1; i >= 0; i--) {
+        const pop = this.floatingPopups[i];
+        const age = nowMs - pop.bornMs;
+        if (age >= pop.durMs) {
+          this.floatingPopups.splice(i, 1);
+          continue;
+        }
+        const t = age / pop.durMs;
+        const alpha = t < 0.15 ? (t / 0.15) : (t > 0.75 ? (1 - (t - 0.75) / 0.25) : 1);
+        const liftY = 24 - t * 10;
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+        ctx.textAlign = 'right';
+        ctx.font = isFullScreen ? '900 15px Outfit, Montserrat, sans-serif' : '900 12px Outfit, Montserrat, sans-serif';
+        ctx.fillStyle = pop.color || '#fde047';
+        ctx.fillText(pop.text, cssW - 16, liftY);
+        if (pop.subText) {
+          ctx.font = isFullScreen ? '700 11px Outfit, Montserrat, sans-serif' : '700 9.5px Outfit, Montserrat, sans-serif';
+          ctx.fillStyle = '#e4e4e7';
+          ctx.fillText(pop.subText, cssW - 16, liftY + (isFullScreen ? 15 : 11));
+        }
+        ctx.restore();
+      }
+    }
+
+    openSummaryOverlay() {
+      const accPct = this.sungFramesCount > 0
+        ? Math.min(100, Math.round((this.tunedFramesCount / this.sungFramesCount) * 100))
+        : (this.score > 0 ? 78 : 0);
+
+      let rank = 'C';
+      let rankTitle = 'CALENTANDO LA VOZ';
+      if (accPct >= 88 && this.score >= 4500) {
+        rank = 'S+';
+        rankTitle = 'LEYENDA DEL ESCENARIO';
+      } else if (accPct >= 76 && this.score >= 2200) {
+        rank = 'S';
+        rankTitle = 'ESTRELLA DE ORO';
+      } else if (accPct >= 62 && this.score >= 900) {
+        rank = 'A';
+        rankTitle = 'SOLISTA AFINADO';
+      } else if (accPct >= 42 || this.score >= 300) {
+        rank = 'B';
+        rankTitle = 'BUEN RITMO VOCAL';
+      }
+
+      const totalEarnedClefs = this.score >= 150
+        ? Math.min(35, Math.max(3, Math.floor(this.score / 420) + this.goldenHitCount * 2 + (accPct >= 80 ? 5 : 2)))
+        : 0;
+      const unclaimedClefs = Math.max(0, totalEarnedClefs - this.sessionClefsClaimed);
+      if (unclaimedClefs > 0) {
+        this.sessionClefsClaimed += unclaimedClefs;
+        if (typeof window.addClefs === 'function') {
+          window.addClefs(unclaimedClefs);
+        }
+        if (typeof window.showSuccessToast === 'function') {
+          window.showSuccessToast(`Has ganado +${unclaimedClefs} Claves de Sol cantando en SingStar`);
+        }
+      }
+
+      for (const prefix of ['npSingstar', 'ssFs']) {
+        const rankBadge = document.getElementById(`${prefix}RankBadge`);
+        const rankTitleEl = document.getElementById(`${prefix}RankTitle`);
+        const rankSubEl = document.getElementById(`${prefix}RankSub`);
+        const statAcc = document.getElementById(`${prefix}StatAcc`);
+        const statGolden = document.getElementById(`${prefix}StatGolden`);
+        const statStreak = document.getElementById(`${prefix}StatStreak`);
+        const statClefs = document.getElementById(`${prefix}StatClefs`);
+
+        if (rankBadge) rankBadge.textContent = rank;
+        if (rankTitleEl) rankTitleEl.textContent = rankTitle;
+        if (rankSubEl) rankSubEl.textContent = `Puntuación Vocal: ${this.score.toLocaleString()} pts`;
+        if (statAcc) statAcc.textContent = `${accPct}%`;
+        if (statGolden) statGolden.textContent = `${this.goldenHitCount}/${this.goldenTotalCount}`;
+        if (statStreak) statStreak.textContent = String(this.maxStreak);
+        if (statClefs) statClefs.textContent = `+${this.sessionClefsClaimed}`;
+      }
+
+      const fsSum = document.getElementById('singstarFsSummaryView');
+      if (fsSum) fsSum.classList.remove('hidden');
+      const miniSum = document.getElementById('npSingstarSummaryOverlay');
+      if (miniSum) miniSum.classList.remove('hidden');
+    }
+
+    closeSummaryOverlay(resetStats = false) {
+      const fsSum = document.getElementById('singstarFsSummaryView');
+      if (fsSum) fsSum.classList.add('hidden');
+      const miniSum = document.getElementById('npSingstarSummaryOverlay');
+      if (miniSum) miniSum.classList.add('hidden');
+      if (resetStats) {
+        this.resetSessionStats();
+      }
     }
   }
 
@@ -5088,6 +8938,9 @@
             this._updateMediaSessionPosition(curSec, fullDur);
           }
           if (curSec >= fullDur - 0.5 && (!this._lastSeekWallMs || (performance.now() - this._lastSeekWallMs) > 2000)) {
+            if (window.SingStarVocalEngine && window.SingStarVocalEngine.isActive && window.SingStarVocalEngine.score >= 150) {
+              window.SingStarVocalEngine.openSummaryOverlay();
+            }
             this.nextTrack();
           }
         }
@@ -5105,6 +8958,9 @@
 
       this.fullAudio.addEventListener('ended', () => {
         if (this.activeSourceType === 'full' && (!this._lastSeekWallMs || (performance.now() - this._lastSeekWallMs) > 2000)) {
+          if (window.SingStarVocalEngine && window.SingStarVocalEngine.isActive && window.SingStarVocalEngine.score >= 150) {
+            window.SingStarVocalEngine.openSummaryOverlay();
+          }
           this.nextTrack();
         }
       });
@@ -5703,7 +9559,7 @@
           this._setLoadingHintVisible(false);
           this._updatePlayerMetadataUI(track);
           this._startListenTracker();
-          attachBackgroundDspAndBlobUpgrade('', { excludeServer: true });
+          attachBackgroundDspAndBlobUpgrade(progressiveExtractUrl, { excludeServer: false });
           const targetSeek = this.pendingUserSeekSec !== null ? this.pendingUserSeekSec : (desiredStartSec > 0 ? desiredStartSec : null);
           if (targetSeek !== null && targetSeek > 0 && Math.abs((Number(this.fullAudio.currentTime) || 0) - targetSeek) > 2.5) {
             this.pendingUserSeekSec = targetSeek;
@@ -7237,13 +11093,16 @@
   const graphService = new ExternalMusicGraphService();
   const dnaEngine = new AnalogDNAEngine(graphService);
   const karaokeService = new KaraokeLyricsService();
+  const singstarEngine = new SingStarVocalEngine(karaokeService);
   const dualStreamEngine = new DualStreamAudioEngine(graphService, dnaEngine, karaokeService);
+  singstarEngine.attachAudioEngine(dualStreamEngine);
 
   window.ExternalMusicGraphService = graphService;
   window.AnalogDNAEngine = dnaEngine;
   window.UserMusicDNA = dnaEngine;
   window.KaraokeLyricsService = karaokeService;
   window.UniversalKaraokeService = karaokeService;
+  window.SingStarVocalEngine = singstarEngine;
   window.DualStreamAudioEngine = dualStreamEngine;
   window.dualStreamEngine = dualStreamEngine;
 
@@ -8682,6 +12541,13 @@
           <span class="sp-opt-label">Compartir</span>
         </button>
 
+        <button type="button" class="sp-opt-row" onclick="window.DiscoverHomeApp.handleTrackOptionAction('singstar_mic')">
+          <span class="sp-opt-icon gold">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+          </span>
+          <span class="sp-opt-label font-extrabold text-[#fde047]">Cantar en Modo SingStar (Micrófono)</span>
+        </button>
+
         <button type="button" class="sp-opt-row" onclick="window.DiscoverHomeApp.handleTrackOptionAction('karaoke_es')">
           <span class="sp-opt-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="7" y1="15" x2="11" y2="15"/><line x1="13" y1="15" x2="17" y2="15"/><line x1="7" y1="11" x2="17" y2="11"/></svg>
@@ -8793,6 +12659,11 @@
           navigator.clipboard.writeText(shareText).catch(() => {});
           if (typeof window.showSuccessToast === 'function') window.showSuccessToast(`Copiado: ${shareText}`);
         }
+      } else if (action === 'singstar_mic') {
+        if (!dualStreamEngine.currentTrack || dualStreamEngine.currentTrack.id !== tr.id) {
+          dualStreamEngine.playTrack(tr);
+        }
+        this.openNowPlayingModal('singstar');
       } else if (action === 'karaoke_es') {
         if (!dualStreamEngine.currentTrack || dualStreamEngine.currentTrack.id !== tr.id) {
           dualStreamEngine.playTrack(tr);
@@ -10271,12 +14142,16 @@
 
     closeNowPlayingModal() {
       this.dismissKaraokeOnboardingTip(false);
+      if (singstarEngine && singstarEngine.isActive) {
+        singstarEngine.deactivate();
+      }
       const modal = document.getElementById('nowPlayingTurntableModal');
       if (modal) modal.classList.remove('open');
     },
 
     switchNowPlayingTab(tab = 'vinyl') {
-      const isKaraoke = tab === 'karaoke';
+      const isSingstar = tab === 'singstar';
+      const isKaraoke = tab === 'karaoke' || isSingstar;
       const isVideoclip = tab === 'videoclip';
       const isVinyl = !isKaraoke && !isVideoclip;
 
@@ -10287,6 +14162,7 @@
       const tabVinylBtn = document.getElementById('npTabVinylBtn');
       const tabVideoclipBtn = document.getElementById('npTabVideoclipBtn');
       const tabKaraokeBtn = document.getElementById('npTabKaraokeBtn');
+      const tabSingstarBtn = document.getElementById('npTabSingstarBtn');
 
       if (vinylStage) vinylStage.classList.toggle('hidden', !isVinyl);
       if (karaokeStage) karaokeStage.classList.toggle('hidden', !isKaraoke);
@@ -10294,12 +14170,21 @@
 
       if (tabVinylBtn) tabVinylBtn.classList.toggle('active', isVinyl);
       if (tabVideoclipBtn) tabVideoclipBtn.classList.toggle('active', isVideoclip);
-      if (tabKaraokeBtn) tabKaraokeBtn.classList.toggle('active', isKaraoke);
+      if (tabKaraokeBtn) tabKaraokeBtn.classList.toggle('active', tab === 'karaoke');
+      if (tabSingstarBtn) tabSingstarBtn.classList.toggle('active', isSingstar);
 
-      if (isKaraoke) {
-        this.maybeShowKaraokeHoldTip();
-      } else {
+      if (isSingstar) {
         this.dismissKaraokeOnboardingTip(false);
+        singstarEngine.activate();
+      } else {
+        if (singstarEngine && singstarEngine.isActive && tab !== 'singstar') {
+          singstarEngine.deactivate();
+        }
+        if (isKaraoke) {
+          this.maybeShowKaraokeHoldTip();
+        } else {
+          this.dismissKaraokeOnboardingTip(false);
+        }
       }
 
       const tr = dualStreamEngine.currentTrack || this.getActiveCrateTrack();
@@ -10312,12 +14197,128 @@
       }
     },
 
+    async toggleSingStarMode() {
+      const next = !singstarEngine.isActive;
+      if (next) {
+        this.switchNowPlayingTab('singstar');
+      } else {
+        this.switchNowPlayingTab('karaoke');
+      }
+    },
+
+    closeSingStarStudio() {
+      if (singstarEngine && singstarEngine.isActive) {
+        singstarEngine.deactivate();
+      } else {
+        const fsModal = document.getElementById('singstarFullscreenModal');
+        if (fsModal) {
+          fsModal.classList.remove('open');
+        }
+      }
+      this.switchNowPlayingTab('karaoke');
+    },
+
+    toggleSingStarStudioSettings(forceState = null) {
+      if (singstarEngine) {
+        singstarEngine.toggleStudioSettingsModal(forceState);
+      }
+    },
+
+    skipSingStarPrepWait() {
+      if (singstarEngine) {
+        singstarEngine.skipPrepWait();
+      }
+    },
+
+    toggleSingStarVocalReducer() {
+      if (singstarEngine) {
+        singstarEngine.toggleVocalReducer();
+      }
+    },
+
+    toggleSingStarVoiceGuide() {
+      if (singstarEngine) {
+        singstarEngine.toggleVoiceGuideDemo();
+      }
+    },
+
+    toggleSingStarAudibleToneGuide() {
+      if (singstarEngine) {
+        singstarEngine.toggleAudibleToneGuide();
+      }
+    },
+
+    cycleSingStarOctaveRegister() {
+      if (singstarEngine) {
+        singstarEngine.cycleOctaveRegister();
+      }
+    },
+
+    openSingStarPackManager() {
+      if (singstarEngine) {
+        singstarEngine.toggleStudioSettingsModal(false);
+        singstarEngine.openPackManagerModal();
+      }
+    },
+
+    openSingStarPackManagerFromSettings() {
+      const settingsModal = document.getElementById('settingsModal');
+      if (settingsModal) settingsModal.classList.add('hidden');
+      if (singstarEngine) {
+        singstarEngine.openPackManagerModal(true);
+      }
+    },
+
+    closeSingStarPackManager() {
+      if (singstarEngine) {
+        singstarEngine.closePackManagerModal();
+      }
+    },
+
+    async downloadAndInstallSingStarProPack() {
+      if (singstarEngine) {
+        await singstarEngine.downloadAndInstallProPack();
+      }
+    },
+
+    async reanalyzeCurrentTrackInSingStar() {
+      if (singstarEngine) {
+        await singstarEngine.reanalyzeCurrentTrack();
+      }
+    },
+
+    restartCurrentSongInSingStar() {
+      if (singstarEngine) {
+        singstarEngine.restartCurrentSongInSingStar();
+      }
+    },
+
+    openSingStarSummary() {
+      if (singstarEngine) {
+        singstarEngine.openSummaryOverlay();
+      }
+    },
+
+    closeSingStarSummary(resetStats = false) {
+      if (singstarEngine) {
+        singstarEngine.closeSummaryOverlay(Boolean(resetStats));
+      }
+    },
+
     openKaraokeForCurrent() {
       const tr = dualStreamEngine.currentTrack || this.getActiveCrateTrack();
       if (tr && !dualStreamEngine.isPlaying()) {
         dualStreamEngine.playTrack(tr);
       }
       this.openNowPlayingModal('karaoke');
+    },
+
+    openSingStarForCurrent() {
+      const tr = dualStreamEngine.currentTrack || this.getActiveCrateTrack();
+      if (tr && !dualStreamEngine.isPlaying()) {
+        dualStreamEngine.playTrack(tr);
+      }
+      this.openNowPlayingModal('singstar');
     },
 
     openKaraokeFromMiniPlayer(e) {

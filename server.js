@@ -3655,6 +3655,21 @@ function lyricsTitleMatches(a, b) {
 
 const CUSTOM_SYNCED_LYRICS_DB = [
   {
+    videoId: 'kwG8PIdLUlM',
+    keys: ['soldaditofarlo', 'soldaditofarlopero', 'perreosanxesoldaditofarlo', 'perreosanxesoldaditofarlopero', 'jcsesoldaditofarlo', 'jcsesoldaditofarlopero'],
+    trackName: 'Soldadito Farlo',
+    artistName: 'Perreo Sanxe',
+    duration: 96,
+    syncedLyrics: `[00:28.20] Él camina acelerado que el camello nunca espera
+[00:35.20] El billete dobladito con cuidado en la cartera
+[00:42.20] Luego pilla un par de gramos porque esta noche hay juerga
+[00:48.80] Él también quiso ser niño pero le pilló la juerga
+[00:55.60] Soldadito farlopero conociste a una sirena
+[01:02.44] De esas que suenan en la calle cuando la policía llega
+[01:09.48] Escogiste la más cara y la menos buena
+[01:16.32] Sin saber cómo ha venido te ha llevado la madera`
+  },
+  {
     videoId: 'F8oXB7zLwxk',
     keys: ['adiosatubarrio', 'perreosanxeadiosatubarrio', 'adiosatubarriomanofirme'],
     trackName: 'Adiós a tu barrio [MANO FIRME]',
@@ -4488,6 +4503,106 @@ app.get('/api/v1/lyrics', async (req, res) => {
     return res.json(list);
   } catch (_) {
     return res.json([]);
+  }
+});
+
+let _serverWhisperPipelinePromise = null;
+async function getServerWhisperPipeline() {
+  if (_serverWhisperPipelinePromise) return _serverWhisperPipelinePromise;
+  _serverWhisperPipelinePromise = (async () => {
+    try {
+      const { pipeline } = await import('@xenova/transformers');
+      return await pipeline('automatic-speech-recognition', 'Xenova/whisper-base');
+    } catch (_) {
+      _serverWhisperPipelinePromise = null;
+      return null;
+    }
+  })();
+  return _serverWhisperPipelinePromise;
+}
+
+const serverWhisperTranscribedMap = new Map();
+
+app.all('/api/v1/lyrics/transcribe', async (req, res) => {
+  try {
+    const rawVid = String(req.query.videoId || req.body?.videoId || '').replace(/^magic_yt_|^yt_/, '').trim();
+    const rawTitle = String(req.query.title || req.body?.title || '').trim();
+    const rawArtist = String(req.query.artist || req.body?.artist || '').trim();
+    if (!/^[A-Za-z0-9_-]{11}$/.test(rawVid)) {
+      return res.status(400).json({ ok: false, error: 'invalid_video_id' });
+    }
+
+    const customHit = findCustomSyncedLyrics(rawTitle, rawArtist, `${rawTitle} ${rawArtist}`, rawVid);
+    if (customHit.length > 0 && customHit[0].syncedLyrics) {
+      return res.json({ ok: true, videoId: rawVid, syncedLyrics: customHit[0].syncedLyrics, provider: 'custom_curated' });
+    }
+    if (serverWhisperTranscribedMap.has(rawVid)) {
+      return res.json({ ok: true, videoId: rawVid, syncedLyrics: serverWhisperTranscribedMap.get(rawVid), provider: 'whisper_cached' });
+    }
+
+    const transcriber = await getServerWhisperPipeline();
+    if (!transcriber) {
+      return res.status(503).json({ ok: false, error: 'whisper_unavailable' });
+    }
+
+    const tmpMp3 = path.join(os.tmpdir(), `whisper_${rawVid}_${Date.now()}.mp3`);
+    const tmpPcm = path.join(os.tmpdir(), `whisper_${rawVid}_${Date.now()}.pcm`);
+    try {
+      await execFileAsync('yt-dlp', [
+        '--no-playlist',
+        '-f', 'bestaudio/best',
+        '-x', '--audio-format', 'mp3',
+        '-o', tmpMp3,
+        `https://www.youtube.com/watch?v=${rawVid}`
+      ], { timeout: 22000 });
+
+      await execFileAsync('ffmpeg', [
+        '-y', '-i', tmpMp3,
+        '-af', 'pan=mono|c0=0.5*c0+0.5*c1,highpass=f=210,lowpass=f=3800',
+        '-ar', '16000', '-ac', '1', '-f', 'f32le', tmpPcm
+      ], { timeout: 12000 });
+
+      const buf = fs.readFileSync(tmpPcm);
+      const float32 = new Float32Array(buf.buffer, buf.byteOffset, Math.floor(buf.byteLength / 4));
+      const out = await transcriber(float32, {
+        language: 'spanish',
+        task: 'transcribe',
+        return_timestamps: true,
+        chunk_length_s: 20,
+        stride_length_s: 3
+      });
+
+      const chunks = Array.isArray(out?.chunks) ? out.chunks : [];
+      const lines = [];
+      for (const ch of chunks) {
+        const txt = String(ch?.text || '').replace(/\s+/g, ' ').trim();
+        if (!txt || txt.length < 3) continue;
+        const t = Array.isArray(ch.timestamp) && Number.isFinite(ch.timestamp[0]) ? Math.max(0, ch.timestamp[0]) : 0;
+        const mm = String(Math.floor(t / 60)).padStart(2, '0');
+        const ss = (t % 60).toFixed(2).padStart(5, '0');
+        lines.push(`[${mm}:${ss}] ${txt}`);
+      }
+
+      if (lines.length >= 2) {
+        const lrcStr = lines.join('\n');
+        serverWhisperTranscribedMap.set(rawVid, lrcStr);
+        CUSTOM_SYNCED_LYRICS_DB.push({
+          videoId: rawVid,
+          keys: [lyricsNormKey(rawTitle)].filter(Boolean),
+          trackName: rawTitle || rawVid,
+          artistName: rawArtist || 'Artista',
+          duration: Math.round(float32.length / 16000),
+          syncedLyrics: lrcStr
+        });
+        return res.json({ ok: true, videoId: rawVid, syncedLyrics: lrcStr, provider: 'whisper_server' });
+      }
+      return res.status(404).json({ ok: false, error: 'no_speech_detected' });
+    } finally {
+      try { if (fs.existsSync(tmpMp3)) fs.unlinkSync(tmpMp3); } catch (_) {}
+      try { if (fs.existsSync(tmpPcm)) fs.unlinkSync(tmpPcm); } catch (_) {}
+    }
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: String(err?.message || 'transcribe_error') });
   }
 });
 
