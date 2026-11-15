@@ -3400,9 +3400,6 @@
       const thVoc = hasAudioProfile && Number.isFinite(profile.thVoc) ? profile.thVoc : -39.0;
       const maxProfileSec = hasAudioProfile ? (vocCurve.length * hopSec) : 0;
 
-      let prevPhraseEndMs = 0;
-      let runningLocalDriftSec = 0;
-
       for (let i = 0; i < linesArr.length; i++) {
         const line = linesArr[i];
         if (!line || line.isIntroCard || line.isMetadata || line.isCue) continue;
@@ -3414,69 +3411,46 @@
         }
 
         const nextLine = (i + 1 < linesArr.length) ? linesArr[i + 1] : null;
-        const nextOrigSec = nextLine ? (Number.isFinite(nextLine._origTimeSec) ? nextLine._origTimeSec : Number(nextLine.timeSec) || 0) : (line._origTimeSec + 3.6);
-        const offSec = Number.isFinite(line.elasticOffsetSec) ? line.elasticOffsetSec : (this.knownLeadingSilenceMap.get(key) || 0);
+        if (nextLine && !Number.isFinite(nextLine._origTimeSec)) {
+          nextLine._origTimeSec = Number(nextLine.timeSec) || 0;
+        }
+        const elasticOff = Number.isFinite(line.elasticOffsetSec) ? line.elasticOffsetSec : 0;
+        const nextElasticOff = nextLine && Number.isFinite(nextLine.elasticOffsetSec) ? nextLine.elasticOffsetSec : elasticOff;
+        const nextOrigSec = nextLine
+          ? (Number(nextLine._origTimeSec) || 0)
+          : (line._origTimeSec + 3.6);
 
-        let baseStartSec = Math.max(0.05, line._origTimeSec + offSec + runningLocalDriftSec * 0.65);
-        let nextStartSec = nextLine
-          ? Math.max(baseStartSec + 0.55, nextOrigSec + offSec + runningLocalDriftSec * 0.65)
+        const baseStartSec = Math.max(0.02, line._origTimeSec + elasticOff);
+        const nextStartSec = nextLine
+          ? Math.max(baseStartSec + 0.45, nextOrigSec + nextElasticOff)
           : (baseStartSec + 3.5);
 
-        if (prevPhraseEndMs > 0 && baseStartSec * 1000 < prevPhraseEndMs + 75) {
-          baseStartSec = (prevPhraseEndMs + 75) / 1000.0;
-        }
-
         const wordCount = cleanText.split(/\s+/).filter(Boolean).length;
-        const naturalPhraseDurSec = Math.max(0.85, Math.min(4.6, wordCount * 0.43 + 0.36));
+        const naturalPhraseDurSec = Math.max(0.75, Math.min(4.5, wordCount * 0.41 + 0.34));
 
         let vocalStartSec = baseStartSec;
-        let vocalEndSec = Math.min(nextStartSec - 0.06, baseStartSec + naturalPhraseDurSec);
+        let vocalEndSec = Math.min(nextStartSec - 0.04, baseStartSec + naturalPhraseDurSec);
 
-        // 1. Si tenemos el perfil acústico de 25ms de la canción, escuchar la isla vocal real de esta frase
-        if (hasAudioProfile && baseStartSec + 0.5 < maxProfileSec) {
+        // 1. Si tenemos el perfil acústico de 25ms de la canción, ajustar micro-ataque dentro de [-160ms, +220ms]
+        //    sin permitir jamás que una línea empuje en cascada a las siguientes.
+        if (hasAudioProfile && baseStartSec + 0.35 < maxProfileSec) {
           const searchStartF = Math.max(
-            Math.ceil((prevPhraseEndMs + 60) / (hopSec * 1000)),
-            Math.floor(Math.max(0.05, baseStartSec - 0.95) / hopSec)
+            0,
+            Math.floor(Math.max(0.02, baseStartSec - 0.16) / hopSec)
           );
           const searchEndF = Math.min(
             vocCurve.length - 4,
-            Math.ceil(Math.min(nextStartSec - 0.35, baseStartSec + 1.45) / hopSec)
+            Math.ceil(Math.min(nextStartSec - 0.25, baseStartSec + 0.22) / hopSec)
           );
           const baseF = Math.min(vocCurve.length - 1, Math.max(0, Math.round(baseStartSec / hopSec)));
 
-          // Si en baseStartSec hay silencio vocal, buscar la entrada real de la voz hacia delante o hacia atrás
-          if (vocMidDb && vocMidDb[baseF] < thVoc - 1.2 && searchEndF > searchStartF) {
-            let bestOnsetF = -1;
-            let bestOnsetDist = 1e9;
-            for (let f = searchStartF; f <= searchEndF; f++) {
-              if (vocMidDb[f] >= thVoc && vocMidDb[Math.min(vocCurve.length - 1, f + 1)] >= thVoc - 0.8) {
-                let voicedFrames = 0;
-                for (let k = 0; k < 6 && (f + k) < vocMidDb.length; k++) {
-                  if (vocMidDb[f + k] >= thVoc - 1.8) voicedFrames++;
-                }
-                if (voicedFrames >= 4) {
-                  const dist = Math.abs(f - baseF) - (sylOnset ? sylOnset[f] * 2.5 : 0);
-                  if (dist < bestOnsetDist) {
-                    bestOnsetDist = dist;
-                    bestOnsetF = f;
-                  }
-                  if (f >= baseF) break;
-                }
-              }
-            }
-            if (bestOnsetF !== -1) {
-              vocalStartSec = +(bestOnsetF * hopSec).toFixed(3);
-            }
-          } else if (sylOnset && searchStartF < searchEndF) {
-            // Buscar el pico de ataque vocal más nítido cerca de baseStartSec (±320ms)
+          if (sylOnset && searchStartF < searchEndF) {
             let bestEntryF = baseF;
             let bestEntryScore = -1e9;
-            const winLo = Math.max(searchStartF, baseF - Math.round(0.32 / hopSec));
-            const winHi = Math.min(searchEndF, baseF + Math.round(0.35 / hopSec));
-            for (let f = winLo; f <= winHi; f++) {
-              if (vocMidDb && vocMidDb[f] < thVoc - 2.5) continue;
+            for (let f = searchStartF; f <= searchEndF; f++) {
+              if (vocMidDb && vocMidDb[f] < thVoc - 3.2) continue;
               const distSec = (f - baseF) * hopSec;
-              const sc = (sylOnset[f] * 2.0) + (vocCurve[f] - thVoc) * 0.25 - (distSec * distSec) * 12.0;
+              const sc = (sylOnset[f] * 2.1) + (vocCurve[f] - thVoc) * 0.22 - (distSec * distSec) * 18.0;
               if (sc > bestEntryScore) {
                 bestEntryScore = sc;
                 bestEntryF = f;
@@ -3485,19 +3459,13 @@
             vocalStartSec = +(bestEntryF * hopSec).toFixed(3);
           }
 
-          // Actualizar deriva elástica local suave para que las frases siguientes hereden el encaje real
-          const observedShift = vocalStartSec - (line._origTimeSec + offSec);
-          if (Math.abs(observedShift) <= 2.2) {
-            runningLocalDriftSec = runningLocalDriftSec * 0.65 + observedShift * 0.35;
-          }
-
           // Detectar dónde termina realmente el cantante de cantar la frase (antes de la pausa de respiración)
-          const minEndSec = vocalStartSec + Math.max(0.55, Math.min(1.6, wordCount * 0.22));
-          const maxEndSec = Math.min(nextStartSec - 0.06, vocalStartSec + naturalPhraseDurSec + 0.75, maxProfileSec - 0.05);
+          const minEndSec = Math.min(nextStartSec - 0.05, vocalStartSec + Math.max(0.45, Math.min(1.5, wordCount * 0.20)));
+          const maxEndSec = Math.min(nextStartSec - 0.04, vocalStartSec + naturalPhraseDurSec + 0.45, maxProfileSec - 0.04);
           if (maxEndSec > minEndSec && vocMidDb) {
             const fMinEnd = Math.max(0, Math.round(minEndSec / hopSec));
             const fMaxEnd = Math.min(vocMidDb.length - 1, Math.round(maxEndSec / hopSec));
-            const breathFramesRequired = Math.max(4, Math.round(0.135 / hopSec));
+            const breathFramesRequired = Math.max(4, Math.round(0.14 / hopSec));
             let foundBreathEndSec = null;
 
             for (let f = fMinEnd; f + breathFramesRequired <= fMaxEnd; f++) {
@@ -3515,21 +3483,22 @@
         }
 
         const vocalStartMs = Math.round(vocalStartSec * 1000);
-        const vocalEndMs = Math.max(vocalStartMs + 480, Math.round(vocalEndSec * 1000));
-        const phraseSpanMs = Math.max(480, vocalEndMs - vocalStartMs);
+        const maxAllowedEndMs = Math.max(vocalStartMs + 320, Math.round((nextStartSec - 0.03) * 1000));
+        const vocalEndMs = Math.min(maxAllowedEndMs, Math.max(vocalStartMs + 360, Math.round(vocalEndSec * 1000)));
+        const phraseSpanMs = Math.max(320, vocalEndMs - vocalStartMs);
 
         // 2. Tokenizar la frase en sílabas fonéticas naturales adaptadas a la duración vocal real
         const tokens = this.tokenizePhraseIntoNaturalSyllables(cleanText, phraseSpanMs);
         const K = tokens.length;
         if (K === 0) continue;
 
-        const minStepMs = Math.max(115, Math.min(215, Math.floor(phraseSpanMs / Math.max(1.25, K * 1.22))));
+        const minStepMs = Math.max(85, Math.min(195, Math.floor(phraseSpanMs / Math.max(1.2, K * 1.18))));
         const totalWeight = tokens.reduce((acc, t) => acc + t.weight, 0) || K;
 
         // Calcular posiciones esperadas (prior fonético ponderado por vocales abiertas, acentos y pausas)
         const priorTimesMs = new Array(K);
         let cumW = 0;
-        const effectiveSpanMs = Math.max(K * minStepMs, phraseSpanMs - Math.round(phraseSpanMs / (K + 1.5)) * 0.42);
+        const effectiveSpanMs = Math.max(K * minStepMs, phraseSpanMs - Math.round(phraseSpanMs / (K + 1.5)) * 0.36);
         for (let k = 0; k < K; k++) {
           priorTimesMs[k] = Math.round(vocalStartMs + (cumW / totalWeight) * effectiveSpanMs);
           cumW += tokens[k].weight;
@@ -3539,7 +3508,7 @@
         const finalTimesMs = new Array(K);
         if (hasAudioProfile && sylOnset && (vocalEndSec <= maxProfileSec)) {
           const stepMs = Math.round(hopSec * 1000); // 25ms
-          const minStepFrames = Math.max(4, Math.round(minStepMs / stepMs));
+          const minStepFrames = Math.max(3, Math.round(minStepMs / stepMs));
           const f0 = Math.max(0, Math.round(vocalStartMs / stepMs));
           const f1 = Math.min(sylOnset.length - 1, Math.max(f0 + K * 2, Math.round(vocalEndMs / stepMs)));
           const nGrid = f1 - f0 + 1;
@@ -3551,10 +3520,10 @@
             for (let g = 0; g < nGrid; g++) {
               const f = f0 + g;
               const tMs = f * stepMs;
-              const dist0 = (tMs - priorTimesMs[0]) / 200.0;
-              if (Math.abs(tMs - priorTimesMs[0]) <= 260) {
+              const dist0 = (tMs - priorTimesMs[0]) / 180.0;
+              if (Math.abs(tMs - priorTimesMs[0]) <= 220) {
                 const onsetBonus = (sylOnset[f] * 2.3) + Math.max(-2, (vocCurve[f] - thVoc) * 0.25);
-                dp[0][g] = onsetBonus - 3.0 * (dist0 * dist0);
+                dp[0][g] = onsetBonus - 3.2 * (dist0 * dist0);
               }
             }
 
@@ -3563,22 +3532,22 @@
               for (let g = k * minStepFrames; g < nGrid; g++) {
                 const f = f0 + g;
                 const tMs = f * stepMs;
-                if (Math.abs(tMs - priorTimesMs[k]) > 460) continue;
+                if (Math.abs(tMs - priorTimesMs[k]) > 380) continue;
 
                 const onsetBonus = (sylOnset[f] * 2.4) + Math.max(-2, (vocCurve[f] - thVoc) * 0.22);
-                const priorDiff = (tMs - priorTimesMs[k]) / 270.0;
-                const emit = onsetBonus - 1.7 * (priorDiff * priorDiff);
+                const priorDiff = (tMs - priorTimesMs[k]) / 240.0;
+                const emit = onsetBonus - 1.9 * (priorDiff * priorDiff);
 
                 const maxPrevG = g - minStepFrames;
-                const minPrevG = Math.max(0, g - Math.ceil(980 / stepMs));
+                const minPrevG = Math.max(0, g - Math.ceil(880 / stepMs));
                 let bestPrevVal = -1e9;
                 let bestPrevG = -1;
 
                 for (let gp = minPrevG; gp <= maxPrevG; gp++) {
                   if (dp[k - 1][gp] <= -1e8) continue;
                   const gapMs = (g - gp) * stepMs;
-                  const gapErr = (gapMs - expGapMs) / 210.0;
-                  const cand = dp[k - 1][gp] - 2.5 * (gapErr * gapErr);
+                  const gapErr = (gapMs - expGapMs) / 195.0;
+                  const cand = dp[k - 1][gp] - 2.6 * (gapErr * gapErr);
                   if (cand > bestPrevVal) {
                     bestPrevVal = cand;
                     bestPrevG = gp;
@@ -3611,7 +3580,7 @@
           }
         }
 
-        // Fallback o garantía estricta de separación mínima para que NUNCA se apelotonen las sílabas
+        // Fallback o garantía estricta de separación mínima dentro de [vocalStartMs, maxAllowedEndMs]
         for (let k = 0; k < K; k++) {
           if (!Number.isFinite(finalTimesMs[k])) {
             finalTimesMs[k] = priorTimesMs[k];
@@ -3619,14 +3588,18 @@
           if (k > 0 && finalTimesMs[k] < finalTimesMs[k - 1] + minStepMs) {
             finalTimesMs[k] = finalTimesMs[k - 1] + minStepMs;
           }
+          const maxForThisK = maxAllowedEndMs - (K - k) * 75;
+          if (finalTimesMs[k] > maxForThisK) {
+            finalTimesMs[k] = Math.max(k > 0 ? finalTimesMs[k - 1] + 65 : vocalStartMs, maxForThisK);
+          }
         }
 
         const acousticSyllables = [];
         const syncedWords = [];
         for (let k = 0; k < K; k++) {
           const tMs = finalTimesMs[k];
-          const nextT = (k + 1 < K) ? finalTimesMs[k + 1] : Math.max(tMs + 300, vocalEndMs);
-          const durMs = Math.max(115, Math.min(900, nextT - tMs - 12));
+          const nextT = (k + 1 < K) ? finalTimesMs[k + 1] : Math.min(maxAllowedEndMs, Math.max(tMs + 220, vocalEndMs));
+          const durMs = Math.max(80, Math.min(850, nextT - tMs - 10));
           acousticSyllables.push({
             time: tMs,
             dur: durMs,
@@ -3640,7 +3613,7 @@
         }
 
         line.vocalStartMs = finalTimesMs[0];
-        line.vocalEndMs = Math.max(finalTimesMs[K - 1] + 280, vocalEndMs);
+        line.vocalEndMs = Math.min(maxAllowedEndMs, Math.max(finalTimesMs[K - 1] + 200, vocalEndMs));
         line.acousticSyllables = acousticSyllables;
 
         // Poblar line.words en TODAS las canciones para que tanto el Modo Karaoke como SingStar
@@ -3649,11 +3622,8 @@
           line.words = syncedWords;
           line._hasAcousticGeneratedWords = true;
         }
-        if (hasAudioProfile) {
-          line.timeSec = +(line.vocalStartMs / 1000).toFixed(2);
-          line.endTimeSec = +(line.vocalEndMs / 1000).toFixed(2);
-        }
-        prevPhraseEndMs = line.vocalEndMs;
+        line.timeSec = +(baseStartSec).toFixed(2);
+        line.endTimeSec = +(line.vocalEndMs / 1000).toFixed(2);
       }
     }
 
@@ -4669,14 +4639,25 @@
       this.proPackTables = null;
       this._checkProPackInstalled();
 
-      // Estado de micrófono en tiempo real (YIN CMND a tasa completa 44.1/48kHz)
+      // Estado de micrófono en tiempo real (YIN CMND a tasa completa 44.1/48kHz con rechazo de altavoz)
       this.micStream = null;
       this.micAudioCtx = null;
       this.micAnalyser = null;
       this.micSource = null;
       this.micTimeBuf = null;
       this.micPermissionDenied = false;
-      this.noiseFloorRms = 0.0042;
+      this.noiseFloorRms = 0.0045;
+      this.speakerBleedRms = 0.0052;
+      this.liveGateThreshold = 0.0085;
+      this._voicedConfirmStreak = 0;
+
+      // Worker neuronal Whisper ONNX y cola de tareas cancelables
+      this._whisperWorker = null;
+      this._whisperWorkerCallbacks = new Map();
+      this._whisperWorkerSeq = 0;
+      this._whisperStatusListener = null;
+      this._activeWhisperTrackKey = '';
+      this.isTranscribingWhisper = false;
 
       // Sintetizador de Tono Guía Audible (para escuchar la nota exacta de cada sílaba)
       this._guideSynthCtx = null;
@@ -4749,6 +4730,86 @@
       this.audioEngine = engine;
     }
 
+    _ensureWhisperPipelineLoaded(onStatus = null) {
+      return new Promise((resolve) => {
+        const worker = this._getOrCreateWhisperWorker(onStatus);
+        if (!worker) {
+          resolve(false);
+          return;
+        }
+        try {
+          worker.postMessage({ type: 'preload' });
+        } catch (_) {}
+        setTimeout(() => resolve(true), 600);
+      });
+    }
+
+    _cancelWhisperWorkerTasks() {
+      this.isTranscribingWhisper = false;
+      this._activeWhisperTrackKey = '';
+      if (this._whisperWorkerCallbacks && this._whisperWorkerCallbacks.size > 0) {
+        for (const [, cb] of this._whisperWorkerCallbacks.entries()) {
+          try {
+            if (cb && typeof cb.resolve === 'function') cb.resolve(null);
+          } catch (_) {}
+        }
+        this._whisperWorkerCallbacks.clear();
+      }
+      if (this._whisperWorker) {
+        try {
+          this._whisperWorker.postMessage({ type: 'cancel' });
+        } catch (_) {}
+      }
+    }
+
+    _bindTeleprompterTouchGestures() {
+      const teleBox = document.querySelector('.singstar-fs-teleprompter');
+      if (!teleBox || teleBox._ssTouchBound) return;
+      teleBox._ssTouchBound = true;
+      let holdTimer = null;
+      let didHold = false;
+
+      const clearHold = () => {
+        if (holdTimer) {
+          clearTimeout(holdTimer);
+          holdTimer = null;
+        }
+      };
+
+      const startHold = () => {
+        clearHold();
+        didHold = false;
+        holdTimer = setTimeout(() => {
+          didHold = true;
+          const phrase = this.phraseWindows[this._lastTeleprompterLineIdx];
+          if (!phrase || !this.audioEngine || !this.karaokeService) return;
+          const curAudioSec = this.audioEngine.getCurrentSongTimeSec();
+          const currentOff = Number(this.karaokeService.timeOffsetSec) || 0;
+          const rawPhraseSec = phrase.startSec + currentOff;
+          const newOffset = +(rawPhraseSec - curAudioSec).toFixed(2);
+          this.karaokeService.setTimeOffset(newOffset);
+          this._triggerHaptic(24);
+          this._spawnPopup('LETRA SINCRONIZADA AQUÍ', `Desfase ajustado a ${newOffset >= 0 ? '+' : ''}${newOffset.toFixed(2)}s`, '#34d399', 1300);
+        }, 420);
+      };
+
+      teleBox.addEventListener('pointerdown', () => startHold(), { passive: true });
+      teleBox.addEventListener('pointerup', () => {
+        clearHold();
+        if (!didHold) {
+          const nextPhrase = this.phraseWindows[(this._lastTeleprompterLineIdx || 0) + 1];
+          const curPhrase = this.phraseWindows[this._lastTeleprompterLineIdx || 0];
+          const targetPhrase = curPhrase || nextPhrase;
+          if (targetPhrase && this.audioEngine) {
+            this.audioEngine.seekToSeconds(Math.max(0, targetPhrase.startSec - 0.15));
+            this._spawnPopup('SALTO A FRASE', targetPhrase.text.slice(0, 28), '#38bdf8', 900);
+          }
+        }
+      });
+      teleBox.addEventListener('pointercancel', clearHold, { passive: true });
+      teleBox.addEventListener('pointerleave', clearHold, { passive: true });
+    }
+
     _checkProPackInstalled() {
       try {
         const val = localStorage.getItem(this.PRO_PACK_STORAGE_KEY);
@@ -4795,7 +4856,11 @@
       const loadView = document.getElementById('singstarLoadingStudioView');
       const sumView = document.getElementById('singstarFsSummaryView');
       this._standalonePackModal = Boolean(standaloneFromSettings && !this.isActive);
-      if (fsModal) fsModal.classList.add('open');
+      if (fsModal) {
+        fsModal.style.display = '';
+        fsModal.classList.remove('hidden');
+        fsModal.classList.add('open');
+      }
       if (loadView) loadView.classList.add('hidden');
       if (sumView) sumView.classList.add('hidden');
       if (packView) packView.classList.remove('hidden');
@@ -4807,7 +4872,10 @@
       if (packView) packView.classList.add('hidden');
       if (this._standalonePackModal && !this.isActive) {
         const fsModal = document.getElementById('singstarFullscreenModal');
-        if (fsModal) fsModal.classList.remove('open');
+        if (fsModal) {
+          fsModal.classList.remove('open');
+          fsModal.classList.add('hidden');
+        }
       }
       this._standalonePackModal = false;
     }
@@ -4988,14 +5056,17 @@
 
     async activate(forceReanalyze = false) {
       this.isActive = true;
+      this._voicedConfirmStreak = 0;
       this._syncStageClasses();
       this.closeSummaryOverlay(false);
       this.toggleStudioSettingsModal(false);
+      this._bindTeleprompterTouchGestures();
 
       const fsModal = document.getElementById('singstarFullscreenModal');
       if (fsModal) {
-        fsModal.classList.add('open');
+        fsModal.style.display = '';
         fsModal.classList.remove('hidden');
+        fsModal.classList.add('open');
       }
 
       // Arrancar el bucle de renderizado 60fps de inmediato ANTES de cualquier operación asíncrona
@@ -5022,11 +5093,15 @@
     deactivate() {
       this.isActive = false;
       this.isPreparingSong = false;
+      this._activePrepKey = '';
       this._prepToken++;
+      this._cancelWhisperWorkerTasks();
       this._stopRenderLoop();
       this._stopMicrophone();
       this._stopAudibleToneGuideNote();
       this.toggleStudioSettingsModal(false);
+      this.closeSummaryOverlay(false);
+      this.closePackManagerModal();
       if (this.vocalReducerActive) {
         this.toggleVocalReducer(false);
       }
@@ -5034,8 +5109,8 @@
       if (loadView) loadView.classList.add('hidden');
       const fsModal = document.getElementById('singstarFullscreenModal');
       if (fsModal) {
-        fsModal.classList.remove('open');
-        fsModal.classList.remove('fever-mode');
+        fsModal.classList.remove('open', 'fever-mode');
+        fsModal.classList.add('hidden');
       }
       this._syncStageClasses();
     }
@@ -5292,15 +5367,15 @@
         }
         this.micSource = this.micAudioCtx.createMediaStreamSource(stream);
 
-        // Filtro paso-banda vocal de doble etapa (85 Hz - 1050 Hz) para aislar la F0 humana
+        // Filtro paso-banda vocal de doble etapa (95 Hz - 2400 Hz) para aislar la F0 humana y formantes vocales rechazando graves del altavoz
         const hp = this.micAudioCtx.createBiquadFilter();
         hp.type = 'highpass';
-        hp.frequency.value = 85;
+        hp.frequency.value = 95;
         hp.Q.value = 0.707;
 
         const lp = this.micAudioCtx.createBiquadFilter();
         lp.type = 'lowpass';
-        lp.frequency.value = 1050;
+        lp.frequency.value = 2400;
         lp.Q.value = 0.707;
 
         this.micAnalyser = this.micAudioCtx.createAnalyser();
@@ -5325,12 +5400,17 @@
     }
 
     _stopMicrophone() {
-      if (this._usingNativeAndroidMic && window.AndroidNative && typeof window.AndroidNative.stopVocalMic === 'function') {
+      if (window.AndroidNative && typeof window.AndroidNative.stopVocalMic === 'function') {
         try {
           window.AndroidNative.stopVocalMic();
         } catch (_) {}
       }
       this._usingNativeAndroidMic = false;
+      this._voicedConfirmStreak = 0;
+      this.liveUserMidi = null;
+      this.smoothedUserMidi = null;
+      this.liveUserFreqHz = 0;
+      this.liveUserRms = 0;
       this._setMicDotLive(false);
 
       if (this.micStream) {
@@ -5344,8 +5424,12 @@
         this.micSource = null;
       }
       if (this.micAudioCtx) {
-        try { this.micAudioCtx.close(); } catch (_) {}
+        const ctxToClose = this.micAudioCtx;
         this.micAudioCtx = null;
+        try {
+          const p = ctxToClose.close();
+          if (p && typeof p.catch === 'function') p.catch(() => {});
+        } catch (_) {}
       }
       this.micAnalyser = null;
       this.micTimeBuf = null;
@@ -5446,10 +5530,12 @@
       const vocLbl = document.getElementById('npSingstarVocalRedLabel');
       const ssVocBtn = document.getElementById('ssProVocalRedBtn');
       const ssVocLbl = document.getElementById('ssProVocalRedLabel');
+      const ssQuickVocBtn = document.getElementById('ssProQuickVocalBtn');
       if (vocBtn) vocBtn.classList.toggle('active', Boolean(this.vocalReducerActive));
       if (vocLbl) vocLbl.textContent = this.vocalReducerActive ? 'Atenuar Voz: ON' : 'Atenuar Voz: OFF';
       if (ssVocBtn) ssVocBtn.classList.toggle('active', Boolean(this.vocalReducerActive));
       if (ssVocLbl) ssVocLbl.textContent = this.vocalReducerActive ? 'Activado' : 'Desactivado';
+      if (ssQuickVocBtn) ssQuickVocBtn.classList.toggle('active', Boolean(this.vocalReducerActive));
 
       const guideBtn = document.getElementById('npSingstarGuideBtn');
       const guideLbl = document.getElementById('npSingstarGuideLabel');
@@ -5462,8 +5548,10 @@
 
       const ssToneBtn = document.getElementById('ssProToneGuideBtn');
       const ssToneLbl = document.getElementById('ssProToneGuideLabel');
+      const ssQuickToneBtn = document.getElementById('ssProQuickToneBtn');
       if (ssToneBtn) ssToneBtn.classList.toggle('active', Boolean(this.audibleToneGuide));
       if (ssToneLbl) ssToneLbl.textContent = this.audibleToneGuide ? 'Activado' : 'Desactivado';
+      if (ssQuickToneBtn) ssQuickToneBtn.classList.toggle('active', Boolean(this.audibleToneGuide));
 
       const ssOctBtn = document.getElementById('ssProOctaveBtn');
       const ssOctLbl = document.getElementById('ssProOctaveLabel');
@@ -5722,10 +5810,8 @@
       const sumView = document.getElementById('singstarFsSummaryView');
       if (packView) packView.classList.add('hidden');
       if (sumView) sumView.classList.add('hidden');
-      if (loadView) loadView.classList.remove('hidden');
 
       try {
-        this._setStudioLoadingProgress(1, 10, 'Preparando motor acústico de sílabas (100 Hz)...');
         const actualDurSecHint = this.audioEngine ? (this.audioEngine.getRealDurationSec(track) || 195) : 195;
 
         // PASO 1: Comprobar si existe letra curada/referencia inicial mientras decodificamos el audio real
@@ -5739,6 +5825,8 @@
           } else if (Array.isArray(this.karaokeService.currentLyrics) && this.karaokeService.currentLyrics.length >= 2 && this.karaokeService.currentTrackKey === key && !this._isPlaceholderLyrics(this.karaokeService.currentLyrics)) {
             baseLines = this.karaokeService.currentLyrics.map(l => ({ ...l }));
           } else {
+            if (loadView) loadView.classList.remove('hidden');
+            this._setStudioLoadingProgress(1, 12, 'Sincronizando letra y sílabas de la canción...');
             const fetched = await Promise.race([
               this.karaokeService.fetchLyricsForTrack(track, actualDurSecHint).catch(() => []),
               new Promise(r => setTimeout(() => r([]), 2400))
@@ -5762,6 +5850,12 @@
             hasAcousticSyllables: true,
             hasPlaceholderLyrics: false
           }, Number(this.karaokeService?.timeOffsetSec || 0), false);
+          if (loadView && !forceReanalyze) {
+            loadView.classList.add('hidden');
+          }
+        } else if (loadView) {
+          loadView.classList.remove('hidden');
+          this._setStudioLoadingProgress(1, 18, 'Aislando voz y preparando transcripción acústica...');
         }
 
         // PASO 2: Obtener el Blob de audio completo de la canción
@@ -5842,19 +5936,25 @@
           hasDspMelody: Boolean(vocalDspProfile && vocalDspProfile.voicedCount >= 10),
           hasAcousticSyllables: true,
           hasPlaceholderLyrics: !hasRealLyrics,
-          isAudioTranscribed: hasBuiltInVerified
+          isAudioTranscribed: hasBuiltInVerified || hasRealLyrics
         };
         this.studioAnalysisCache.set(key, studioData);
         this._applyStudioAnalysisToStage(studioData, Number(this.karaokeService?.timeOffsetSec || 0), false);
 
         this._setStudioLoadingProgress(4, 100, 'Análisis acústico completado');
+        if (loadView) loadView.classList.add('hidden');
 
-        // PASO 5: Ejecutar SIEMPRE el Transcriptor Neuronal Whisper ONNX sobre el audio real
-        // (salvo que ya sea una pista con transcripción verificada o ya transcrita del audio)
-        // para que cada palabra y cada sílaba salgan directamente del propio audio de forma milimétrica.
+        // PASO 5: Ejecutar el Transcriptor Neuronal Whisper ONNX sobre el audio real:
+        // - Si la pista NO tenía letra sincronizada (!hasRealLyrics), transcribe los versos reales del audio fusionándolos con las islas vocales.
+        // - Si la pista SÍ tenía letra sincronizada (hasRealLyrics) y el usuario pidió reanalizar o no es built-in verificada,
+        //   usa las palabras detectadas por Whisper ÚNICAMENTE para afinar los bordes de palabra/sílaba sin borrar jamás ningún verso.
         if (decodedBuffer && (!hasBuiltInVerified || forceReanalyze)) {
-          this._spawnPopup('WHISPER ONNX + SÍLABAS 10MS', 'Detectando palabras y sílabas directamente del audio...', '#38bdf8', 2100);
-          this._transcribeTrackAudioWithWhisper(track, key, decodedBuffer, vocalDspProfile, token, hasRealLyrics ? baseLines : []).catch(() => {});
+          if (!hasRealLyrics || forceReanalyze) {
+            this._spawnPopup('WHISPER ONNX + SÍLABAS 10MS', 'Detectando palabras y sílabas directamente del audio...', '#38bdf8', 1800);
+          } else if (studioData.hasDspMelody) {
+            this._spawnPopup('AFINACIÓN YIN + DTW 10MS ACTIVA', 'Curva melódica y sílabas sincronizadas al milímetro', '#fde047', 1400);
+          }
+          this._transcribeTrackAudioWithWhisper(track, key, decodedBuffer, vocalDspProfile, token, hasRealLyrics ? alignedLines : []).catch(() => {});
         } else if (studioData.hasDspMelody) {
           this._spawnPopup('AFINACIÓN YIN + DTW 10MS ACTIVA', 'Curva melódica y sílabas sincronizadas al milímetro', '#fde047', 1400);
         }
@@ -5878,16 +5978,17 @@
 
         worker.onmessage = (ev) => {
           const msg = ev.data || {};
-          if (msg.type === 'status') {
-            if (typeof this._whisperStatusListener === 'function') {
-              this._whisperStatusListener(msg.message || '');
+          if (msg.type === 'status' || msg.type === 'ready' || msg.type === 'progress') {
+            if (typeof this._whisperStatusListener === 'function' && msg.message) {
+              this._whisperStatusListener(msg.message);
             }
             return;
           }
-          if (msg.id && this._whisperWorkerCallbacks && this._whisperWorkerCallbacks.has(msg.id)) {
-            const cb = this._whisperWorkerCallbacks.get(msg.id);
-            this._whisperWorkerCallbacks.delete(msg.id);
-            if (msg.type === 'error') {
+          const cbId = msg.id || msg.reqId;
+          if (cbId && this._whisperWorkerCallbacks && this._whisperWorkerCallbacks.has(cbId)) {
+            const cb = this._whisperWorkerCallbacks.get(cbId);
+            this._whisperWorkerCallbacks.delete(cbId);
+            if (msg.type === 'error' || msg.type === 'window_error') {
               cb.reject(new Error(msg.message || 'Whisper worker error'));
             } else {
               cb.resolve(msg);
@@ -5898,7 +5999,7 @@
         worker.onerror = () => {};
         this._whisperWorker = worker;
         if (onStatus) this._whisperStatusListener = onStatus;
-        worker.postMessage({ type: 'init' });
+        worker.postMessage({ type: 'preload' });
         return worker;
       } catch (_) {
         return null;
@@ -5920,7 +6021,7 @@
             this._whisperWorkerCallbacks.delete(reqId);
             resolve(null);
           }
-        }, 28000);
+        }, 24000);
 
         this._whisperWorkerCallbacks.set(reqId, {
           resolve: (res) => {
@@ -5937,16 +6038,19 @@
           {
             type: 'transcribe_window',
             id: reqId,
+            reqId,
             pcm16k: copyPcm,
+            startSec: windowStartSec,
             windowStartSec,
-            language
+            language,
+            languageHint: language
           },
           [copyPcm.buffer]
         );
       });
     }
 
-    _extract16kHzVocalBandpassMono(audioBuffer) {
+    async _extract16kHzVocalBandpassMono(audioBuffer, token = this._prepToken) {
       if (!audioBuffer) return null;
       const srcSr = audioBuffer.sampleRate || 44100;
       const targetSr = 16000;
@@ -5970,6 +6074,10 @@
       let sumSq = 0;
 
       for (let i = 0; i < outLen; i++) {
+        if (i > 0 && (i % 32000) === 0) {
+          if (token !== undefined && token !== this._prepToken) return null;
+          await new Promise(r => setTimeout(r, 0));
+        }
         const srcIdx = Math.min(totalSrc - 1, Math.floor(i * ratio));
         const l = ch0[srcIdx];
         const r = ch1[srcIdx];
@@ -6189,6 +6297,87 @@
     }
 
     /**
+     * Cuando una canción YA dispone de letra sincronizada completa (refLines), refina las marcas
+     * de tiempo internas de las palabras/sílabas usando los timestamps acústicos detectados por Whisper
+     * SIN destruir ni recortar jamás el resto de versos de la canción.
+     */
+    _refineReferenceLinesWithWhisperWords(key, refLines, whisperWords, vocalProfile, actualDurSec = 195) {
+      if (!Array.isArray(refLines) || refLines.length === 0) return [];
+      if (!Array.isArray(whisperWords) || whisperWords.length === 0) {
+        return this._alignSyllablesWithVocalProfile(key, refLines, vocalProfile, actualDurSec);
+      }
+
+      const norm = (s) => String(s || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9ñ]/g, '');
+
+      const refinedLines = refLines.map((line, li) => {
+        if (!line || !line.text) return line;
+        const lineStart = Number.isFinite(Number(line._origTimeSec)) ? Number(line._origTimeSec) : (Number(line.timeSec) || 0);
+        const nextLineStart = (li + 1 < refLines.length && Number.isFinite(Number(refLines[li + 1]?.timeSec)))
+          ? Number(refLines[li + 1]._origTimeSec ?? refLines[li + 1].timeSec)
+          : Math.min(actualDurSec, lineStart + 4.2);
+        const lineEnd = Math.max(lineStart + 0.45, Math.min(nextLineStart - 0.04, Number(line.endTimeSec) || (lineStart + 3.4)));
+
+        // Buscar palabras de Whisper que caigan cerca de esta frase (±1.25s)
+        const candWords = whisperWords.filter(w => w && w.startSec >= lineStart - 1.25 && w.startSec <= lineEnd + 1.0);
+        if (candWords.length === 0) return line;
+
+        const lineTokens = String(line.text).trim().split(/\s+/).filter(Boolean);
+        if (lineTokens.length === 0) return line;
+
+        // Comprobar si la primera palabra de la frase coincide fonéticamente con alguna palabra de Whisper cercana
+        const firstNorm = norm(lineTokens[0]);
+        let matchedFirst = null;
+        if (firstNorm.length >= 2) {
+          for (const cw of candWords) {
+            const cn = norm(cw.text);
+            if (!cn) continue;
+            if (cn === firstNorm || (firstNorm.length >= 3 && cn.slice(0, 3) === firstNorm.slice(0, 3))) {
+              if (Math.abs(cw.startSec - lineStart) <= 0.85) {
+                matchedFirst = cw;
+                break;
+              }
+            }
+          }
+        }
+
+        if (!matchedFirst) return line;
+
+        // Ajustar suavemente el inicio de la frase al ataque real detectado por Whisper (acotado a ±0.45s y sin cruzar frases)
+        const prevEndBound = li > 0 ? (Number(refLines[li - 1].endTimeSec || refLines[li - 1].timeSec || 0) + 0.04) : 0;
+        const clampedStart = Math.max(prevEndBound, Math.max(lineStart - 0.35, Math.min(lineStart + 0.45, matchedFirst.startSec)));
+        const clampedEnd = Math.max(clampedStart + 0.45, Math.min(nextLineStart - 0.04, lineEnd));
+
+        return {
+          ...line,
+          _origTimeSec: lineStart,
+          _whisperRefined: true,
+          timeSec: +clampedStart.toFixed(3),
+          endTimeSec: +clampedEnd.toFixed(3)
+        };
+      });
+
+      return this._alignSyllablesWithVocalProfile(key, refinedLines, vocalProfile, actualDurSec);
+    }
+
+    /**
+     * Cuando una canción NO tenía letra externa (solo islas vocales), combina los versos ya transcritos
+     * por Whisper con las islas vocales restantes aún por transcribir para que el pentagrama nunca quede vacío.
+     */
+    _mergeTranscribedLinesWithVocalIslands(key, whisperLines, vocalProfile, actualDurSec = 195) {
+      if (!Array.isArray(whisperLines) || whisperLines.length === 0) return [];
+      const lastTranscribedEnd = whisperLines[whisperLines.length - 1].endTimeSec || whisperLines[whisperLines.length - 1].timeSec || 0;
+      const islands = this._buildAcousticVocalIslandsLines(vocalProfile, actualDurSec);
+      const remainingIslands = islands.filter(isl => isl.timeSec > lastTranscribedEnd + 0.65);
+      if (remainingIslands.length === 0) return whisperLines;
+      const alignedRemaining = this._alignSyllablesWithVocalProfile(key, remainingIslands, vocalProfile, actualDurSec);
+      return [...whisperLines, ...alignedRemaining];
+    }
+
+    /**
      * Convierte la lista de palabras con timestamps acústicos exactos de Whisper
      * en líneas y sílabas milimétricas ancladas a la envolvente vocal de 100 Hz (10 ms).
      */
@@ -6271,6 +6460,7 @@
         const startSec = syls.length > 0 ? syls[0].startSec : wordGroup[0].startSec;
         const endSec = syls.length > 0 ? syls[syls.length - 1].endSec : wordGroup[wordGroup.length - 1].endSec;
         return {
+          _origTimeSec: startSec,
           timeSec: startSec,
           endTimeSec: endSec,
           text: lineText,
@@ -6316,10 +6506,12 @@
       this.isTranscribingWhisper = true;
       const badge = document.getElementById('ssProDspBadge');
       const actualDurSec = audioBuffer.duration || 195;
+      const hasReferenceLyrics = Array.isArray(referenceLines) && referenceLines.length >= 2 && !this._isPlaceholderLyrics(referenceLines);
 
       const applyTranscribedLinesLive = (lines, isComplete = false) => {
         if (!Array.isArray(lines) || lines.length === 0) return;
-        const aligned = lines[0]?._isWhisperAudioDerived
+        if (token !== undefined && token !== this._prepToken) return;
+        const aligned = lines[0]?.singstarSyllables
           ? lines
           : this._alignSyllablesWithVocalProfile(key, lines, vocalDspProfile, actualDurSec);
         const studioData = {
@@ -6331,28 +6523,33 @@
           hasDspMelody: Boolean(vocalDspProfile && vocalDspProfile.voicedCount >= 10),
           hasAcousticSyllables: true,
           hasPlaceholderLyrics: false,
-          isAudioTranscribed: isComplete
+          isAudioTranscribed: isComplete || hasReferenceLyrics
         };
         this.studioAnalysisCache.set(key, studioData);
-        if (this.currentTrackKey === key) {
+        if (this.currentTrackKey === key && this.isActive) {
           this._applyStudioAnalysisToStage(studioData, Number(this.karaokeService?.timeOffsetSec || 0), false);
           this._lastTeleprompterLineIdx = -2;
           this._lastTeleprompterSylIdx = -2;
         }
-        if (this.karaokeService && (isComplete || aligned.length >= 2)) {
+        if (this.karaokeService && !hasReferenceLyrics && (isComplete || aligned.length >= 4)) {
           this.karaokeService.saveTranscribedLyricsToPersistentStore(track, aligned, actualDurSec);
         }
       };
 
       try {
-        // 1) Transcripción neuronal directa del audio en Web Worker local (whisper_worker.js con Xenova/whisper-tiny embebido)
+        // 1) Transcripción neuronal directa del audio en Web Worker local (whisper_worker.js con Xenova/whisper-tiny)
         //    que extrae cada palabra con su timestamp exacto [startSec, endSec] directamente del flujo vocal de 16 kHz.
-        const mono16k = this._extract16kHzVocalBandpassMono(audioBuffer);
+        const mono16k = await this._extract16kHzVocalBandpassMono(audioBuffer, token);
+        if (token !== undefined && token !== this._prepToken) return null;
+
         if (mono16k && mono16k.length >= 16000) {
           const windows = this._findActiveVocalWindowsForWhisper(vocalDspProfile, actualDurSec);
           const collectedWords = [];
 
           for (let wIdx = 0; wIdx < windows.length; wIdx++) {
+            if (token !== undefined && token !== this._prepToken) return null;
+            if (!this.isActive && this.currentTrackKey !== key) return null;
+
             const win = windows[wIdx];
             if (badge && this.currentTrackKey === key) {
               badge.textContent = `WHISPER ONNX (${wIdx + 1}/${windows.length}) · ${Math.round(win.startSec)}s`;
@@ -6372,6 +6569,7 @@
                 }
               }
             );
+            if (token !== undefined && token !== this._prepToken) return null;
 
             if (res && Array.isArray(res.words) && res.words.length > 0) {
               for (const w of res.words) {
@@ -6382,60 +6580,77 @@
                 collectedWords.push(w);
               }
 
-              const liveLines = this._buildLinesFromWhisperWordsAndDsp(
-                collectedWords,
-                vocalDspProfile,
-                actualDurSec,
-                referenceLines
-              );
-              if (liveLines.length >= 1) {
-                applyTranscribedLinesLive(liveLines, wIdx === windows.length - 1);
+              if (hasReferenceLyrics) {
+                const refinedFull = this._refineReferenceLinesWithWhisperWords(
+                  key,
+                  referenceLines,
+                  collectedWords,
+                  vocalDspProfile,
+                  actualDurSec
+                );
+                if (refinedFull.length >= 2) {
+                  applyTranscribedLinesLive(refinedFull, wIdx === windows.length - 1);
+                }
+              } else {
+                const liveLines = this._buildLinesFromWhisperWordsAndDsp(
+                  collectedWords,
+                  vocalDspProfile,
+                  actualDurSec,
+                  []
+                );
+                if (liveLines.length >= 1) {
+                  const mergedLines = (wIdx === windows.length - 1)
+                    ? liveLines
+                    : this._mergeTranscribedLinesWithVocalIslands(key, liveLines, vocalDspProfile, actualDurSec);
+                  applyTranscribedLinesLive(mergedLines, wIdx === windows.length - 1);
+                }
               }
             }
           }
 
           if (collectedWords.length >= 4) {
-            const finalLines = this._buildLinesFromWhisperWordsAndDsp(
-              collectedWords,
-              vocalDspProfile,
-              actualDurSec,
-              referenceLines
-            );
+            const finalLines = hasReferenceLyrics
+              ? this._refineReferenceLinesWithWhisperWords(key, referenceLines, collectedWords, vocalDspProfile, actualDurSec)
+              : this._buildLinesFromWhisperWordsAndDsp(collectedWords, vocalDspProfile, actualDurSec, []);
             applyTranscribedLinesLive(finalLines, true);
             if (badge && this.currentTrackKey === key) {
               badge.textContent = 'WHISPER AUDIO + SÍLABAS 10MS';
             }
-            this._spawnPopup('SÍLABAS EXTRAÍDAS DEL AUDIO', `${collectedWords.length} palabras sincronizadas al milímetro`, '#34d399', 1800);
+            if (!hasReferenceLyrics) {
+              this._spawnPopup('SÍLABAS EXTRAÍDAS DEL AUDIO', `${collectedWords.length} palabras sincronizadas al milímetro`, '#34d399', 1800);
+            }
             return finalLines;
           }
         }
 
-        // 2) Respaldo en el servidor (/api/v1/lyrics/transcribe) si el Web Worker no devolvió palabras
-        const rawVid = String(track.videoId || track.id || '').replace(/^magic_yt_|^yt_/, '').trim();
-        const vid = /^[A-Za-z0-9_-]{11}$/.test(rawVid) ? rawVid : '';
-        const baseUrl = typeof window.getApiBaseUrl === 'function' ? window.getApiBaseUrl() : '';
-        if (vid) {
-          try {
-            const ctrl = new AbortController();
-            const tid = setTimeout(() => ctrl.abort(), 14000);
-            const resp = await fetch(`${baseUrl}/api/v1/lyrics/transcribe?videoId=${encodeURIComponent(vid)}&title=${encodeURIComponent(track.title || '')}&artist=${encodeURIComponent(track.artist || '')}`, {
-              method: 'POST',
-              signal: ctrl.signal
-            });
-            clearTimeout(tid);
-            if (resp && resp.ok) {
-              const data = await resp.json();
-              if (data && data.syncedLyrics && String(data.syncedLyrics).includes('[')) {
-                const parsed = this.karaokeService ? this.karaokeService.parseLrc(data.syncedLyrics, { track }) : [];
-                if (parsed.length >= 2) {
-                  applyTranscribedLinesLive(parsed, true);
-                  if (badge) badge.textContent = 'WHISPER ASR + DTW 10MS REAL';
-                  this._spawnPopup('LETRA TRANSCRITA POR MOTOR HD', `${parsed.length} versos sincronizados del audio`, '#34d399', 1600);
-                  return parsed;
+        // 2) Respaldo en el servidor (/api/v1/lyrics/transcribe) solo cuando la canción no tenía letra externa
+        if (!hasReferenceLyrics) {
+          const rawVid = String(track.videoId || track.id || '').replace(/^magic_yt_|^yt_/, '').trim();
+          const vid = /^[A-Za-z0-9_-]{11}$/.test(rawVid) ? rawVid : '';
+          const baseUrl = typeof window.getApiBaseUrl === 'function' ? window.getApiBaseUrl() : '';
+          if (vid) {
+            try {
+              const ctrl = new AbortController();
+              const tid = setTimeout(() => ctrl.abort(), 14000);
+              const resp = await fetch(`${baseUrl}/api/v1/lyrics/transcribe?videoId=${encodeURIComponent(vid)}&title=${encodeURIComponent(track.title || '')}&artist=${encodeURIComponent(track.artist || '')}`, {
+                method: 'POST',
+                signal: ctrl.signal
+              });
+              clearTimeout(tid);
+              if (resp && resp.ok) {
+                const data = await resp.json();
+                if (data && data.syncedLyrics && String(data.syncedLyrics).includes('[')) {
+                  const parsed = this.karaokeService ? this.karaokeService.parseLrc(data.syncedLyrics, { track }) : [];
+                  if (parsed.length >= 2) {
+                    applyTranscribedLinesLive(parsed, true);
+                    if (badge) badge.textContent = 'WHISPER ASR + DTW 10MS REAL';
+                    this._spawnPopup('LETRA TRANSCRITA POR MOTOR HD', `${parsed.length} versos sincronizados del audio`, '#34d399', 1600);
+                    return parsed;
+                  }
                 }
               }
-            }
-          } catch (_) {}
+            } catch (_) {}
+          }
         }
         return null;
       } catch (_) {
@@ -6503,9 +6718,10 @@
       let lastClarityComputed = 0;
 
       for (let f = 0; f < nFrames; f++) {
-        if (f > 0 && (f % 1500) === 0) {
+        // Ceder el hilo cada 300 frames (~3s de audio) para mantener 60fps constantes en móviles
+        if (f > 0 && (f % 300) === 0) {
           if (token !== this._prepToken) return null;
-          if (onProgress) {
+          if (onProgress && (f % 900) === 0) {
             const p = 38 + Math.round((f / nFrames) * 46);
             onProgress(p, `Analizando sílabas a 10ms y tono (${Math.round((f / nFrames) * 100)}%)...`);
           }
@@ -6584,7 +6800,7 @@
           let bestTau = -1;
           let bestCmnd = 1.0;
           for (let tau = minTau; tau < maxTau; tau++) {
-            if (yinCmnd[tau] < 0.34 && yinCmnd[tau] <= yinCmnd[tau - 1] && yinCmnd[tau] <= yinCmnd[tau + 1]) {
+            if (yinCmnd[tau] < 0.32 && yinCmnd[tau] <= yinCmnd[tau - 1] && yinCmnd[tau] <= yinCmnd[tau + 1]) {
               bestTau = tau;
               bestCmnd = yinCmnd[tau];
               break;
@@ -6599,7 +6815,26 @@
             }
           }
 
-          if (bestTau > 0 && bestCmnd < 0.46) {
+          // Verificación de sub-armónico (2 * bestTau): solo corregir si bestTau era un 2º armónico parcial (bestCmnd > 0.07) y 2*bestTau tiene un valle mucho más profundo (< 52%)
+          if (bestTau > 0 && bestCmnd > 0.07 && bestTau * 2 < maxTau) {
+            const doubleTau = bestTau * 2;
+            const sLo = Math.max(minTau + 1, doubleTau - 3);
+            const sHi = Math.min(maxTau - 1, doubleTau + 3);
+            let subBestTau = -1;
+            let subBestVal = 1.0;
+            for (let t2 = sLo; t2 <= sHi; t2++) {
+              if (yinCmnd[t2] <= yinCmnd[t2 - 1] && yinCmnd[t2] <= yinCmnd[t2 + 1] && yinCmnd[t2] < subBestVal) {
+                subBestVal = yinCmnd[t2];
+                subBestTau = t2;
+              }
+            }
+            if (subBestTau > 0 && subBestVal < bestCmnd * 0.52) {
+              bestTau = subBestTau;
+              bestCmnd = subBestVal;
+            }
+          }
+
+          if (bestTau > 0 && bestCmnd < 0.44) {
             const y1 = yinCmnd[bestTau - 1];
             const y2 = yinCmnd[bestTau];
             const y3 = yinCmnd[bestTau + 1];
@@ -6744,62 +6979,101 @@
         ? Math.max(0, vocalProfile.firstVocalSec - 0.08)
         : 0;
 
-      const outLines = [];
-      let prevLineEndSec = firstVocalFloorSec;
-      let runningLocalDriftSec = 0;
+      // Recolectar índices de líneas cantables válidas para poder consultar el límite exacto de la siguiente línea
+      const validIndices = [];
+      for (let i = 0; i < linesArr.length; i++) {
+        const l = linesArr[i];
+        if (!l || l.isIntroCard || l.isMetadata || l.isCue) continue;
+        const txt = repairSpanishBrokenAccents(String(l.text || '').trim());
+        if (!txt || /^[\(\[♪♫]/.test(txt)) continue;
+        validIndices.push(i);
+      }
 
-      // Si el primer verso de una letra externa viene antes de que entre la voz real en el audio (intro instrumental),
-      // inicializar el desplazamiento global automáticamente hacia la primera isla vocal real.
-      const firstLineCandidate = linesArr.find(l => l && !l.isIntroCard && !l.isMetadata && !l.isCue && String(l.text || '').trim());
-      if (firstLineCandidate && firstVocalFloorSec > 1.2) {
-        const firstRaw = Number(firstLineCandidate._origTimeSec) || Number(firstLineCandidate.timeSec) || 0;
-        if (firstVocalFloorSec - firstRaw > 0.8 && firstVocalFloorSec - firstRaw < 32.0) {
-          runningLocalDriftSec = firstVocalFloorSec - firstRaw;
+      // Desplazamiento elástico acotado solo si toda la letra viene adelantada respecto a la primera voz real
+      let boundedIntroShiftSec = 0;
+      if (validIndices.length > 0 && firstVocalFloorSec > 1.2) {
+        const firstLine = linesArr[validIndices[0]];
+        const firstSec = Number(firstLine.timeSec) || 0;
+        if (firstVocalFloorSec - firstSec > 0.75 && firstVocalFloorSec - firstSec < 25.0) {
+          boundedIntroShiftSec = firstVocalFloorSec - firstSec;
         }
       }
 
-      for (let li = 0; li < linesArr.length; li++) {
+      const outLines = [];
+      let prevLineEndSec = 0;
+
+      for (let vi = 0; vi < validIndices.length; vi++) {
+        const li = validIndices[vi];
         const line = linesArr[li];
-        if (!line || line.isIntroCard || line.isMetadata || line.isCue) continue;
         const cleanText = repairSpanishBrokenAccents(String(line.text || '').trim());
-        if (!cleanText || /^[\(\[♪♫]/.test(cleanText)) continue;
+        const origTimeSec = Number.isFinite(Number(line._origTimeSec))
+          ? Number(line._origTimeSec)
+          : (Number(line.timeSec) || 0);
 
         if (line._isWhisperAudioDerived && Array.isArray(line.singstarSyllables) && line.singstarSyllables.length > 0) {
-          outLines.push(line);
-          prevLineEndSec = line.endTimeSec + 0.03;
+          outLines.push({
+            ...line,
+            _origTimeSec: origTimeSec
+          });
+          prevLineEndSec = line.endTimeSec + 0.02;
           continue;
         }
 
-        const baseLineSec = (Number(line._origTimeSec) || Number(line.timeSec) || 0) + (vocalProfile ? runningLocalDriftSec * 0.85 : 0);
-        const rawStartSec = Math.max(prevLineEndSec, firstVocalFloorSec, baseLineSec);
-        const nextRawSec = (li + 1 < linesArr.length && Number.isFinite(Number(linesArr[li + 1]?.timeSec)))
-          ? ((Number(linesArr[li + 1]._origTimeSec) || Number(linesArr[li + 1].timeSec)) + (vocalProfile ? runningLocalDriftSec * 0.85 : 0))
-          : Math.min(actualDurSec, rawStartSec + 3.6);
-        const maxWindowEndSec = Math.max(rawStartSec + 0.48, Math.min(nextRawSec - 0.04, rawStartSec + 5.4));
+        // decaimiento suave del shift de intro para no desincronizar el resto de la canción
+        const introDecay = boundedIntroShiftSec > 0
+          ? Math.max(0, 1 - (origTimeSec / Math.max(45, actualDurSec * 0.45)))
+          : 0;
+        const anchoredBaseSec = Math.max(
+          firstVocalFloorSec,
+          (Number(line.timeSec) || origTimeSec) + boundedIntroShiftSec * introDecay
+        );
 
-        // Caso A: La línea ya trae sílabas nativas de Catálogo Top verificado y aún no tenemos vocalProfile
-        if (!line._hasAcousticGeneratedWords && !vocalProfile && Array.isArray(line.words) && line.words.length >= 2 && Number.isFinite(Number(line.words[0]?.timeSec))) {
+        let nextAnchoredSec = Math.min(actualDurSec, anchoredBaseSec + 3.6);
+        if (vi + 1 < validIndices.length) {
+          const nextLine = linesArr[validIndices[vi + 1]];
+          const nextOrig = Number.isFinite(Number(nextLine._origTimeSec))
+            ? Number(nextLine._origTimeSec)
+            : (Number(nextLine.timeSec) || (anchoredBaseSec + 3.0));
+          const nextDecay = boundedIntroShiftSec > 0
+            ? Math.max(0, 1 - (nextOrig / Math.max(45, actualDurSec * 0.45)))
+            : 0;
+          nextAnchoredSec = Math.max(
+            anchoredBaseSec + 0.52,
+            (Number(nextLine.timeSec) || nextOrig) + boundedIntroShiftSec * nextDecay
+          );
+        }
+
+        // NUNCA permitir que prevLineEndSec arrastre la línea actual más allá de su ancla real
+        const rawStartSec = Math.min(
+          nextAnchoredSec - 0.42,
+          Math.max(anchoredBaseSec, Math.min(prevLineEndSec, anchoredBaseSec + 0.14))
+        );
+        const maxWindowEndSec = Math.max(rawStartSec + 0.42, Math.min(nextAnchoredSec - 0.04, rawStartSec + 5.2));
+
+        // Caso A: La línea tiene palabras sincronizadas verificadas (ej. Whisper o catálogo exacto)
+        if ((!line._hasAcousticGeneratedWords || line._whisperRefined) && Array.isArray(line.words) && line.words.length >= 2 && Number.isFinite(Number(line.words[0]?.timeSec))) {
           const syls = [];
           for (let wi = 0; wi < line.words.length; wi++) {
             const w = line.words[wi];
             const txt = repairSpanishBrokenAccents(String(w.text || ''));
             if (!txt.trim()) continue;
-            const sSec = Math.max(rawStartSec, Number(w.timeSec) || rawStartSec);
+            const sSec = Math.max(rawStartSec - 0.05, Number(w.timeSec) || rawStartSec);
             const nextW = line.words[wi + 1];
             const eSec = nextW
-              ? Math.max(sSec + 0.11, Math.min(maxWindowEndSec, Number(nextW.timeSec) - 0.015))
-              : Math.max(sSec + 0.18, Math.min(maxWindowEndSec, sSec + 0.55));
+              ? Math.max(sSec + 0.09, Math.min(maxWindowEndSec, Number(nextW.timeSec) - 0.012))
+              : Math.max(sSec + 0.16, Math.min(maxWindowEndSec, Number(w.endSec) || (sSec + 0.48)));
             syls.push({
               text: txt.trim(),
-              displayText: txt,
+              displayText: txt.endsWith(' ') ? txt : (txt + ' '),
               startSec: +sSec.toFixed(3),
               endSec: +eSec.toFixed(3)
             });
           }
           if (syls.length > 0) {
-            prevLineEndSec = syls[syls.length - 1].endSec + 0.03;
+            prevLineEndSec = Math.min(nextAnchoredSec - 0.02, syls[syls.length - 1].endSec + 0.02);
             outLines.push({
               ...line,
+              _origTimeSec: origTimeSec,
               text: cleanText,
               timeSec: syls[0].startSec,
               endTimeSec: syls[syls.length - 1].endSec,
@@ -6809,68 +7083,52 @@
           }
         }
 
-        // Caso B: Detectar inicio/fin real de la isla vocal en el audio a 100 Hz (10ms) y alinear cada sílaba fonética con Viterbi-DTW
+        // Caso B: Ajuste micro-acústico acotado [-160ms, +220ms] sin deriva acumulativa
         const rawWords = cleanText.split(/\s+/).filter(Boolean);
-        const naturalMaxDur = Math.max(0.68, Math.min(4.4, rawWords.length * 0.42 + 0.35));
+        const naturalMaxDur = Math.max(0.65, Math.min(4.2, rawWords.length * 0.40 + 0.32));
 
         let vocalStartSec = rawStartSec;
         let vocalEndSec = Math.min(maxWindowEndSec, rawStartSec + naturalMaxDur);
 
         if (vocalProfile && vocalProfile.vocEnergyDb) {
           const fHz = vocalProfile.frameHz || 100;
-          const fSearch0 = Math.max(
-            Math.ceil(prevLineEndSec * fHz),
-            Math.floor(Math.max(firstVocalFloorSec, rawStartSec - 1.25) * fHz)
-          );
-          const fSearch1 = Math.min(
-            vocalProfile.vocEnergyDb.length - 1,
-            Math.ceil(Math.min(actualDurSec, rawStartSec + 2.85) * fHz)
-          );
-          const th = vocalProfile.thVoc - 1.4;
-          const baseF = Math.min(vocalProfile.vocEnergyDb.length - 1, Math.max(0, Math.round(rawStartSec * fHz)));
+          const searchMinSec = Math.max(firstVocalFloorSec, prevLineEndSec, rawStartSec - 0.16);
+          const searchMaxSec = Math.min(actualDurSec, nextAnchoredSec - 0.25, rawStartSec + 0.22);
+          const fSearch0 = Math.max(0, Math.floor(searchMinSec * fHz));
+          const fSearch1 = Math.min(vocalProfile.vocEnergyDb.length - 1, Math.ceil(Math.max(searchMinSec + 0.05, searchMaxSec) * fHz));
+          const th = vocalProfile.thVoc - 1.2;
 
-          let firstActive = -1;
-          if (vocalProfile.vocEnergyDb[baseF] >= th && vocalProfile.vocEnergyDb[Math.min(vocalProfile.vocEnergyDb.length - 1, baseF + 1)] >= th - 0.8) {
-            let backF = baseF;
-            const minBackF = Math.max(fSearch0, baseF - Math.round(0.32 * fHz));
-            while (backF > minBackF && vocalProfile.vocEnergyDb[backF - 1] >= th - 1.0) {
-              backF--;
-            }
-            firstActive = backF;
-          } else {
-            const minVoicedCheck = Math.max(4, Math.round(0.08 * fHz));
-            const winVoicedCheck = Math.max(6, Math.round(0.12 * fHz));
-            for (let f = fSearch0; f <= fSearch1 - winVoicedCheck; f++) {
-              if (vocalProfile.vocEnergyDb[f] >= th && vocalProfile.vocEnergyDb[f + 1] >= th - 0.6) {
-                let voicedRun = 0;
-                for (let k = 0; k < winVoicedCheck && (f + k) < vocalProfile.vocEnergyDb.length; k++) {
-                  if (vocalProfile.vocEnergyDb[f + k] >= th - 1.6) voicedRun++;
-                }
-                if (voicedRun >= minVoicedCheck) {
-                  firstActive = f;
-                  if (f >= baseF) break;
-                }
+          let bestOnsetF = -1;
+          let bestOnsetScore = -1e9;
+          for (let f = fSearch0; f <= fSearch1; f++) {
+            const eDb = vocalProfile.vocEnergyDb[f];
+            const flux = vocalProfile.vowelFlux ? vocalProfile.vowelFlux[f] : 0;
+            if (eDb >= th) {
+              const distSec = Math.abs((f / fHz) - rawStartSec);
+              const score = flux * 1.5 + (eDb - th) * 0.35 - distSec * 6.5;
+              if (score > bestOnsetScore) {
+                bestOnsetScore = score;
+                bestOnsetF = f;
               }
             }
           }
 
-          if (firstActive !== -1) {
-            const candidateStart = firstActive / fHz;
-            if (Math.abs(candidateStart - rawStartSec) <= 2.85) {
-              vocalStartSec = Math.max(prevLineEndSec, candidateStart - 0.012);
-              const origSec = Number(line._origTimeSec) || Number(line.timeSec) || rawStartSec;
-              const obsDrift = vocalStartSec - origSec;
-              if (Math.abs(obsDrift) <= 8.0) {
-                runningLocalDriftSec = runningLocalDriftSec * 0.6 + obsDrift * 0.4;
-              }
+          if (bestOnsetF !== -1) {
+            const candidateStart = bestOnsetF / fHz;
+            if (Math.abs(candidateStart - rawStartSec) <= 0.24) {
+              vocalStartSec = Math.max(prevLineEndSec, candidateStart - 0.01);
             }
-            const minPhraseFrames = Math.round(Math.min(naturalMaxDur * 0.45, 0.75) * fHz);
-            const maxPhraseFrames = Math.round(naturalMaxDur * 1.28 * fHz);
-            const silenceHoldFrames = Math.max(7, Math.round(0.19 * fHz));
-            const fMaxPhrase = Math.min(vocalProfile.vocEnergyDb.length - 1, Math.ceil(Math.max(maxWindowEndSec, vocalStartSec + naturalMaxDur) * fHz), firstActive + maxPhraseFrames);
-            let lastVoiced = Math.min(fMaxPhrase, firstActive + minPhraseFrames);
+            const minPhraseFrames = Math.round(Math.min(naturalMaxDur * 0.45, 0.70) * fHz);
+            const maxPhraseFrames = Math.round(naturalMaxDur * 1.22 * fHz);
+            const silenceHoldFrames = Math.max(7, Math.round(0.20 * fHz));
+            const fMaxPhrase = Math.min(
+              vocalProfile.vocEnergyDb.length - 1,
+              Math.ceil(maxWindowEndSec * fHz),
+              bestOnsetF + maxPhraseFrames
+            );
+            let lastVoiced = Math.min(fMaxPhrase, bestOnsetF + minPhraseFrames);
 
-            for (let f = firstActive + minPhraseFrames; f <= fMaxPhrase; f++) {
+            for (let f = bestOnsetF + minPhraseFrames; f <= fMaxPhrase; f++) {
               if (vocalProfile.vocEnergyDb[f] >= th - 1.0) {
                 lastVoiced = f;
               } else {
@@ -6881,11 +7139,11 @@
                 if (silentRun >= silenceHoldFrames) break;
               }
             }
-            vocalEndSec = Math.max(vocalStartSec + 0.45, Math.min(actualDurSec, (lastVoiced + 3) / fHz));
+            vocalEndSec = Math.max(vocalStartSec + 0.42, Math.min(maxWindowEndSec, (lastVoiced + 3) / fHz));
           }
         }
 
-        const spanMs = Math.max(450, Math.round((vocalEndSec - vocalStartSec) * 1000));
+        const spanMs = Math.max(420, Math.round((vocalEndSec - vocalStartSec) * 1000));
         const tokens = (this.karaokeService && typeof this.karaokeService.tokenizePhraseIntoNaturalSyllables === 'function')
           ? this.karaokeService.tokenizePhraseIntoNaturalSyllables(cleanText, spanMs)
           : rawWords.map(w => ({ text: w, displayText: w + ' ', weight: 1.0, isWordEnd: true }));
@@ -6911,15 +7169,15 @@
               cumW += (Number(tokens[k].weight) || 1.0);
             }
 
-            // Programación dinámica Viterbi a 10ms para anclar cada sílaba a su ataque vocálico real
+            // Programación dinámica Viterbi a 10ms con anclaje fuerte a la posición fonética ideal
             const dp = new Float32Array(K * M).fill(-1e9);
             const back = new Int32Array(K * M).fill(-1);
 
             for (let m = 0; m < M; m++) {
               const fAbs = f0 + m;
-              const dev = Math.abs(fAbs - idealFrames[0]) / Math.max(8, M * 0.25);
-              if (dev <= 1.25) {
-                dp[m] = vocalProfile.vowelFlux[fAbs] * 1.45 + (vocalProfile.vocEnergyDb[fAbs] - vocalProfile.thVoc) * 0.18 - dev * dev * 3.6;
+              const dev = Math.abs(fAbs - idealFrames[0]) / Math.max(6, M * 0.20);
+              if (dev <= 1.15) {
+                dp[m] = vocalProfile.vowelFlux[fAbs] * 1.35 + (vocalProfile.vocEnergyDb[fAbs] - vocalProfile.thVoc) * 0.16 - dev * dev * 4.2;
               }
             }
 
@@ -6927,11 +7185,11 @@
               const expGap = Math.max(minStepFrames, idealFrames[k] - idealFrames[k - 1]);
               for (let m = k * minStepFrames; m < M - (K - 1 - k) * minStepFrames; m++) {
                 const fAbs = f0 + m;
-                const globalDev = Math.abs(fAbs - idealFrames[k]) / Math.max(10, M * 0.34);
-                if (globalDev > 1.40) continue;
+                const globalDev = Math.abs(fAbs - idealFrames[k]) / Math.max(8, M * 0.26);
+                if (globalDev > 1.25) continue;
 
-                const emission = vocalProfile.vowelFlux[fAbs] * 1.4 + (vocalProfile.vocEnergyDb[fAbs] - vocalProfile.thVoc) * 0.16 - globalDev * globalDev * 2.3;
-                const prevMin = Math.max((k - 1) * minStepFrames, m - Math.round(expGap * 2.2));
+                const emission = vocalProfile.vowelFlux[fAbs] * 1.3 + (vocalProfile.vocEnergyDb[fAbs] - vocalProfile.thVoc) * 0.15 - globalDev * globalDev * 3.1;
+                const prevMin = Math.max((k - 1) * minStepFrames, m - Math.round(expGap * 2.0));
                 const prevMax = m - minStepFrames;
 
                 let bestPrevScore = -1e9;
@@ -6939,8 +7197,8 @@
                 for (let pm = prevMin; pm <= prevMax; pm++) {
                   const prevVal = dp[(k - 1) * M + pm];
                   if (prevVal <= -1e8) continue;
-                  const gapDiff = ((m - pm) - expGap) / Math.max(5, expGap * 0.55);
-                  const cand = prevVal - gapDiff * gapDiff * 2.5;
+                  const gapDiff = ((m - pm) - expGap) / Math.max(4, expGap * 0.50);
+                  const cand = prevVal - gapDiff * gapDiff * 2.8;
                   if (cand > bestPrevScore) {
                     bestPrevScore = cand;
                     bestPrevM = pm;
@@ -6987,11 +7245,11 @@
 
         if (syls.length === 0) {
           const totalW = tokens.reduce((acc, t) => acc + (Number(t.weight) || 1.0), 0) || K;
-          const spanSec = Math.max(0.42, vocalEndSec - vocalStartSec);
+          const spanSec = Math.max(0.40, vocalEndSec - vocalStartSec);
           let cursor = vocalStartSec;
           for (let k = 0; k < K; k++) {
             const wRatio = (Number(tokens[k].weight) || 1.0) / totalW;
-            const dSec = Math.max(0.10, spanSec * wRatio);
+            const dSec = Math.max(0.095, spanSec * wRatio);
             const sSec = cursor;
             const eSec = (k === K - 1) ? vocalEndSec : Math.min(vocalEndSec, sSec + dSec - 0.012);
             syls.push({
@@ -7004,7 +7262,7 @@
           }
         }
 
-        prevLineEndSec = syls[syls.length - 1].endSec + 0.04;
+        prevLineEndSec = Math.min(nextAnchoredSec - 0.02, syls[syls.length - 1].endSec + 0.02);
         const syncedLineWords = syls.map(s => ({
           timeSec: s.startSec,
           endSec: s.endSec,
@@ -7012,6 +7270,7 @@
         }));
         outLines.push({
           ...line,
+          _origTimeSec: origTimeSec,
           text: cleanText,
           timeSec: syls[0].startSec,
           endTimeSec: syls[syls.length - 1].endSec,
@@ -7228,8 +7487,8 @@
 
     /**
      * Muestreo del micrófono en vivo con algoritmo YIN CMND a tasa completa (44.1 / 48 kHz)
-     * tanto en Android Nativo (AudioRecord 44.1 kHz) como en WebAudio, con mapeo monotónico:
-     * - NUNCA envuelve módulo 12 alrededor de cada nota (que invertía agudos y graves).
+     * tanto en Android Nativo (AudioRecord 44.1 kHz con AEC/NS) como en WebAudio:
+     * - Puerta de ruido adaptativa bidireccional + rechazo del sangrado del altavoz del móvil.
      * - Si cantas más agudo, tu indicador SIEMPRE sube.
      * - Si cantas más grave, tu indicador SIEMPRE baja.
      */
@@ -7262,9 +7521,10 @@
       let detectedClarity = 0;
       let rms = 0;
       let hasMicSignal = false;
+      let nativeVoicedFlag = null;
+      let nativeNoiseFloor = 0;
 
-      // 1) Lectura de baja latencia desde el motor nativo Android AudioRecord 44.1 kHz + YIN CMND
-      //    Compatible tanto con el nuevo formato JSON como con versiones previas separadas por '|'
+      // 1) Lectura de baja latencia desde el motor nativo Android AudioRecord 44.1 kHz + AEC + YIN CMND
       if (window.AndroidNative && typeof window.AndroidNative.pollVocalMic === 'function') {
         try {
           const rawStr = String(window.AndroidNative.pollVocalMic() || '').trim();
@@ -7299,13 +7559,19 @@
                 rms = Number(telem.rms) || 0;
                 detectedFreqHz = Number(telem.freqHz) || 0;
                 detectedClarity = Number(telem.clarity) || 0;
+                if (typeof telem.voiced === 'boolean') {
+                  nativeVoicedFlag = telem.voiced;
+                }
+                if (Number.isFinite(Number(telem.noiseFloor)) && Number(telem.noiseFloor) > 0) {
+                  nativeNoiseFloor = Number(telem.noiseFloor);
+                }
               }
             }
           }
         } catch (_) {}
       }
 
-      // 2) Respaldo WebAudio API cuando no hay señal nativa activa
+      // 2) Respaldo WebAudio API con filtro pasa-banda vocal 85 Hz - 1150 Hz
       if (!hasMicSignal && this.micAnalyser && this.micTimeBuf && this.micAudioCtx) {
         hasMicSignal = true;
         this._setMicDotLive(true);
@@ -7337,14 +7603,53 @@
       }
 
       this.liveUserRms = rms;
+      const isPlaying = Boolean(this.audioEngine && this.audioEngine.isPlaying());
 
-      if (rms < this.noiseFloorRms * 1.25) {
-        this.noiseFloorRms = Math.max(0.0014, Math.min(0.012, 0.96 * this.noiseFloorRms + 0.04 * rms));
+      // Seguimiento adaptativo bidireccional del suelo de ruido y del sangrado del altavoz del móvil:
+      // Cuando la señal no tiene periodicidad armónica vocal clara (o estamos entre frases sin cantar),
+      // actualizamos el suelo de ruido hacia arriba o hacia abajo para rechazar el altavoz del teléfono.
+      const isLikelyUnvoicedOrSpeakerBleed = (detectedFreqHz < 80 || detectedClarity < 0.62 || nativeVoicedFlag === false);
+      if (nativeNoiseFloor > 0) {
+        this.noiseFloorRms = Math.max(0.0028, Math.min(0.032, nativeNoiseFloor));
+      } else if (isLikelyUnvoicedOrSpeakerBleed) {
+        const alphaUp = (!activeNote && isPlaying) ? 0.08 : 0.035;
+        const alpha = rms < this.noiseFloorRms ? 0.06 : alphaUp;
+        this.noiseFloorRms = Math.max(0.0028, Math.min(0.032, (1 - alpha) * this.noiseFloorRms + alpha * rms));
+      } else if (rms < this.noiseFloorRms) {
+        this.noiseFloorRms = Math.max(0.0028, 0.94 * this.noiseFloorRms + 0.06 * rms);
       }
 
-      const gateThreshold = Math.max(0.0022, this.noiseFloorRms * 1.45);
-      if (rms < gateThreshold || detectedFreqHz < 75 || detectedClarity < 0.42) {
-        if (nowMs - this._lastVoicedWallMs <= 165 && Number.isFinite(this._lastVoicedMidi)) {
+      if (isPlaying && (!activeNote || isLikelyUnvoicedOrSpeakerBleed)) {
+        const bleedAlpha = rms > this.speakerBleedRms ? 0.06 : 0.04;
+        this.speakerBleedRms = Math.max(0.0030, Math.min(0.036, (1 - bleedAlpha) * (this.speakerBleedRms || 0.0045) + bleedAlpha * rms));
+      } else if (!isPlaying) {
+        this.speakerBleedRms = Math.max(0.0030, (this.speakerBleedRms || 0.0045) * 0.96);
+      }
+
+      const effectiveFloor = Math.max(
+        0.0036,
+        this.noiseFloorRms,
+        isPlaying ? (this.speakerBleedRms || 0) * 0.95 : 0
+      );
+      const gateThreshold = Math.max(0.0055, Math.min(0.068, effectiveFloor * 2.15));
+      this._lastGateThresholdRms = gateThreshold;
+
+      const isFrameVoiced = (
+        rms >= gateThreshold &&
+        detectedFreqHz >= 80 &&
+        detectedFreqHz <= 990 &&
+        detectedClarity >= 0.64 &&
+        nativeVoicedFlag !== false
+      );
+
+      if (isFrameVoiced) {
+        this._voicedConfirmStreak = Math.min(10, (this._voicedConfirmStreak || 0) + (nativeVoicedFlag === true ? 2 : 1));
+      } else {
+        this._voicedConfirmStreak = 0;
+      }
+
+      if (!isFrameVoiced || this._voicedConfirmStreak < 2) {
+        if (nowMs - this._lastVoicedWallMs <= 125 && Number.isFinite(this._lastVoicedMidi) && rms >= gateThreshold * 0.78) {
           this.liveUserMidi = this._lastVoicedMidi;
           return;
         }
@@ -7361,40 +7666,36 @@
       this.rawUserMidi = rawMidi;
       this.liveNoteLabel = this.midiToNoteNameEs(rawMidi);
 
-      // Calcular el desplazamiento de octava de registro (fijo para toda la sesión o elegido por el usuario)
+      // Calcular el desplazamiento de octava de registro (fijo para la sesión o elegido por el usuario)
       let octaveShift = 0;
       if (this.octaveRegisterMode === '-12') {
-        octaveShift = 12; // Usuario con voz 1 octava más grave que la canción -> sube +12 para proyectarse en el pentagrama
+        octaveShift = 12; // Voz 1 octava más grave que la canción -> proyecta +12 en el pentagrama
       } else if (this.octaveRegisterMode === '+12') {
-        octaveShift = -12; // Usuario con voz 1 octava más aguda -> baja -12
+        octaveShift = -12; // Voz 1 octava más aguda -> proyecta -12
       } else if (this.octaveRegisterMode === '0') {
         octaveShift = 0;
       } else {
-        // Modo Auto: calibra una sola octava estable comparando la mediana de voz del usuario frente al centerMidi de la canción
+        // Modo Auto: calibra la octava principal del cantante frente al centro tonal de la canción
         this._userRawMidiSamples.push(rawMidi);
-        if (this._userRawMidiSamples.length > 45) {
+        if (this._userRawMidiSamples.length > 35) {
           this._userRawMidiSamples.shift();
         }
-        if (this._userRawMidiSamples.length >= 6) {
-          const sorted = this._userRawMidiSamples.slice().sort((a, b) => a - b);
-          const userMed = sorted[Math.floor(sorted.length * 0.5)];
-          this.autoDetectedOctaveShift = Math.round((this.centerMidi - userMed) / 12) * 12;
-        } else {
-          this.autoDetectedOctaveShift = Math.round((this.centerMidi - rawMidi) / 12) * 12;
-        }
+        const sorted = this._userRawMidiSamples.slice().sort((a, b) => a - b);
+        const userMed = sorted[Math.floor(sorted.length * 0.5)];
+        const refCenter = Number.isFinite(this.centerMidi) ? this.centerMidi : 62;
+        this.autoDetectedOctaveShift = Math.round((refCenter - userMed) / 12) * 12;
         octaveShift = this.autoDetectedOctaveShift;
       }
 
-      // Proyección estrictamente monotónica: rawMidi + octaveShift
-      // Cantar más agudo SIEMPRE aumenta mappedMidi (sube en pantalla); cantar más grave SIEMPRE disminuye mappedMidi (baja en pantalla)
+      // Proyección estrictamente monotónica en pantalla: rawMidi + octaveShift
+      // Cantar más agudo SIEMPRE aumenta mappedMidi (sube); cantar más grave SIEMPRE disminuye mappedMidi (baja)
       const mappedMidi = rawMidi + octaveShift;
 
       if (!Number.isFinite(this.smoothedUserMidi)) {
         this.smoothedUserMidi = mappedMidi;
       } else {
         const step = mappedMidi - this.smoothedUserMidi;
-        // Rechazar picos de ruido de 1 solo frame (> 9 semitonos instantáneos) y suavizar con respuesta rápida
-        const alpha = Math.abs(step) > 8.5 ? 0.18 : 0.42;
+        const alpha = Math.abs(step) > 8.5 ? 0.22 : 0.46;
         this.smoothedUserMidi = this.smoothedUserMidi + alpha * step;
       }
 
@@ -7430,15 +7731,29 @@
     }
 
     /**
-     * Detector de Frecuencia Fundamental YIN CMND (d'(tau)) de alta resolución para el micrófono:
-     * Analiza la señal sin aliasing para distinguir con exactitud absoluta graves (82 Hz / MI2)
-     * de agudos (980 Hz / SI5) sin saltos de sub-octava.
+     * Detector de Frecuencia Fundamental YIN CMND (d'(tau)) a resolución completa (sin diezmado i+=2)
+     * con verificación de sub-octava (2*tau) y ratio de formantes vocales para distinguir con
+     * exactitud voz humana real de ruido o sangrado de altavoz.
      */
     _detectMicPitchYinCmnd(buf, sr) {
-      const halfW = 768;
-      const minTau = Math.max(3, Math.floor(sr / 980)); // ~980 Hz (B5)
+      const n = buf.length;
+      const halfW = Math.min(704, n >> 1);
+      const minTau = Math.max(4, Math.floor(sr / 980)); // ~980 Hz (B5)
       const maxTau = Math.min(halfW - 4, Math.ceil(sr / 82)); // ~82 Hz (E2)
       if (maxTau <= minTau) return null;
+
+      // Comprobar presencia de energía en la banda de formantes vocales frente a retumbos graves
+      let sigSq = 0;
+      let diff1Sq = 0;
+      for (let i = 1; i < halfW * 2; i++) {
+        const s = buf[i];
+        const d = s - buf[i - 1];
+        sigSq += s * s;
+        diff1Sq += d * d;
+      }
+      if (sigSq < 1e-8) return null;
+      const hfRatio = diff1Sq / sigSq;
+      if (hfRatio < 0.0025 || hfRatio > 1.35) return null;
 
       const cmnd = new Float32Array(maxTau + 2);
       cmnd[0] = 1.0;
@@ -7446,7 +7761,7 @@
 
       for (let tau = 1; tau <= maxTau; tau++) {
         let diff = 0;
-        for (let i = 0; i < halfW; i += 2) {
+        for (let i = 0; i < halfW; i++) {
           const delta = buf[i] - buf[i + tau];
           diff += delta * delta;
         }
@@ -7454,18 +7769,18 @@
         cmnd[tau] = runningSum > 1e-9 ? (diff * tau) / runningSum : 1.0;
       }
 
-      // Buscar el primer valle pronunciado por debajo del umbral YIN (0.28)
+      // Buscar el primer valle pronunciado por debajo del umbral YIN estricto (0.22)
       let chosenTau = -1;
       let chosenVal = 1.0;
       for (let tau = minTau + 1; tau < maxTau; tau++) {
-        if (cmnd[tau] < 0.28 && cmnd[tau] <= cmnd[tau - 1] && cmnd[tau] <= cmnd[tau + 1]) {
+        if (cmnd[tau] < 0.22 && cmnd[tau] <= cmnd[tau - 1] && cmnd[tau] < cmnd[tau + 1]) {
           chosenTau = tau;
           chosenVal = cmnd[tau];
           break;
         }
       }
 
-      // Si la voz es ligeramente rasgada, aceptar el mínimo global si d'(tau) < 0.42
+      // Respaldo para voz aireada o rasgada solo si la periodicidad sigue siendo alta (d'(tau) < 0.32)
       if (chosenTau < 0) {
         for (let tau = minTau + 1; tau < maxTau; tau++) {
           if (cmnd[tau] < chosenVal && cmnd[tau] <= cmnd[tau - 1] && cmnd[tau] <= cmnd[tau + 1]) {
@@ -7473,10 +7788,27 @@
             chosenTau = tau;
           }
         }
-        if (chosenVal > 0.42) return null;
+        if (chosenVal > 0.32) return null;
       }
 
       if (chosenTau < minTau) return null;
+
+      // Verificación de sub-octava (2 * tau): solo aplica cuando chosenTau fue un 2º armónico parcial (chosenVal > 0.07) y 2*tau es un valle mucho más profundo (< 52%)
+      const doubleTau = chosenTau * 2;
+      if (chosenVal > 0.07 && doubleTau + 1 <= maxTau) {
+        let minSubVal = cmnd[doubleTau];
+        let minSubTau = doubleTau;
+        for (let dt = Math.max(minTau + 1, doubleTau - 2); dt <= Math.min(maxTau - 1, doubleTau + 2); dt++) {
+          if (cmnd[dt] < minSubVal) {
+            minSubVal = cmnd[dt];
+            minSubTau = dt;
+          }
+        }
+        if (minSubVal < chosenVal * 0.52) {
+          chosenTau = minSubTau;
+          chosenVal = minSubVal;
+        }
+      }
 
       // Interpolación parabólica sub-muestra
       const y1 = cmnd[chosenTau - 1];
@@ -7584,37 +7916,42 @@
       if (isPlaying && activeNote) {
         activeNote.totalFrames++;
         if (Number.isFinite(this.liveUserMidi)) {
-          const rawDelta = this.liveUserMidi - activeNote.midi;
-          const absDelta = Math.abs(rawDelta);
+          const directDelta = this.liveUserMidi - activeNote.midi;
+          // En modo de octava AUTO, permitimos que el cantante cante en su octava natural
+          // sin penalizar saltos de registro (pecho/cabeza), manteniendo el movimiento del orbe 100% monotónico
+          const octaveFlexDelta = this.octaveRegisterMode === 'auto'
+            ? (directDelta - Math.round(directDelta / 12) * 12)
+            : directDelta;
+          const evalDelta = Math.abs(octaveFlexDelta) < Math.abs(directDelta) ? octaveFlexDelta : directDelta;
+          const absDelta = Math.abs(evalDelta);
           this.sungFramesCount++;
 
-          if (absDelta <= 0.85) {
+          if (absDelta <= 0.95) {
             this.liveStatusText = 'AFINACIÓN EXACTA';
             this.liveStatusTier = 'perfect';
-            activeNote.hitFrames += 1.15;
+            activeNote.hitFrames += 1.18;
             this.tunedFramesCount += 1.0;
             this.streak++;
             this.maxStreak = Math.max(this.maxStreak, this.streak);
-            this.feverMeter = Math.min(100, this.feverMeter + dtSec * 19);
+            this.feverMeter = Math.min(100, this.feverMeter + dtSec * 20);
             this.score += Math.round((activeNote.isGolden ? 28 : 14) * this.multiplier);
-          } else if (absDelta <= 1.65) {
+          } else if (absDelta <= 1.85) {
             this.liveStatusText = 'AFINADO';
             this.liveStatusTier = 'good';
-            activeNote.hitFrames += 0.88;
-            this.tunedFramesCount += 0.85;
+            activeNote.hitFrames += 0.92;
+            this.tunedFramesCount += 0.88;
             this.streak++;
             this.maxStreak = Math.max(this.maxStreak, this.streak);
-            this.feverMeter = Math.min(100, this.feverMeter + dtSec * 11);
+            this.feverMeter = Math.min(100, this.feverMeter + dtSec * 12);
             this.score += Math.round((activeNote.isGolden ? 18 : 9) * this.multiplier);
-          } else if (absDelta <= 2.65) {
-            // Indicaciones coherentes: si rawDelta > 0 estás más agudo que la nota -> "UN POCO AGUDO (BAJA)"
-            this.liveStatusText = rawDelta > 0 ? 'UN POCO AGUDO (BAJA)' : 'UN POCO GRAVE (SUBE)';
+          } else if (absDelta <= 2.85) {
+            this.liveStatusText = evalDelta > 0 ? 'UN POCO AGUDO (BAJA)' : 'UN POCO GRAVE (SUBE)';
             this.liveStatusTier = 'near';
-            activeNote.hitFrames += 0.35;
-            this.tunedFramesCount += 0.35;
+            activeNote.hitFrames += 0.42;
+            this.tunedFramesCount += 0.40;
             this.score += Math.round(4 * this.multiplier);
           } else {
-            this.liveStatusText = rawDelta > 0 ? 'MUY AGUDO (BAJA EL TONO)' : 'MUY GRAVE (SUBE EL TONO)';
+            this.liveStatusText = directDelta > 0 ? 'MUY AGUDO (BAJA EL TONO)' : 'MUY GRAVE (SUBE EL TONO)';
             this.liveStatusTier = 'off';
             this.streak = Math.max(0, this.streak - 2);
             this.feverMeter = Math.max(0, this.feverMeter - dtSec * 14);
@@ -7623,7 +7960,7 @@
           const spanFrames = Math.max(6, (activeNote.endSec - activeNote.startSec) * 48);
           activeNote.fillRatio = Math.min(1, activeNote.hitFrames / spanFrames);
 
-          if (activeNote.isGolden && !activeNote.goldenAwarded && activeNote.fillRatio >= 0.72) {
+          if (activeNote.isGolden && !activeNote.goldenAwarded && activeNote.fillRatio >= 0.70) {
             activeNote.goldenAwarded = true;
             this.goldenHitCount++;
             const bonus = 350 * this.multiplier;
@@ -8193,7 +8530,29 @@
         ctx.fillStyle = '#38bdf8';
         ctx.fillText('AGUDOS ^', 5, 11);
         ctx.fillStyle = '#f59e0b';
-        ctx.fillText('GRAVES v', 5, cssH - 9);
+        ctx.fillText('GRAVES v', 5, cssH - 18);
+
+        // Indicador visual de nivel de micrófono frente a la puerta anti-eco (Noise Gate)
+        const meterW = pianoRollW - 10;
+        const meterX = 5;
+        const meterY = cssH - 11;
+        const meterH = 5;
+        const rmsNorm = Math.min(1, Math.max(0, (this.liveUserRms || 0) / 0.08));
+        const gateNorm = Math.min(1, Math.max(0.06, (this._lastGateThresholdRms || 0.008) / 0.08));
+        const isAboveGate = (this.liveUserRms || 0) >= (this._lastGateThresholdRms || 0.008);
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+        ctx.fillRect(meterX, meterY, meterW, meterH);
+
+        if (rmsNorm > 0.01) {
+          ctx.fillStyle = isAboveGate ? '#34d399' : 'rgba(148, 163, 184, 0.55)';
+          ctx.fillRect(meterX, meterY, Math.round(meterW * rmsNorm), meterH);
+        }
+
+        // Marca vertical del umbral de la puerta anti-altavoz
+        const gateX = meterX + Math.round(meterW * gateNorm);
+        ctx.fillStyle = '#fde047';
+        ctx.fillRect(gateX, meterY - 1, 1.5, meterH + 2);
         ctx.restore();
       }
 
@@ -14191,9 +14550,22 @@
       if (isVideoclip && tr) {
         this._mountNowPlayingVideoclipForTrack(tr);
       } else if (isKaraoke && tr) {
-        karaokeService.loadAndRenderTrackLyrics(tr, dualStreamEngine.getRealDurationSec(tr)).then(() => {
+        const key = karaokeService._makeKey(tr);
+        const scrollEl = document.getElementById('npKaraokeScrollList');
+        const alreadyRendered = (
+          karaokeService.currentTrackKey === key &&
+          Array.isArray(karaokeService.currentLyrics) &&
+          karaokeService.currentLyrics.length > 0 &&
+          scrollEl &&
+          scrollEl.children.length > 0
+        );
+        if (alreadyRendered) {
           karaokeService.syncTime(dualStreamEngine.getCurrentSongTimeSec());
-        }).catch(() => {});
+        } else {
+          karaokeService.loadAndRenderTrackLyrics(tr, dualStreamEngine.getRealDurationSec(tr)).then(() => {
+            karaokeService.syncTime(dualStreamEngine.getCurrentSongTimeSec());
+          }).catch(() => {});
+        }
       }
     },
 
@@ -14207,13 +14579,13 @@
     },
 
     closeSingStarStudio() {
-      if (singstarEngine && singstarEngine.isActive) {
+      if (singstarEngine) {
         singstarEngine.deactivate();
-      } else {
-        const fsModal = document.getElementById('singstarFullscreenModal');
-        if (fsModal) {
-          fsModal.classList.remove('open');
-        }
+      }
+      const fsModal = document.getElementById('singstarFullscreenModal');
+      if (fsModal) {
+        fsModal.classList.remove('open');
+        fsModal.classList.remove('fever-mode');
       }
       this.switchNowPlayingTab('karaoke');
     },

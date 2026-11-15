@@ -97,35 +97,69 @@ async function ensureTranscriberLoaded(preferredModel = 'Xenova/whisper-tiny') {
 
 const HALLUCINATION_RE = /^(?:subt[ií]tulos|amara\.org|gracias por ver|suscr[ií]bete|m[uú]sica|aplausos|risas|captions|thank you for watching|music|applause|\[.*\]|\(.*\)|\.+|\s*)$/i;
 
+let canceledTrackKey = '';
+let cancelBeforeReqId = 0;
+
 self.onmessage = async (event) => {
   const data = event.data || {};
-  if (data.type === 'preload') {
+
+  if (data.type === 'cancel') {
+    if (data.trackKey) canceledTrackKey = String(data.trackKey);
+    if (Number.isFinite(data.upToId)) cancelBeforeReqId = Math.max(cancelBeforeReqId, Number(data.upToId));
+    return;
+  }
+
+  if (data.type === 'preload' || data.type === 'init') {
     try {
       await ensureTranscriberLoaded(data.modelId || 'Xenova/whisper-tiny');
+      self.postMessage({ type: 'ready', ok: true, modelId: loadedModelId });
       self.postMessage({ type: 'preload_done', ok: true, modelId: loadedModelId });
     } catch (err) {
-      self.postMessage({ type: 'preload_done', ok: false, error: String(err?.message || err) });
+      const errMsg = String(err?.message || err);
+      self.postMessage({ type: 'error', ok: false, error: errMsg });
+      self.postMessage({ type: 'preload_done', ok: false, error: errMsg });
     }
     return;
   }
 
   if (data.type === 'transcribe_window') {
-    const {
-      reqId,
-      trackKey,
-      winIdx,
-      totalWins,
-      startSec = 0,
-      endSec = 0,
-      languageHint = 'spanish',
-      pcm16k
-    } = data;
+    const reqId = data.reqId !== undefined ? data.reqId : data.id;
+    const trackKey = data.trackKey || '';
+    const winIdx = data.winIdx ?? 0;
+    const totalWins = data.totalWins ?? 1;
+    const startSec = Number.isFinite(data.startSec)
+      ? Number(data.startSec)
+      : (Number.isFinite(data.windowStartSec) ? Number(data.windowStartSec) : 0);
+    const endSec = Number.isFinite(data.endSec) ? Number(data.endSec) : 0;
+    const languageHint = data.languageHint || data.language || 'spanish';
+    const pcm16k = data.pcm16k;
+
+    if (
+      (trackKey && canceledTrackKey && trackKey === canceledTrackKey) ||
+      (Number.isFinite(reqId) && Number(reqId) <= cancelBeforeReqId)
+    ) {
+      self.postMessage({
+        type: 'window_result',
+        id: reqId,
+        reqId,
+        trackKey,
+        winIdx,
+        totalWins,
+        startSec,
+        endSec,
+        canceled: true,
+        words: [],
+        phrases: []
+      });
+      return;
+    }
 
     try {
       const pipe = await ensureTranscriberLoaded(data.modelId || 'Xenova/whisper-tiny');
       if (!pipe || !pcm16k || pcm16k.length < 4000) {
         self.postMessage({
           type: 'window_result',
+          id: reqId,
           reqId,
           trackKey,
           winIdx,
@@ -206,6 +240,7 @@ self.onmessage = async (event) => {
 
       self.postMessage({
         type: 'window_result',
+        id: reqId,
         reqId,
         trackKey,
         winIdx,
@@ -218,6 +253,7 @@ self.onmessage = async (event) => {
     } catch (err) {
       self.postMessage({
         type: 'window_error',
+        id: reqId,
         reqId,
         trackKey,
         winIdx,
