@@ -10,8 +10,8 @@ android {
     applicationId = "com.beatstar.renacer"
     minSdk = 24
     targetSdk = 35
-    versionCode = 80
-    versionName = "8.0.0"
+    versionCode = 85
+    versionName = "8.5.0"
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 

@@ -8544,6 +8544,81 @@ body {
   transition: width 0.18s ease;
 }
 
+.singstar-fs-sync-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  color: #7dd3fc;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.singstar-fs-sync-chip.synced {
+  background: rgba(16, 185, 129, 0.14);
+  border-color: rgba(52, 211, 153, 0.35);
+  color: #6ee7b7;
+}
+
+.singstar-fs-sync-chip.working {
+  background: rgba(250, 204, 21, 0.14);
+  border-color: rgba(253, 224, 71, 0.4);
+  color: #fde047;
+}
+
+.singstar-fs-teleprompter-hint {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: rgba(161, 161, 170, 0.62);
+  letter-spacing: 0.01em;
+  line-height: 1.1;
+}
+
+.singstar-mic-sens-row {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 10px 11px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.singstar-mic-sens-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 5px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(212, 175, 55, 0.25), rgba(253, 224, 71, 0.78));
+  outline: none;
+}
+
+.singstar-mic-sens-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fde047;
+  border: 2px solid #09090b;
+  box-shadow: 0 0 10px rgba(253, 224, 71, 0.6);
+  cursor: pointer;
+}
+
+.singstar-fs-overlay.fever-mode .singstar-fs-topbar {
+  border-bottom-color: rgba(56, 189, 248, 0.32);
+  box-shadow: 0 4px 20px rgba(56, 189, 248, 0.14);
+}
+
 
 
 

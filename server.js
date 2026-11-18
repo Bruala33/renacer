@@ -1,11 +1,15 @@
 import express from 'express';
 import cors from 'cors';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import zlib from 'zlib';
 import crypto from 'crypto';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 import { fileURLToPath } from 'url';
 
+const execFileAsync = promisify(execFile);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -27,10 +31,12 @@ const MAX_COMPRESSED_CACHE_ENTRIES = 48;
 function getMimeTypeForStatic(filePath) {
   const ext = path.extname(filePath).toLowerCase();
   if (ext === '.html') return 'text/html; charset=utf-8';
-  if (ext === '.js') return 'application/javascript; charset=utf-8';
+  if (ext === '.js' || ext === '.mjs') return 'application/javascript; charset=utf-8';
   if (ext === '.css') return 'text/css; charset=utf-8';
   if (ext === '.json') return 'application/json; charset=utf-8';
   if (ext === '.svg') return 'image/svg+xml; charset=utf-8';
+  if (ext === '.wasm') return 'application/wasm';
+  if (ext === '.onnx') return 'application/octet-stream';
   return 'application/octet-stream';
 }
 
@@ -4511,9 +4517,19 @@ async function getServerWhisperPipeline() {
   if (_serverWhisperPipelinePromise) return _serverWhisperPipelinePromise;
   _serverWhisperPipelinePromise = (async () => {
     try {
-      const { pipeline } = await import('@xenova/transformers');
-      return await pipeline('automatic-speech-recognition', 'Xenova/whisper-base');
-    } catch (_) {
+      const mod = await import('@xenova/transformers');
+      const { pipeline, env } = mod;
+      const localModelsRoot = path.join(STATIC_DIR, 'assets', 'models');
+      if (env && fs.existsSync(path.join(localModelsRoot, 'Xenova', 'whisper-tiny', 'config.json'))) {
+        env.localModelPath = localModelsRoot;
+        env.allowLocalModels = true;
+        env.allowRemoteModels = true;
+      }
+      return await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny', {
+        quantized: true
+      });
+    } catch (e) {
+      console.warn('[ServerWhisper] Failed to initialize Whisper pipeline:', e?.message || e);
       _serverWhisperPipelinePromise = null;
       return null;
     }
@@ -4523,11 +4539,125 @@ async function getServerWhisperPipeline() {
 
 const serverWhisperTranscribedMap = new Map();
 
+const SERVER_WHISPER_HALLUCINATION_RE = /subt[ií]tul|amara\.org|suscr[ií]b|subscribe|gracias por ver|thank(?:s| you) for watching|copyright|all rights reserved|www\.|http|m[uú]sica|music|aplausos|applause|♪|♫|\[.*\]|\(.*\)/i;
+
+function sanitizeServerWhisperWords(chunks, offsetSec = 0, maxDurSec = 0) {
+  const words = [];
+  let lastEnd = Math.max(0, offsetSec);
+  let lastNorm = '';
+  let repeatRun = 0;
+  for (const ch of (Array.isArray(chunks) ? chunks : [])) {
+    const rawText = String(ch?.text || '').replace(/\s+/g, ' ').trim();
+    if (!rawText || SERVER_WHISPER_HALLUCINATION_RE.test(rawText)) continue;
+    const cleanWord = rawText.replace(/^[\s.,;:!?¿¡"'`~()\[\]\-–—_♪♫]+|[\s.,;:!?¿¡"'`~()\[\]\-–—_♪♫]+$/g, '').trim();
+    if (!cleanWord || !/[a-zA-Z0-9áéíóúüñÁÉÍÓÚÜÑçÇàèìòùÀÈÌÒÙâêîôûÂÊÎÔÛ]/.test(cleanWord)) continue;
+    const ts = Array.isArray(ch?.timestamp) ? ch.timestamp : [null, null];
+    const relStart = Number.isFinite(ts[0]) ? Math.max(0, ts[0]) : Math.max(0, lastEnd - offsetSec);
+    const relEnd = Number.isFinite(ts[1]) && ts[1] > relStart ? ts[1] : (relStart + Math.max(0.18, Math.min(0.9, cleanWord.length * 0.065)));
+    let startSec = offsetSec + relStart;
+    let endSec = offsetSec + relEnd;
+    if (startSec < lastEnd - 0.03) startSec = lastEnd;
+    if (endSec <= startSec + 0.06) endSec = startSec + Math.max(0.14, Math.min(0.6, cleanWord.length * 0.055));
+    if (maxDurSec > 0 && startSec > offsetSec + maxDurSec + 0.2) continue;
+    const norm = cleanWord.toLowerCase();
+    if (norm === lastNorm) {
+      repeatRun++;
+      if (repeatRun >= 4) continue;
+    } else {
+      repeatRun = 0;
+      lastNorm = norm;
+    }
+    words.push({
+      text: cleanWord,
+      startSec: Number(startSec.toFixed(3)),
+      endSec: Number(endSec.toFixed(3))
+    });
+    lastEnd = endSec;
+  }
+  return words;
+}
+
+function buildLrcFromServerWhisperWords(words) {
+  if (!Array.isArray(words) || words.length === 0) return '';
+  const lines = [];
+  let buf = [];
+  let lineStart = words[0].startSec;
+  let prevEnd = words[0].endSec;
+  const flush = () => {
+    if (!buf.length) return;
+    const txt = buf.map(w => w.text).join(' ').replace(/\s+/g, ' ').trim();
+    if (txt.length >= 2) {
+      const mm = String(Math.floor(lineStart / 60)).padStart(2, '0');
+      const ss = (lineStart % 60).toFixed(2).padStart(5, '0');
+      lines.push(`[${mm}:${ss}] ${txt}`);
+    }
+    buf = [];
+  };
+  for (const w of words) {
+    const gap = w.startSec - prevEnd;
+    if (buf.length > 0 && (gap >= 0.85 || buf.length >= 9 || (w.startSec - lineStart) >= 5.2)) {
+      flush();
+      lineStart = w.startSec;
+    } else if (buf.length === 0) {
+      lineStart = w.startSec;
+    }
+    buf.push(w);
+    prevEnd = w.endSec;
+  }
+  flush();
+  return lines.join('\n');
+}
+
 app.all('/api/v1/lyrics/transcribe', async (req, res) => {
   try {
     const rawVid = String(req.query.videoId || req.body?.videoId || '').replace(/^magic_yt_|^yt_/, '').trim();
     const rawTitle = String(req.query.title || req.body?.title || '').trim();
     const rawArtist = String(req.query.artist || req.body?.artist || '').trim();
+    const rawLang = String(req.query.language || req.body?.language || 'auto').trim().toLowerCase();
+    const pcm16kBase64 = typeof req.body?.pcm16kBase64 === 'string' ? req.body.pcm16kBase64 : '';
+    const rawOffsetVal = req.body?.offsetSec ?? req.body?.startSec ?? req.query?.offsetSec ?? req.query?.startSec;
+    const offsetSec = Number.isFinite(Number(rawOffsetVal)) ? Math.max(0, Number(rawOffsetVal)) : 0;
+
+    // Mode A: Direct 16kHz Float32 PCM window uploaded by client (works for ANY audio source without yt-dlp/ffmpeg)
+    if (pcm16kBase64 && pcm16kBase64.length >= 2048) {
+      const transcriber = await getServerWhisperPipeline();
+      if (!transcriber) {
+        return res.status(503).json({ ok: false, error: 'whisper_unavailable' });
+      }
+      const rawBuf = Buffer.from(pcm16kBase64, 'base64');
+      const sampleCount = Math.min(16000 * 32, Math.floor(rawBuf.byteLength / 4));
+      if (sampleCount < 4000) {
+        return res.status(400).json({ ok: false, error: 'pcm_too_short' });
+      }
+      const alignedBuf = Buffer.allocUnsafe(sampleCount * 4);
+      rawBuf.copy(alignedBuf, 0, 0, sampleCount * 4);
+      const float32 = new Float32Array(alignedBuf.buffer, alignedBuf.byteOffset, sampleCount);
+      const winDurSec = sampleCount / 16000;
+      const opts = {
+        task: 'transcribe',
+        return_timestamps: 'word'
+      };
+      if (rawLang && rawLang !== 'auto' && rawLang !== 'detect') {
+        opts.language = rawLang;
+      }
+      if (winDurSec > 28.5) {
+        opts.chunk_length_s = 25;
+        opts.stride_length_s = 3;
+      }
+      const out = await transcriber(float32, opts);
+      const words = sanitizeServerWhisperWords(out?.chunks, offsetSec, winDurSec);
+      const syncedLyrics = buildLrcFromServerWhisperWords(words);
+      return res.json({
+        ok: true,
+        videoId: rawVid || null,
+        offsetSec,
+        text: words.map(w => w.text).join(' '),
+        words,
+        syncedLyrics,
+        provider: 'whisper_server_pcm'
+      });
+    }
+
     if (!/^[A-Za-z0-9_-]{11}$/.test(rawVid)) {
       return res.status(400).json({ ok: false, error: 'invalid_video_id' });
     }
@@ -4537,7 +4667,14 @@ app.all('/api/v1/lyrics/transcribe', async (req, res) => {
       return res.json({ ok: true, videoId: rawVid, syncedLyrics: customHit[0].syncedLyrics, provider: 'custom_curated' });
     }
     if (serverWhisperTranscribedMap.has(rawVid)) {
-      return res.json({ ok: true, videoId: rawVid, syncedLyrics: serverWhisperTranscribedMap.get(rawVid), provider: 'whisper_cached' });
+      const cached = serverWhisperTranscribedMap.get(rawVid);
+      return res.json({
+        ok: true,
+        videoId: rawVid,
+        syncedLyrics: typeof cached === 'string' ? cached : cached.syncedLyrics,
+        words: typeof cached === 'string' ? [] : (cached.words || []),
+        provider: 'whisper_cached'
+      });
     }
 
     const transcriber = await getServerWhisperPipeline();
@@ -4545,56 +4682,81 @@ app.all('/api/v1/lyrics/transcribe', async (req, res) => {
       return res.status(503).json({ ok: false, error: 'whisper_unavailable' });
     }
 
-    const tmpMp3 = path.join(os.tmpdir(), `whisper_${rawVid}_${Date.now()}.mp3`);
-    const tmpPcm = path.join(os.tmpdir(), `whisper_${rawVid}_${Date.now()}.pcm`);
+    const stamp = `${rawVid}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const tmpMp3 = path.join(os.tmpdir(), `whisper_${stamp}.mp3`);
+    const tmpPcm = path.join(os.tmpdir(), `whisper_${stamp}.pcm`);
     try {
-      await execFileAsync('yt-dlp', [
-        '--no-playlist',
-        '-f', 'bestaudio/best',
-        '-x', '--audio-format', 'mp3',
-        '-o', tmpMp3,
-        `https://www.youtube.com/watch?v=${rawVid}`
-      ], { timeout: 22000 });
+      // Prefer server's own cached/fast YouTube MP3 extractor before falling back to yt-dlp
+      let gotAudio = false;
+      try {
+        const extracted = await extractYouTubeFullAudioViaNotubeServer(rawVid);
+        if (extracted && extracted.buffer && extracted.buffer.length > 60000) {
+          fs.writeFileSync(tmpMp3, extracted.buffer);
+          gotAudio = true;
+        }
+      } catch (_) {}
+
+      if (!gotAudio) {
+        await execFileAsync('yt-dlp', [
+          '--no-playlist',
+          '-f', 'bestaudio/best',
+          '-x', '--audio-format', 'mp3',
+          '-o', tmpMp3,
+          `https://www.youtube.com/watch?v=${rawVid}`
+        ], { timeout: 22000 });
+      }
 
       await execFileAsync('ffmpeg', [
         '-y', '-i', tmpMp3,
-        '-af', 'pan=mono|c0=0.5*c0+0.5*c1,highpass=f=210,lowpass=f=3800',
+        '-af', 'pan=mono|c0=0.5*c0+0.5*c1,highpass=f=180,lowpass=f=3800',
         '-ar', '16000', '-ac', '1', '-f', 'f32le', tmpPcm
-      ], { timeout: 12000 });
+      ], { timeout: 15000 });
 
       const buf = fs.readFileSync(tmpPcm);
       const float32 = new Float32Array(buf.buffer, buf.byteOffset, Math.floor(buf.byteLength / 4));
-      const out = await transcriber(float32, {
-        language: 'spanish',
-        task: 'transcribe',
-        return_timestamps: true,
-        chunk_length_s: 20,
-        stride_length_s: 3
-      });
-
-      const chunks = Array.isArray(out?.chunks) ? out.chunks : [];
-      const lines = [];
-      for (const ch of chunks) {
-        const txt = String(ch?.text || '').replace(/\s+/g, ' ').trim();
-        if (!txt || txt.length < 3) continue;
-        const t = Array.isArray(ch.timestamp) && Number.isFinite(ch.timestamp[0]) ? Math.max(0, ch.timestamp[0]) : 0;
-        const mm = String(Math.floor(t / 60)).padStart(2, '0');
-        const ss = (t % 60).toFixed(2).padStart(5, '0');
-        lines.push(`[${mm}:${ss}] ${txt}`);
+      const totalDurSec = float32.length / 16000;
+      // Process in clean 24s non-overlapping windows so timestamps stay strictly monotonic
+      const allWords = [];
+      const winSec = 24;
+      const winSamples = winSec * 16000;
+      const maxSlices = Math.min(12, Math.ceil(float32.length / winSamples));
+      for (let s = 0; s < maxSlices; s++) {
+        const startIdx = s * winSamples;
+        const endIdx = Math.min(float32.length, startIdx + winSamples);
+        if (endIdx - startIdx < 4000) break;
+        const slice = float32.subarray(startIdx, endIdx);
+        let energy = 0;
+        for (let i = 0; i < slice.length; i += 8) energy += slice[i] * slice[i];
+        const rms = Math.sqrt(energy / Math.max(1, slice.length / 8));
+        if (rms < 0.004) continue;
+        const opts = {
+          task: 'transcribe',
+          return_timestamps: 'word'
+        };
+        if (rawLang && rawLang !== 'auto' && rawLang !== 'detect') {
+          opts.language = rawLang;
+        }
+        const out = await transcriber(slice, opts);
+        const wChunk = sanitizeServerWhisperWords(out?.chunks, startIdx / 16000, (endIdx - startIdx) / 16000);
+        for (const w of wChunk) allWords.push(w);
       }
 
-      if (lines.length >= 2) {
-        const lrcStr = lines.join('\n');
-        serverWhisperTranscribedMap.set(rawVid, lrcStr);
+      const lrcStr = buildLrcFromServerWhisperWords(allWords);
+      if (allWords.length >= 3 && lrcStr) {
+        serverWhisperTranscribedMap.set(rawVid, { syncedLyrics: lrcStr, words: allWords });
+        if (serverWhisperTranscribedMap.size > 80) {
+          const oldest = serverWhisperTranscribedMap.keys().next().value;
+          if (oldest) serverWhisperTranscribedMap.delete(oldest);
+        }
         CUSTOM_SYNCED_LYRICS_DB.push({
           videoId: rawVid,
           keys: [lyricsNormKey(rawTitle)].filter(Boolean),
           trackName: rawTitle || rawVid,
           artistName: rawArtist || 'Artista',
-          duration: Math.round(float32.length / 16000),
+          duration: Math.round(totalDurSec),
           syncedLyrics: lrcStr
         });
-        return res.json({ ok: true, videoId: rawVid, syncedLyrics: lrcStr, provider: 'whisper_server' });
+        return res.json({ ok: true, videoId: rawVid, syncedLyrics: lrcStr, words: allWords, provider: 'whisper_server' });
       }
       return res.status(404).json({ ok: false, error: 'no_speech_detected' });
     } finally {
@@ -8066,7 +8228,13 @@ setImmediate(() => {
 
 const staticCacheHeaders = (res, filePath) => {
   const lower = filePath.toLowerCase();
-  if (lower.endsWith('.css') || lower.endsWith('.js') || lower.endsWith('.html')) {
+  if (lower.endsWith('.wasm')) {
+    res.setHeader('Content-Type', 'application/wasm');
+    res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+  } else if (lower.endsWith('.onnx')) {
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+  } else if (lower.endsWith('.css') || lower.endsWith('.js') || lower.endsWith('.mjs') || lower.endsWith('.html')) {
     res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
   } else if (lower.endsWith('.mp3') || lower.endsWith('.ogg') || lower.endsWith('.wav') || lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.webp') || lower.endsWith('.woff2') || lower.endsWith('.ttf')) {
     res.setHeader('Cache-Control', 'public, max-age=604800, immutable');

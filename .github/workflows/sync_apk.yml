@@ -22,21 +22,30 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 20
 
-      - name: Check if APK already contains latest web assets
+      - name: Check if APK already contains latest web and native assets
         id: check_apk
         run: |
           if [ -f "app/static/PianoCommunity.apk" ]; then
-            unzip -p app/static/PianoCommunity.apk assets/www/index.html > /tmp/apk_index.html 2>/dev/null || true
-            unzip -p app/static/PianoCommunity.apk assets/www/game.js > /tmp/apk_game.js 2>/dev/null || true
-            if cmp -s /tmp/apk_index.html app/static/index.html && cmp -s /tmp/apk_game.js app/static/game.js; then
-              echo "APK is already 100% in sync with app/static/index.html and app/static/game.js"
+            ALL_WEB_MATCH=true
+            for f in index.html game.js discover_home.js style.css whisper_worker.js sw.js; do
+              unzip -p app/static/PianoCommunity.apk "assets/www/$f" > "/tmp/apk_$f" 2>/dev/null || true
+              if ! cmp -s "/tmp/apk_$f" "app/static/$f"; then
+                echo "Web asset differs inside APK: $f"
+                ALL_WEB_MATCH=false
+                break
+              fi
+            done
+            APK_TS=$(git log -1 --format=%ct -- app/static/PianoCommunity.apk 2>/dev/null || echo 0)
+            NATIVE_TS=$(git log -1 --format=%ct -- app/src/main/java app/src/main/res app/src/main/AndroidManifest.xml app/build.gradle.kts 2>/dev/null || echo 0)
+            if [ "$ALL_WEB_MATCH" = "true" ] && [ "${APK_TS:-0}" -ge "${NATIVE_TS:-0}" ]; then
+              echo "APK is already 100% in sync with all web assets and native Kotlin/Gradle code"
               echo "needs_build=false" >> $GITHUB_OUTPUT
               exit 0
             fi
           fi
-          echo "APK needs rebuild to match latest web files"
+          echo "APK needs rebuild to match latest web/native files"
           echo "needs_build=true" >> $GITHUB_OUTPUT
 
       - name: Set up JDK 17

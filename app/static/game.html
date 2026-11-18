@@ -25,7 +25,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./style.css?v=83.0">
+  <link rel="stylesheet" href="./style.css?v=85.0">
   <script>
     // ===================================================
     // SISTEMA DE INTERNACIONALIZACIÓN (i18n: ES / EN)
@@ -5252,6 +5252,8 @@
 
         <span id="ssProMicStatus" onclick="window.SingStarVocalEngine && window.SingStarVocalEngine._ensureMicrophoneActive(true)" class="np-singstar-pitch-status" style="font-size:10.5px; padding:3px 10px; border-radius:999px; background:rgba(255,255,255,0.04); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer;" title="Toca para solicitar permiso o activar el micrófono">CANTA AHORA</span>
 
+        <span id="ssProSyncStatusChip" class="singstar-fs-sync-chip hidden" title="Estado de sincronización silábica"></span>
+
         <div class="singstar-fs-target-badge" title="Nota objetivo de la sílaba actual">
           <span>Meta:</span>
           <span id="ssProTargetNote" class="singstar-fs-target-note">--</span>
@@ -5269,10 +5271,10 @@
           <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
             <div style="min-width:0; flex:1;">
               <div style="display:flex; align-items:center; gap:6px;">
-                <span style="font-size:10px; font-weight:900; color:#38bdf8; text-transform:uppercase; letter-spacing:0.06em;">Alineador Acústico Forzado DTW</span>
+                <span style="font-size:10px; font-weight:900; color:#38bdf8; text-transform:uppercase; letter-spacing:0.06em;">Sincronización Vocal Silábica</span>
                 <span id="ssPrepProgressPct" style="font-size:10px; font-weight:900; color:#fde047;">0%</span>
               </div>
-              <div id="ssPrepProgressDetail" style="font-size:11px; color:#d4d4d8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Detectando islas vocales y sílabas exactas...</div>
+              <div id="ssPrepProgressDetail" style="font-size:11px; color:#d4d4d8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Analizando voz y sílabas exactas...</div>
             </div>
             <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.skipSingStarPrepWait()" class="singstar-fs-tool-pill" style="padding:4px 9px; font-size:10px;">Cantar Ya</button>
           </div>
@@ -5298,7 +5300,23 @@
                 <div style="font-size:10px; font-weight:800; color:#38bdf8; letter-spacing:0.08em; text-transform:uppercase;">CONFIGURACIÓN VOCAL</div>
                 <h3 style="font-size:16px; font-weight:900; color:#ffffff; margin:1px 0 0;">Ajustes de Estudio SingStar</h3>
               </div>
-              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleSingStarStudioSettings(false)" class="singstar-fs-icon-btn" style="width:30px; height:30px;">✕</button>
+              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleSingStarStudioSettings(false)" class="singstar-fs-icon-btn" style="width:30px; height:30px;" title="Cerrar">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
+              </button>
+            </div>
+
+            <div class="singstar-mic-sens-row">
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                <div>
+                  <div style="font-size:12px; font-weight:800; color:#ffffff;">Sensibilidad del Micrófono</div>
+                  <div style="font-size:10.5px; color:#9ca3af;">Bájala si entra sonido del altavoz · Súbela si cantas suave</div>
+                </div>
+                <span id="ssProMicSensVal" style="font-family:monospace; font-size:11px; font-weight:800; color:#fde047;">100%</span>
+              </div>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <input id="ssProMicSensSlider" type="range" min="45" max="180" step="5" value="100" oninput="window.DiscoverHomeApp && window.DiscoverHomeApp.setSingStarMicSensitivity(this.value / 100)" class="singstar-mic-sens-slider" style="flex:1;">
+                <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.recalibrateSingStarMic()" class="singstar-fs-tool-pill" style="padding:4px 9px; font-size:10px;" title="Medir ruido ambiente durante medio segundo">Calibrar Ruido</button>
+              </div>
             </div>
 
             <div class="singstar-settings-row">
@@ -5350,11 +5368,11 @@
               </div>
             </div>
 
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; pt-1;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
               <button id="ssProPackMgrBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openSingStarPackManager()" class="singstar-fs-tool-pill" style="flex:1; padding:8px 10px;">
-                <span id="ssProPackMgrLabel">Motor HD (64.8 MB)</span>
+                <span id="ssProPackMgrLabel">Motor IA Whisper (Local)</span>
               </button>
-              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.reanalyzeCurrentTrackInSingStar()" class="singstar-fs-tool-pill" style="padding:8px 12px;">
+              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.reanalyzeCurrentTrackInSingStar()" class="singstar-fs-tool-pill gold" style="padding:8px 12px;">
                 Reanalizar Audio
               </button>
             </div>
@@ -5362,40 +5380,40 @@
           </div>
         </div>
 
-        <!-- VISTA SUPERPUESTA: GESTOR DE PAQUETE DESCARGABLE "MOTOR SINGSTAR PRO HD" -->
+        <!-- VISTA SUPERPUESTA: GESTOR DEL MOTOR IA WHISPER ONNX LOCAL -->
         <div id="singstarPackInstallerView" class="singstar-fs-modal-view hidden">
           <div class="singstar-studio-card">
             <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
               <div>
-                <div style="font-size:10px; font-weight:900; letter-spacing:0.1em; color:#fde047; text-transform:uppercase;">EXPANSIÓN DE ESTUDIO</div>
-                <h3 style="font-size:16px; font-weight:900; color:#ffffff; margin:2px 0 0;">Motor Fonético-Acústico Pro HD</h3>
+                <div style="font-size:10px; font-weight:900; letter-spacing:0.1em; color:#fde047; text-transform:uppercase;">MOTOR VOCAL OFFLINE</div>
+                <h3 style="font-size:16px; font-weight:900; color:#ffffff; margin:2px 0 0;">Whisper ONNX + Alineador Silábico</h3>
               </div>
               <span id="ssPackStatusBadge" class="singstar-fs-tool-pill" style="font-size:9.5px; padding:3px 8px;">ACTIVO</span>
             </div>
             <p style="font-size:11.5px; line-height:1.4; color:#d4d4d8; margin:0;">
-              Módulos pesados de alineación forzada (Forced Alignment DTW + VAD Armónico 50 Hz) para detectar cada frase y cada sílaba directamente sobre la voz real del archivo de audio en Karaoke y SingStar.
+              Motor neuronal Whisper ONNX integrado + alineación forzada a 10 ms (Viterbi-DTW y F0 YIN-CMND) para transcribir y sincronizar cada sílaba directamente desde el audio real.
             </p>
             <div class="singstar-step-list">
               <div id="ssPackMod1" class="singstar-step-item">
-                <span>1. Detector VAD Armónico Mid-Side + Formantes F1/F2</span>
-                <span style="font-family:monospace; font-size:10px; color:#fde047;">18.4 MB</span>
+                <span>1. Modelo Neuronal Whisper Tiny ONNX (Multilingüe)</span>
+                <span style="font-family:monospace; font-size:10px; color:#fde047;">LOCAL</span>
               </div>
               <div id="ssPackMod2" class="singstar-step-item">
-                <span>2. Alineador Forzado Elástico Viterbi-DTW (50 Hz)</span>
-                <span style="font-family:monospace; font-size:10px; color:#fde047;">22.6 MB</span>
+                <span>2. Alineador Forzado Silábico Viterbi-DTW (10 ms)</span>
+                <span style="font-family:monospace; font-size:10px; color:#fde047;">100 Hz</span>
               </div>
               <div id="ssPackMod3" class="singstar-step-item">
-                <span>3. Diccionario Fonético ES/EN + Reparador de Sílabas</span>
-                <span style="font-family:monospace; font-size:10px; color:#fde047;">14.2 MB</span>
+                <span>3. Detector F0 YIN-CMND + Anti-Eco Altavoz</span>
+                <span style="font-family:monospace; font-size:10px; color:#fde047;">44.1 kHz</span>
               </div>
               <div id="ssPackMod4" class="singstar-step-item">
-                <span>4. Motor F0 YIN-CMND Monotónico + Pre-Amp AGC</span>
-                <span style="font-family:monospace; font-size:10px; color:#fde047;">9.6 MB</span>
+                <span>4. Respaldo Servidor Whisper + Caché Silábica</span>
+                <span style="font-family:monospace; font-size:10px; color:#fde047;">AUTO</span>
               </div>
             </div>
             <div id="ssPackProgressBox" class="hidden" style="display:flex; flex-direction:column; gap:5px;">
               <div style="display:flex; justify-content:space-between; font-size:10.5px; font-weight:800; color:#e0f2fe;">
-                <span id="ssPackProgressText">Instalando matrices fonéticas y acústicas...</span>
+                <span id="ssPackProgressText">Verificando motor neuronal Whisper ONNX...</span>
                 <span id="ssPackProgressPct">0%</span>
               </div>
               <div class="singstar-progress-bar-outer">
@@ -5405,7 +5423,7 @@
             <div style="display:flex; align-items:center; justify-content:flex-end; gap:8px;">
               <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.closeSingStarPackManager()" class="singstar-fs-tool-pill" style="padding:7px 14px;">Cerrar</button>
               <button id="ssPackDownloadBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.downloadAndInstallSingStarProPack()" class="singstar-fs-tool-pill gold" style="padding:7px 15px; font-weight:800;">
-                Actualizar Motor Pro (64.8 MB)
+                Verificar Motor Whisper Local
               </button>
             </div>
           </div>
@@ -5449,9 +5467,10 @@
 
       <!-- 4. Dock Inferior Limpio: Teleprompter de Sílabas + Transporte en una sola línea -->
       <div class="singstar-fs-bottom-dock">
-        <div class="singstar-fs-teleprompter">
-          <div id="ssProTeleprompterCurrent" class="singstar-fs-lyric-current">♪ Canta siguiendo las barras de tono ♪</div>
+        <div class="singstar-fs-teleprompter" title="Toca para saltar a esta frase · Mantén pulsado para sincronizar aquí">
+          <div id="ssProTeleprompterCurrent" class="singstar-fs-lyric-current">Canta siguiendo las barras de tono</div>
           <div id="ssProTeleprompterNext" class="singstar-fs-lyric-next"></div>
+          <div class="singstar-fs-teleprompter-hint">Mantén pulsada la frase para sincronizarla al instante</div>
         </div>
         <div class="singstar-fs-transport-row">
           <button id="ssProPlayPauseBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.togglePlayPauseMini()" class="singstar-fs-play-circle" title="Pausar / Reproducir">
@@ -5594,7 +5613,7 @@
   <script defer src="./songs/comm_camilo_sesto/chart.js"></script>
   <script defer src="./songs/renacer/chart.js"></script>
   <script src="./songs/catalog_top.js?v=80.0"></script>
-  <script src="./discover_home.js?v=83.0"></script>
+  <script src="./discover_home.js?v=85.0"></script>
   <script>
     let engine = null;
     let currentActiveBeatmap = null;

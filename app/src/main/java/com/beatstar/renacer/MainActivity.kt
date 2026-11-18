@@ -44,6 +44,8 @@ import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.webkit.ServiceWorkerClientCompat
+import androidx.webkit.ServiceWorkerControllerCompat
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
@@ -71,8 +73,10 @@ class MainActivity : AppCompatActivity() {
     @Volatile private var nativeMicFreqHz: Float = 0f
     @Volatile private var nativeMicClarity: Float = 0f
     @Volatile private var nativeMicRms: Float = 0f
-    @Volatile private var nativeMicNoiseFloor: Float = 0.0032f
+    @Volatile private var nativeMicNoiseFloor: Float = 0.0036f
     @Volatile private var nativeMicVoiced: Boolean = false
+    @Volatile private var nativeMicSensitivity: Float = 1.0f
+    @Volatile private var nativeMicRecalibrateRequested: Boolean = false
     @Volatile private var nativeMicSessionId: Long = 0L
     @Volatile private var nativeMicThread: Thread? = null
 
@@ -175,25 +179,25 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            val cleanRel = trimmed
+            val noQuery = trimmed.substringBefore('?')
+            val cleanRel = noQuery
                 .removePrefix("www/")
                 .removePrefix("static/")
-                .substringBefore('?')
 
             val candidates = linkedSetOf<String>()
             if (cleanRel == "game.html") {
                 candidates.add("www/index.html")
             }
-            if (trimmed.startsWith("www/")) {
-                candidates.add(trimmed)
+            if (noQuery.startsWith("www/")) {
+                candidates.add(noQuery)
             } else {
-                candidates.add("www/$trimmed")
+                candidates.add("www/$noQuery")
             }
-            if (trimmed.startsWith("static/")) {
-                candidates.add("www/" + trimmed.removePrefix("static/"))
+            if (noQuery.startsWith("static/")) {
+                candidates.add("www/" + noQuery.removePrefix("static/"))
             }
-            if (trimmed.startsWith("www/static/")) {
-                candidates.add("www/" + trimmed.removePrefix("www/static/"))
+            if (noQuery.startsWith("www/static/")) {
+                candidates.add("www/" + noQuery.removePrefix("www/static/"))
             }
 
             for (assetPath in candidates) {
@@ -320,6 +324,22 @@ class MainActivity : AppCompatActivity() {
             .addPathHandler("/assets/", silentHandler)
             .addPathHandler("/", silentHandler)
             .build()
+
+        // Ensure Web Workers (Whisper ONNX/WASM) and Service Workers can load local APK assets reliably on all WebView versions
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.SERVICE_WORKER_BASIC_USAGE)) {
+            try {
+                ServiceWorkerControllerCompat.getInstance().setServiceWorkerClient(object : ServiceWorkerClientCompat() {
+                    override fun shouldInterceptRequest(request: WebResourceRequest): WebResourceResponse? {
+                        val uri = request.url ?: return null
+                        val host = uri.host?.lowercase(Locale.ROOT) ?: ""
+                        if (host == "appassets.androidplatform.net") {
+                            return assetLoader.shouldInterceptRequest(uri)
+                        }
+                        return null
+                    }
+                })
+            } catch (_: Exception) {}
+        }
 
         val initialLayerType = if (forceSoftwareLayer) {
             View.LAYER_TYPE_SOFTWARE
@@ -521,11 +541,19 @@ class MainActivity : AppCompatActivity() {
 
         setContentView(webView)
         webView.clearCache(true)
-        webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html?v=84.0")
+        webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html?v=85.0")
         hideSystemUI()
     }
 
     @Volatile private var isRequestingMicPermission: Boolean = false
+
+    fun setNativeVocalMicSensitivity(level: Float) {
+        nativeMicSensitivity = level.coerceIn(0.45f, 2.0f)
+    }
+
+    fun recalibrateNativeVocalMic() {
+        nativeMicRecalibrateRequested = true
+    }
 
     @SuppressLint("MissingPermission")
     fun startNativeVocalMicEngine(forcePromptIfDenied: Boolean = false): String {
@@ -570,13 +598,14 @@ class MainActivity : AppCompatActivity() {
 
         nativeMicThread = Thread({
             val candidateRates = intArrayOf(44100, 48000, 22050, 16000)
-            // Prioritize VOICE_COMMUNICATION & VOICE_RECOGNITION so Android hardware DSP
-            // cancels speaker playback echo and suppresses stationary background noise.
+            // Prioritize VOICE_RECOGNITION and MIC first so Android keeps media playback on main
+            // stereo loudspeaker (VOICE_COMMUNICATION can route media to the quiet earpiece on some OEMs).
+            // Hardware AcousticEchoCanceler + NoiseSuppressor are attached explicitly via audioSessionId below.
             val candidateSources = intArrayOf(
-                MediaRecorder.AudioSource.VOICE_COMMUNICATION,
                 MediaRecorder.AudioSource.VOICE_RECOGNITION,
                 MediaRecorder.AudioSource.MIC,
-                MediaRecorder.AudioSource.DEFAULT
+                MediaRecorder.AudioSource.DEFAULT,
+                MediaRecorder.AudioSource.VOICE_COMMUNICATION
             )
 
             var recorder: AudioRecord? = null
@@ -684,8 +713,12 @@ class MainActivity : AppCompatActivity() {
                 val rcLpPres = 1f / (2f * Math.PI.toFloat() * 2600f)
                 val aLpPres = dt / (rcLpPres + dt)
 
-                var ambientFloor = 0.0032f
+                var ambientFloor = 0.0038f
+                var recalibFramesLeft = 45 // Quick 0.5s ambient/speaker-bleed calibration on startup
+                var recalibRmsSum = 0f
+                var recalibCount = 0
                 var consecutiveVoiced = 0
+                var lastRawFreq = 0f
                 var smoothedFreq = 0f
 
                 while (nativeMicRunning && nativeMicSessionId == sessionId && !Thread.currentThread().isInterrupted) {
@@ -741,14 +774,37 @@ class MainActivity : AppCompatActivity() {
                     val zcrHz = (zeroCrossings * sampleRate) / (2f * frameSamples.toFloat())
                     nativeMicRms = rms
 
-                    // Dynamic gate threshold based on tracked ambient/speaker-bleed floor
-                    val gateThreshold = max(0.0045f, ambientFloor * 2.15f)
-                    if (rms < gateThreshold || zcrHz > 1650f) {
+                    if (nativeMicRecalibrateRequested) {
+                        nativeMicRecalibrateRequested = false
+                        recalibFramesLeft = 45
+                        recalibRmsSum = 0f
+                        recalibCount = 0
+                        consecutiveVoiced = 0
+                        nativeMicVoiced = false
+                        nativeMicFreqHz = 0f
+                        smoothedFreq = 0f
+                        lastRawFreq = 0f
+                    }
+                    if (recalibFramesLeft > 0) {
+                        recalibFramesLeft--
+                        recalibRmsSum += rms
+                        recalibCount++
+                        val avgAmb = (recalibRmsSum / max(1, recalibCount)).coerceIn(0.0022f, 0.032f)
+                        ambientFloor = avgAmb
+                        nativeMicNoiseFloor = ambientFloor
+                    }
+
+                    // Dynamic gate threshold scaled inversely by user mic sensitivity
+                    val sens = nativeMicSensitivity.coerceIn(0.45f, 2.0f)
+                    val gateMult = (2.45f / sens).coerceIn(1.35f, 4.4f)
+                    val minGate = (0.0052f / sens).coerceIn(0.0026f, 0.014f)
+                    val gateThreshold = max(minGate, ambientFloor * gateMult)
+                    if (rms < gateThreshold || zcrHz > 1600f) {
                         // Adapt ambient floor when below voice gate
                         ambientFloor = if (rms < ambientFloor) {
-                            ambientFloor * 0.92f + max(0.0018f, rms) * 0.08f
+                            ambientFloor * 0.93f + max(0.0020f, rms) * 0.07f
                         } else {
-                            (ambientFloor * 0.985f + rms * 0.015f).coerceAtMost(0.024f)
+                            (ambientFloor * 0.982f + rms * 0.018f).coerceAtMost(0.032f)
                         }
                         nativeMicNoiseFloor = ambientFloor
                         consecutiveVoiced = max(0, consecutiveVoiced - 1)
@@ -757,6 +813,7 @@ class MainActivity : AppCompatActivity() {
                             nativeMicClarity = 0f
                             nativeMicVoiced = false
                             smoothedFreq = 0f
+                            lastRawFreq = 0f
                         }
                         continue
                     }
@@ -778,7 +835,7 @@ class MainActivity : AppCompatActivity() {
 
                     var chosenTau = -1
                     var chosenVal = 1f
-                    val strictYinThreshold = if (consecutiveVoiced >= 2) 0.28f else 0.22f
+                    val strictYinThreshold = if (consecutiveVoiced >= 2) 0.27f else 0.20f
                     for (tau in (minTau + 1) until maxTau) {
                         val v = cmnd[tau]
                         if (v < strictYinThreshold && v <= cmnd[tau - 1] && v <= cmnd[tau + 1]) {
@@ -795,7 +852,7 @@ class MainActivity : AppCompatActivity() {
                                 chosenTau = tau
                             }
                         }
-                        val maxAllowedYin = if (consecutiveVoiced >= 2) 0.32f else 0.27f
+                        val maxAllowedYin = if (consecutiveVoiced >= 2) 0.31f else 0.25f
                         if (chosenVal > maxAllowedYin) {
                             chosenTau = -1
                         }
@@ -821,7 +878,8 @@ class MainActivity : AppCompatActivity() {
                     }
 
                     val presenceRatio = presRms / max(1e-5f, rms)
-                    if (chosenTau >= minTau && presenceRatio >= 0.22f) {
+                    val requiredClarity = if (consecutiveVoiced >= 2) 0.66f else 0.72f
+                    if (chosenTau >= minTau && presenceRatio >= 0.18f) {
                         val y1 = cmnd[chosenTau - 1]
                         val y2 = cmnd[chosenTau]
                         val y3 = cmnd[chosenTau + 1]
@@ -831,11 +889,25 @@ class MainActivity : AppCompatActivity() {
                         val rawFreq = sampleRate.toFloat() / refinedTau
                         val clarity = (1f - chosenVal).coerceIn(0f, 1f)
 
-                        if (rawFreq in 82f..960f && clarity >= 0.68f) {
-                            consecutiveVoiced = min(6, consecutiveVoiced + 1)
+                        if (rawFreq in 82f..960f && clarity >= requiredClarity) {
+                            // Require pitch stability across adjacent frames (~±2.8 semitones or clean octave)
+                            // to reject erratic multi-instrument speaker bleed
+                            val ratio = if (lastRawFreq > 0f) rawFreq / lastRawFreq else 1f
+                            val isPitchStable = lastRawFreq <= 0f ||
+                                (ratio in 0.845f..1.185f) ||
+                                (ratio in 1.78f..2.24f) ||
+                                (ratio in 0.445f..0.56f)
+                            lastRawFreq = rawFreq
+
+                            if (isPitchStable) {
+                                consecutiveVoiced = min(6, consecutiveVoiced + 1)
+                            } else {
+                                consecutiveVoiced = 1
+                            }
+
                             if (consecutiveVoiced >= 2) {
                                 smoothedFreq = if (smoothedFreq > 0f && abs(rawFreq - smoothedFreq) / smoothedFreq < 0.14f) {
-                                    smoothedFreq * 0.38f + rawFreq * 0.62f
+                                    smoothedFreq * 0.36f + rawFreq * 0.64f
                                 } else {
                                     rawFreq
                                 }
@@ -845,7 +917,7 @@ class MainActivity : AppCompatActivity() {
                             }
                         } else {
                             // Unvoiced / diffuse bleed: slowly adapt ambient floor upward
-                            ambientFloor = (ambientFloor * 0.98f + rms * 0.02f).coerceIn(0.0018f, 0.024f)
+                            ambientFloor = (ambientFloor * 0.978f + rms * 0.022f).coerceIn(0.0020f, 0.032f)
                             nativeMicNoiseFloor = ambientFloor
                             consecutiveVoiced = max(0, consecutiveVoiced - 1)
                             if (consecutiveVoiced == 0) {
@@ -853,11 +925,12 @@ class MainActivity : AppCompatActivity() {
                                 nativeMicClarity = 0f
                                 nativeMicVoiced = false
                                 smoothedFreq = 0f
+                                lastRawFreq = 0f
                             }
                         }
                     } else {
                         // Non-periodic energy (speaker percussion/bleed): adapt floor so speaker bleed stays gated out
-                        ambientFloor = (ambientFloor * 0.975f + rms * 0.025f).coerceIn(0.0018f, 0.025f)
+                        ambientFloor = (ambientFloor * 0.972f + rms * 0.028f).coerceIn(0.0020f, 0.034f)
                         nativeMicNoiseFloor = ambientFloor
                         consecutiveVoiced = max(0, consecutiveVoiced - 1)
                         if (consecutiveVoiced == 0) {
@@ -865,6 +938,7 @@ class MainActivity : AppCompatActivity() {
                             nativeMicClarity = 0f
                             nativeMicVoiced = false
                             smoothedFreq = 0f
+                            lastRawFreq = 0f
                         }
                     }
                 }
@@ -1096,6 +1170,18 @@ class MainActivity : AppCompatActivity() {
         fun pollVocalMic(): String {
             val act = context as? MainActivity ?: return "{\"active\":false,\"state\":\"stopped\",\"permissionGranted\":false,\"freqHz\":0,\"clarity\":0,\"rms\":0}"
             return act.pollNativeVocalMicTelemetry()
+        }
+
+        @JavascriptInterface
+        fun setVocalMicSensitivity(level: Float) {
+            val act = context as? MainActivity ?: return
+            act.setNativeVocalMicSensitivity(level)
+        }
+
+        @JavascriptInterface
+        fun recalibrateVocalMic() {
+            val act = context as? MainActivity ?: return
+            act.recalibrateNativeVocalMic()
         }
 
         @JavascriptInterface
