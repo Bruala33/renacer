@@ -8306,6 +8306,43 @@ body {
   color: #9ca3af;
 }
 
+.singstar-fs-mic-meter {
+  position: relative;
+  display: inline-block;
+  width: 34px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.10);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.singstar-fs-mic-meter-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(212, 175, 55, 0.55), rgba(250, 204, 21, 0.85));
+  transition: width 0.05s linear, background 0.1s ease;
+}
+
+.singstar-fs-mic-meter-fill.voiced {
+  background: linear-gradient(90deg, #10b981, #34d399);
+  box-shadow: 0 0 6px rgba(52, 211, 153, 0.65);
+}
+
+.singstar-fs-mic-gate-mark {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 28%;
+  width: 1.5px;
+  background: rgba(255, 255, 255, 0.72);
+  pointer-events: none;
+}
+
 .singstar-fs-target-badge {
   display: inline-flex;
   align-items: center;

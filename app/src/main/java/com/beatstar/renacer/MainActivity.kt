@@ -11,7 +11,6 @@ import android.graphics.Color
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
-import android.media.audiofx.AcousticEchoCanceler
 import android.media.audiofx.AutomaticGainControl
 import android.media.audiofx.NoiseSuppressor
 import android.net.Uri
@@ -74,6 +73,7 @@ class MainActivity : AppCompatActivity() {
     @Volatile private var nativeMicClarity: Float = 0f
     @Volatile private var nativeMicRms: Float = 0f
     @Volatile private var nativeMicNoiseFloor: Float = 0.0036f
+    @Volatile private var nativeMicGateThreshold: Float = 0.0085f
     @Volatile private var nativeMicVoiced: Boolean = false
     @Volatile private var nativeMicSensitivity: Float = 1.0f
     @Volatile private var nativeMicRecalibrateRequested: Boolean = false
@@ -541,7 +541,7 @@ class MainActivity : AppCompatActivity() {
 
         setContentView(webView)
         webView.clearCache(true)
-        webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html?v=86.0")
+        webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html?v=87.0")
         hideSystemUI()
     }
 
@@ -597,20 +597,24 @@ class MainActivity : AppCompatActivity() {
         nativeMicVoiced = false
 
         nativeMicThread = Thread({
-            val candidateRates = intArrayOf(44100, 48000, 22050, 16000)
-            // Prioritize VOICE_RECOGNITION and MIC first so Android keeps media playback on main
-            // stereo loudspeaker (VOICE_COMMUNICATION can route media to the quiet earpiece on some OEMs).
-            // Hardware AcousticEchoCanceler + NoiseSuppressor are attached explicitly via audioSessionId below.
-            val candidateSources = intArrayOf(
-                MediaRecorder.AudioSource.VOICE_RECOGNITION,
-                MediaRecorder.AudioSource.MIC,
-                MediaRecorder.AudioSource.DEFAULT,
-                MediaRecorder.AudioSource.VOICE_COMMUNICATION
-            )
+            val candidateRates = intArrayOf(44100, 48000, 22050)
+            // Prioritize UNPROCESSED (API 24+) and raw MIC so OEM voice filters (NoiseSuppressor / AGC /
+            // VOICE_RECOGNITION speech gating) NEVER crush sustained singing vowels or alter vocal harmonics.
+            val candidateSources = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                intArrayOf(
+                    MediaRecorder.AudioSource.UNPROCESSED,
+                    MediaRecorder.AudioSource.MIC,
+                    MediaRecorder.AudioSource.DEFAULT
+                )
+            } else {
+                intArrayOf(
+                    MediaRecorder.AudioSource.MIC,
+                    MediaRecorder.AudioSource.DEFAULT
+                )
+            }
 
             var recorder: AudioRecord? = null
             var chosenSampleRate = 44100
-            var chosenFrameSamples = 2048
 
             outer@ for (sr in candidateRates) {
                 if (!nativeMicRunning || nativeMicSessionId != sessionId) break
@@ -620,8 +624,7 @@ class MainActivity : AppCompatActivity() {
                     AudioFormat.ENCODING_PCM_16BIT
                 )
                 if (minBufBytes <= 0) continue
-                val fSamples = if (sr >= 44100) 2048 else 1024
-                val recordBufBytes = max(minBufBytes * 2, fSamples * 4)
+                val recordBufBytes = max(minBufBytes * 2, if (sr >= 40000) 8192 else 4096)
                 for (src in candidateSources) {
                     if (!nativeMicRunning || nativeMicSessionId != sessionId) break@outer
                     try {
@@ -635,7 +638,6 @@ class MainActivity : AppCompatActivity() {
                         if (cand.state == AudioRecord.STATE_INITIALIZED) {
                             recorder = cand
                             chosenSampleRate = sr
-                            chosenFrameSamples = fSamples
                             break@outer
                         } else {
                             cand.release()
@@ -653,304 +655,314 @@ class MainActivity : AppCompatActivity() {
                 return@Thread
             }
 
-            var echoCanceler: AcousticEchoCanceler? = null
             var noiseSuppressor: NoiseSuppressor? = null
             var autoGainControl: AutomaticGainControl? = null
 
             try {
                 val audioSession = recorder.audioSessionId
-                if (AcousticEchoCanceler.isAvailable()) {
-                    try {
-                        echoCanceler = AcousticEchoCanceler.create(audioSession)
-                        echoCanceler?.enabled = true
-                    } catch (_: Exception) {}
-                }
+                // Explicitly disable NoiseSuppressor & AGC: on Android OEMs, NoiseSuppressor treats
+                // sustained singing notes as stationary tonal noise and suppresses them after ~250ms,
+                // while AcousticEchoCanceler only references STREAM_VOICE_CALL (useless on STREAM_MUSIC).
                 if (NoiseSuppressor.isAvailable()) {
                     try {
                         noiseSuppressor = NoiseSuppressor.create(audioSession)
-                        noiseSuppressor?.enabled = true
+                        noiseSuppressor?.enabled = false
                     } catch (_: Exception) {}
                 }
                 if (AutomaticGainControl.isAvailable()) {
                     try {
-                        // Disable AGC so Android never boosts quiet speaker bleed when user is silent
                         autoGainControl = AutomaticGainControl.create(audioSession)
                         autoGainControl?.enabled = false
                     } catch (_: Exception) {}
                 }
 
                 val sampleRate = chosenSampleRate
-                val frameSamples = chosenFrameSamples
-                val hopSamples = max(256, frameSamples / 4) // ~11ms hop for instant stop & 86Hz telemetry
-                val readShortBuf = ShortArray(hopSamples)
-                val ringBuf = FloatArray(frameSamples)
-                val presenceBuf = FloatArray(frameSamples)
+                val decim = if (sampleRate >= 40000) 2 else 1
+                val effSr = sampleRate.toFloat() / decim.toFloat() // ~22050 Hz or 24000 Hz
+                val analysisWin = 1024 // ~46.4ms window: resolves down to 75 Hz (D2) with 3.5+ full cycles
+                val analysisHop = 256  // ~11.6ms hop = 86 Hz low-latency updates
+                val readHop = analysisHop * decim
+
+                val readShortBuf = ShortArray(readHop)
+                val ringBuf = FloatArray(analysisWin)
                 var samplesFilled = 0
 
-                val halfW = min(960, frameSamples / 2 - 4)
-                val minTau = max(4, sampleRate / 960) // ~960 Hz upper bound
-                val maxTau = min(halfW - 4, sampleRate / 82) // ~82 Hz lower bound
-                val cmnd = FloatArray(maxTau + 2)
+                val minTau = max(6, (effSr / 1050f).toInt()) // ~1050 Hz (C6) upper singing bound
+                val maxTau = min(analysisWin / 2 - 4, (effSr / 75f).toInt()) // ~75 Hz (D2) lower bound
+                val nsdf = FloatArray(maxTau + 2)
+                val keyPeakTaus = FloatArray(64)
+                val keyPeakVals = FloatArray(64)
+
+                // Gentle 70 Hz DC-block high-pass only (preserves full vocal harmonic spectrum and true RMS)
+                val dtEff = 1f / effSr
+                val rcHp = 1f / (2f * Math.PI.toFloat() * 70f)
+                val aHp = rcHp / (rcHp + dtEff)
+                var prevDcIn = 0f
+                var hpOut = 0f
 
                 recorder.startRecording()
 
-                var prevSample = 0f
-                var hpSample = 0f
-                var lpSample = 0f
-                var hpPresSample = 0f
-                var lpPresSample = 0f
-
-                val dt = 1f / sampleRate.toFloat()
-                // Fundamental pitch band: 92 Hz - 1020 Hz
-                val rcHp = 1f / (2f * Math.PI.toFloat() * 92f)
-                val aHp = rcHp / (rcHp + dt)
-                val rcLp = 1f / (2f * Math.PI.toFloat() * 1020f)
-                val aLp = dt / (rcLp + dt)
-
-                // Vocal presence/formant band: 280 Hz - 2600 Hz (distinguishes near-field voice from muffled speaker bleed)
-                val rcHpPres = 1f / (2f * Math.PI.toFloat() * 280f)
-                val aHpPres = rcHpPres / (rcHpPres + dt)
-                val rcLpPres = 1f / (2f * Math.PI.toFloat() * 2600f)
-                val aLpPres = dt / (rcLpPres + dt)
-
-                var ambientFloor = 0.0038f
-                var recalibFramesLeft = 45 // Quick 0.5s ambient/speaker-bleed calibration on startup
+                var ambientFloor = 0.0036f
+                var recalibFramesLeft = 40 // ~0.46s quick ambient calibration on open
                 var recalibRmsSum = 0f
                 var recalibCount = 0
+
                 var consecutiveVoiced = 0
-                var lastRawFreq = 0f
+                var unvoicedGraceLeft = 0
+                var voicedFreezeFrames = 0 // Freezes ambientFloor upward adaptation for 450ms after singing!
                 var smoothedFreq = 0f
+                var lastRawChosenFreq = 0f
+                val medBuf = FloatArray(3)
+                var medCount = 0
+                var medIdx = 0
 
                 while (nativeMicRunning && nativeMicSessionId == sessionId && !Thread.currentThread().isInterrupted) {
-                    val readCount = recorder.read(readShortBuf, 0, hopSamples)
+                    val readCount = recorder.read(readShortBuf, 0, readHop)
                     if (!nativeMicRunning || nativeMicSessionId != sessionId) break
                     if (readCount <= 0) {
                         Thread.sleep(4)
                         continue
                     }
 
-                    val shift = min(readCount, frameSamples)
-                    if (samplesFilled >= frameSamples) {
-                        System.arraycopy(ringBuf, shift, ringBuf, 0, frameSamples - shift)
-                        System.arraycopy(presenceBuf, shift, presenceBuf, 0, frameSamples - shift)
-                        samplesFilled = frameSamples - shift
+                    val decimatedCount = readCount / decim
+                    if (decimatedCount <= 0) continue
+
+                    val shift = min(decimatedCount, analysisWin)
+                    if (samplesFilled >= analysisWin) {
+                        System.arraycopy(ringBuf, shift, ringBuf, 0, analysisWin - shift)
+                        samplesFilled = analysisWin - shift
                     }
 
                     for (i in 0 until shift) {
-                        val raw = readShortBuf[i] / 32768f
-                        hpSample = aHp * (hpSample + raw - prevSample)
-                        hpPresSample = aHpPres * (hpPresSample + raw - prevSample)
-                        prevSample = raw
-                        lpSample += aLp * (hpSample - lpSample)
-                        lpPresSample += aLpPres * (hpPresSample - lpPresSample)
-                        if (samplesFilled < frameSamples) {
-                            ringBuf[samplesFilled] = lpSample
-                            presenceBuf[samplesFilled] = lpPresSample
-                            samplesFilled++
+                        val raw = if (decim == 2) {
+                            (readShortBuf[i * 2].toFloat() + readShortBuf[i * 2 + 1].toFloat()) * (0.5f / 32768f)
+                        } else {
+                            readShortBuf[i].toFloat() / 32768f
+                        }
+                        hpOut = aHp * (hpOut + raw - prevDcIn)
+                        prevDcIn = raw
+                        if (samplesFilled < analysisWin) {
+                            ringBuf[samplesFilled++] = hpOut
                         }
                     }
 
-                    if (samplesFilled < frameSamples) {
-                        continue
-                    }
+                    if (samplesFilled < analysisWin) continue
 
+                    // Full-band RMS on DC-removed vocal signal (true perceived loudness)
                     var sumSq = 0f
-                    var presSq = 0f
-                    var zeroCrossings = 0
-                    var prevSign = ringBuf[0] >= 0f
-                    for (i in 0 until frameSamples) {
+                    for (i in 0 until analysisWin) {
                         val v = ringBuf[i]
-                        val p = presenceBuf[i]
                         sumSq += v * v
-                        presSq += p * p
-                        val curSign = v >= 0f
-                        if (curSign != prevSign) {
-                            zeroCrossings++
-                            prevSign = curSign
-                        }
                     }
-                    val rms = sqrt(sumSq / frameSamples.toFloat())
-                    val presRms = sqrt(presSq / frameSamples.toFloat())
-                    val zcrHz = (zeroCrossings * sampleRate) / (2f * frameSamples.toFloat())
+                    val rms = sqrt(sumSq / analysisWin.toFloat())
                     nativeMicRms = rms
+
+                    if (voicedFreezeFrames > 0) {
+                        voicedFreezeFrames--
+                    }
 
                     if (nativeMicRecalibrateRequested) {
                         nativeMicRecalibrateRequested = false
-                        recalibFramesLeft = 45
+                        recalibFramesLeft = 40
                         recalibRmsSum = 0f
                         recalibCount = 0
                         consecutiveVoiced = 0
+                        lastRawChosenFreq = 0f
+                        unvoicedGraceLeft = 0
+                        voicedFreezeFrames = 0
+                        medCount = 0
+                        medIdx = 0
+                        smoothedFreq = 0f
                         nativeMicVoiced = false
                         nativeMicFreqHz = 0f
-                        smoothedFreq = 0f
-                        lastRawFreq = 0f
+                        nativeMicClarity = 0f
                     }
                     if (recalibFramesLeft > 0) {
                         recalibFramesLeft--
                         recalibRmsSum += rms
                         recalibCount++
-                        val avgAmb = (recalibRmsSum / max(1, recalibCount)).coerceIn(0.0022f, 0.032f)
-                        ambientFloor = avgAmb
+                        ambientFloor = (recalibRmsSum / max(1, recalibCount)).coerceIn(0.0020f, 0.026f)
                         nativeMicNoiseFloor = ambientFloor
                     }
 
-                    // Dynamic gate threshold scaled inversely by user mic sensitivity
                     val sens = nativeMicSensitivity.coerceIn(0.45f, 2.0f)
-                    val gateMult = (2.45f / sens).coerceIn(1.35f, 4.4f)
-                    val minGate = (0.0052f / sens).coerceIn(0.0026f, 0.014f)
-                    val gateThreshold = max(minGate, ambientFloor * gateMult)
-                    if (rms < gateThreshold || zcrHz > 1600f) {
-                        // Adapt ambient floor when below voice gate
-                        ambientFloor = if (rms < ambientFloor) {
-                            ambientFloor * 0.93f + max(0.0020f, rms) * 0.07f
-                        } else {
-                            (ambientFloor * 0.982f + rms * 0.018f).coerceAtMost(0.032f)
+                    val gateMult = (2.15f / sens).coerceIn(1.30f, 4.0f)
+                    val minGate = (0.0046f / sens).coerceIn(0.0022f, 0.012f)
+                    val onsetGate = max(minGate, ambientFloor * gateMult)
+                    val sustainGate = onsetGate * 0.62f
+                    nativeMicGateThreshold = onsetGate
+
+                    val wasVoiced = nativeMicVoiced
+                    val activeGate = if (wasVoiced) sustainGate else onsetGate
+
+                    if (rms < activeGate || sumSq < 1e-7f) {
+                        // Only adapt ambientFloor upward when NOT in the 450ms post-voiced freeze window
+                        if (rms < ambientFloor) {
+                            ambientFloor = (ambientFloor * 0.92f + max(0.0018f, rms) * 0.08f)
+                        } else if (voicedFreezeFrames == 0) {
+                            ambientFloor = (ambientFloor * 0.985f + rms * 0.015f).coerceAtMost(0.026f)
                         }
                         nativeMicNoiseFloor = ambientFloor
-                        consecutiveVoiced = max(0, consecutiveVoiced - 1)
-                        if (consecutiveVoiced == 0) {
+
+                        if (unvoicedGraceLeft > 0) {
+                            unvoicedGraceLeft--
+                        } else {
+                            consecutiveVoiced = 0
+                            lastRawChosenFreq = 0f
+                            medCount = 0
+                            medIdx = 0
+                            smoothedFreq = 0f
                             nativeMicFreqHz = 0f
                             nativeMicClarity = 0f
                             nativeMicVoiced = false
-                            smoothedFreq = 0f
-                            lastRawFreq = 0f
                         }
                         continue
                     }
 
-                    // YIN Cumulative Mean Normalized Difference d'(tau)
-                    cmnd[0] = 1f
-                    var runningSum = 0f
+                    // McLeod Pitch Method (MPM / NSDF): n'(tau) = 2 * acf(tau) / m'(tau)
+                    // O(1) incremental m'(tau) update -> < 0.6 ms/frame on Android ART!
+                    nsdf[0] = 1f
+                    var mTerm = 2f * sumSq
                     for (tau in 1..maxTau) {
-                        var diff = 0f
-                        var i = 0
-                        while (i < halfW) {
-                            val d = ringBuf[i] - ringBuf[i + tau]
-                            diff += d * d
-                            i += 1
+                        val a = ringBuf[analysisWin - tau]
+                        val b = ringBuf[tau - 1]
+                        mTerm -= (a * a + b * b)
+                        var acf = 0f
+                        val lim = analysisWin - tau
+                        var j = 0
+                        while (j < lim) {
+                            acf += ringBuf[j] * ringBuf[j + tau]
+                            j++
                         }
-                        runningSum += diff
-                        cmnd[tau] = if (runningSum > 1e-9f) (diff * tau) / runningSum else 1f
+                        nsdf[tau] = if (mTerm > 1e-8f) (2f * acf) / mTerm else 0f
                     }
 
-                    var chosenTau = -1
-                    var chosenVal = 1f
-                    val strictYinThreshold = if (consecutiveVoiced >= 2) 0.27f else 0.20f
-                    for (tau in (minTau + 1) until maxTau) {
-                        val v = cmnd[tau]
-                        if (v < strictYinThreshold && v <= cmnd[tau - 1] && v <= cmnd[tau + 1]) {
-                            chosenTau = tau
-                            chosenVal = v
-                            break
-                        }
-                    }
-                    if (chosenTau < 0) {
-                        for (tau in (minTau + 1) until maxTau) {
-                            val v = cmnd[tau]
-                            if (v < chosenVal && v <= cmnd[tau - 1] && v <= cmnd[tau + 1]) {
-                                chosenVal = v
-                                chosenTau = tau
+                    // MPM Key Maxima Peak Picking: skip initial positive lobe around tau=0,
+                    // then record the highest parabolically refined peak in every subsequent positive lobe.
+                    var peakCount = 0
+                    var globalMaxVal = 0f
+                    var tau = 1
+                    while (tau < maxTau && nsdf[tau] > 0f) tau++
+                    while (tau < maxTau && nsdf[tau] <= 0f) tau++
+
+                    while (tau < maxTau && peakCount < keyPeakTaus.size) {
+                        var localBestTau = tau
+                        var localBestVal = nsdf[tau]
+                        while (tau < maxTau && nsdf[tau] > 0f) {
+                            if (nsdf[tau] > localBestVal) {
+                                localBestVal = nsdf[tau]
+                                localBestTau = tau
                             }
+                            tau++
                         }
-                        val maxAllowedYin = if (consecutiveVoiced >= 2) 0.31f else 0.25f
-                        if (chosenVal > maxAllowedYin) {
-                            chosenTau = -1
+                        if (localBestTau in minTau until maxTau && localBestVal > 0.25f) {
+                            val y1 = nsdf[localBestTau - 1]
+                            val y2 = nsdf[localBestTau]
+                            val y3 = nsdf[localBestTau + 1]
+                            val denom = (y1 - 2f * y2 + y3)
+                            val shiftTau = if (abs(denom) > 1e-6f) {
+                                (0.5f * (y1 - y3) / denom).coerceIn(-0.5f, 0.5f)
+                            } else 0f
+                            val pTau = localBestTau.toFloat() + shiftTau
+                            val pVal = (y2 - 0.25f * (y1 - y3) * shiftTau).coerceIn(-1f, 1f)
+                            keyPeakTaus[peakCount] = pTau
+                            keyPeakVals[peakCount] = pVal
+                            peakCount++
+                            if (pVal > globalMaxVal) globalMaxVal = pVal
                         }
+                        while (tau < maxTau && nsdf[tau] <= 0f) tau++
                     }
 
-                    // Harmonic / sub-octave verification: only if chosenTau was a partial 2nd harmonic (chosenVal > 0.07f) and 2*tau is a much deeper trough (< 52%)
-                    if (chosenTau >= minTau && chosenVal > 0.07f) {
-                        val doubleTau = chosenTau * 2
-                        if (doubleTau < maxTau - 1) {
-                            var bestSubTau = doubleTau
-                            var bestSubVal = cmnd[doubleTau]
-                            for (dtau in max(minTau + 1, doubleTau - 2)..min(maxTau - 1, doubleTau + 2)) {
-                                if (cmnd[dtau] < bestSubVal) {
-                                    bestSubVal = cmnd[dtau]
-                                    bestSubTau = dtau
+                    val minClarity = if (wasVoiced) 0.48f else 0.60f
+                    var chosenFreq = 0f
+                    var chosenClarity = 0f
+                    if (peakCount > 0 && globalMaxVal >= minClarity) {
+                        // k = 0.88: mathematically prevents octave-up / 3rd-harmonic jumps on MEMS mics
+                        // with weak fundamentals, while never dropping an octave down on true fundamentals!
+                        val pickThreshold = 0.88f * globalMaxVal
+                        for (p in 0 until peakCount) {
+                            if (keyPeakVals[p] >= pickThreshold) {
+                                val candFreq = effSr / keyPeakTaus[p]
+                                if (candFreq in 75f..1050f) {
+                                    chosenFreq = candFreq
+                                    chosenClarity = keyPeakVals[p].coerceIn(0f, 1f)
                                 }
-                            }
-                            if (bestSubVal < chosenVal * 0.52f) {
-                                chosenTau = bestSubTau
-                                chosenVal = bestSubVal
+                                break
                             }
                         }
                     }
 
-                    val presenceRatio = presRms / max(1e-5f, rms)
-                    val requiredClarity = if (consecutiveVoiced >= 2) 0.66f else 0.72f
-                    if (chosenTau >= minTau && presenceRatio >= 0.18f) {
-                        val y1 = cmnd[chosenTau - 1]
-                        val y2 = cmnd[chosenTau]
-                        val y3 = cmnd[chosenTau + 1]
-                        val denom = (y1 - 2f * y2 + y3)
-                        val shiftTau = if (abs(denom) > 1e-6f) 0.5f * (y1 - y3) / denom else 0f
-                        val refinedTau = max(minTau.toFloat(), chosenTau.toFloat() + shiftTau.coerceIn(-0.5f, 0.5f))
-                        val rawFreq = sampleRate.toFloat() / refinedTau
-                        val clarity = (1f - chosenVal).coerceIn(0f, 1f)
-
-                        if (rawFreq in 82f..960f && clarity >= requiredClarity) {
-                            // Require pitch stability across adjacent frames (~±2.8 semitones or clean octave)
-                            // to reject erratic multi-instrument speaker bleed
-                            val ratio = if (lastRawFreq > 0f) rawFreq / lastRawFreq else 1f
-                            val isPitchStable = lastRawFreq <= 0f ||
-                                (ratio in 0.845f..1.185f) ||
-                                (ratio in 1.78f..2.24f) ||
-                                (ratio in 0.445f..0.56f)
-                            lastRawFreq = rawFreq
-
-                            if (isPitchStable) {
-                                consecutiveVoiced = min(6, consecutiveVoiced + 1)
-                            } else {
-                                consecutiveVoiced = 1
-                            }
-
-                            if (consecutiveVoiced >= 2) {
-                                smoothedFreq = if (smoothedFreq > 0f && abs(rawFreq - smoothedFreq) / smoothedFreq < 0.14f) {
-                                    smoothedFreq * 0.36f + rawFreq * 0.64f
-                                } else {
-                                    rawFreq
-                                }
-                                nativeMicFreqHz = smoothedFreq
-                                nativeMicClarity = clarity
-                                nativeMicVoiced = true
-                            }
+                    if (chosenFreq > 0f) {
+                        val isStableOnset = if (lastRawChosenFreq > 0f) {
+                            val ratio = chosenFreq / lastRawChosenFreq
+                            ratio in 0.80f..1.25f
                         } else {
-                            // Unvoiced / diffuse bleed: slowly adapt ambient floor upward
-                            ambientFloor = (ambientFloor * 0.978f + rms * 0.022f).coerceIn(0.0020f, 0.032f)
-                            nativeMicNoiseFloor = ambientFloor
-                            consecutiveVoiced = max(0, consecutiveVoiced - 1)
-                            if (consecutiveVoiced == 0) {
-                                nativeMicFreqHz = 0f
-                                nativeMicClarity = 0f
-                                nativeMicVoiced = false
-                                smoothedFreq = 0f
-                                lastRawFreq = 0f
+                            false
+                        }
+                        lastRawChosenFreq = chosenFreq
+
+                        if (wasVoiced || isStableOnset) {
+                            consecutiveVoiced = min(8, consecutiveVoiced + 1)
+                        } else {
+                            consecutiveVoiced = 1
+                            medCount = 0
+                            medIdx = 0
+                        }
+
+                        // 3-frame median filter removes single-frame plosive/consonant glitches with ~11ms latency
+                        medBuf[medIdx] = chosenFreq
+                        medIdx = (medIdx + 1) % 3
+                        if (medCount < 3) medCount++
+                        val medFreq = when (medCount) {
+                            1 -> chosenFreq
+                            2 -> 0.5f * (medBuf[0] + medBuf[1])
+                            else -> {
+                                val f0 = medBuf[0]; val f1 = medBuf[1]; val f2 = medBuf[2]
+                                max(min(f0, f1), min(max(f0, f1), f2))
                             }
+                        }
+
+                        unvoicedGraceLeft = 3 // ~35ms consonant/glottal bridge
+                        voicedFreezeFrames = 39 // ~450ms noise-floor freeze so singing NEVER poisons ambientFloor
+
+                        if (consecutiveVoiced >= 2 || wasVoiced) {
+                            smoothedFreq = if (smoothedFreq > 0f && abs(medFreq - smoothedFreq) / smoothedFreq < 0.16f) {
+                                smoothedFreq * 0.35f + medFreq * 0.65f
+                            } else {
+                                medFreq
+                            }
+                            nativeMicFreqHz = smoothedFreq
+                            nativeMicClarity = chosenClarity
+                            nativeMicVoiced = true
                         }
                     } else {
-                        // Non-periodic energy (speaker percussion/bleed): adapt floor so speaker bleed stays gated out
-                        ambientFloor = (ambientFloor * 0.972f + rms * 0.028f).coerceIn(0.0020f, 0.034f)
-                        nativeMicNoiseFloor = ambientFloor
-                        consecutiveVoiced = max(0, consecutiveVoiced - 1)
-                        if (consecutiveVoiced == 0) {
+                        // Unvoiced / non-periodic sound: only adapt ambientFloor after the 450ms post-voiced freeze!
+                        if (voicedFreezeFrames == 0) {
+                            ambientFloor = (ambientFloor * 0.980f + rms * 0.020f).coerceIn(0.0020f, 0.028f)
+                            nativeMicNoiseFloor = ambientFloor
+                        }
+                        if (unvoicedGraceLeft > 0) {
+                            unvoicedGraceLeft--
+                        } else {
+                            consecutiveVoiced = 0
+                            lastRawChosenFreq = 0f
+                            medCount = 0
+                            medIdx = 0
+                            smoothedFreq = 0f
                             nativeMicFreqHz = 0f
                             nativeMicClarity = 0f
                             nativeMicVoiced = false
-                            smoothedFreq = 0f
-                            lastRawFreq = 0f
                         }
                     }
                 }
             } catch (_: Exception) {
             } finally {
-                try { echoCanceler?.release() } catch (_: Exception) {}
                 try { noiseSuppressor?.release() } catch (_: Exception) {}
                 try { autoGainControl?.release() } catch (_: Exception) {}
                 try { recorder.stop() } catch (_: Exception) {}
                 try { recorder.release() } catch (_: Exception) {}
             }
-        }, "BeatstarVocalYinThread").apply {
+        }, "BeatstarVocalMpmThread").apply {
             priority = Thread.NORM_PRIORITY + 1
             isDaemon = true
             start()
@@ -983,7 +995,7 @@ class MainActivity : AppCompatActivity() {
         val isAct = nativeMicRunning && nativeMicState == "running"
         return String.format(
             Locale.US,
-            "{\"active\":%s,\"state\":\"%s\",\"permissionGranted\":%s,\"voiced\":%s,\"freqHz\":%.2f,\"clarity\":%.3f,\"rms\":%.5f,\"noiseFloor\":%.5f}",
+            "{\"active\":%s,\"state\":\"%s\",\"permissionGranted\":%s,\"voiced\":%s,\"freqHz\":%.2f,\"clarity\":%.3f,\"rms\":%.5f,\"noiseFloor\":%.5f,\"gateThreshold\":%.5f}",
             if (isAct) "true" else "false",
             nativeMicState,
             if (permGranted) "true" else "false",
@@ -991,7 +1003,8 @@ class MainActivity : AppCompatActivity() {
             nativeMicFreqHz,
             nativeMicClarity,
             nativeMicRms,
-            nativeMicNoiseFloor
+            nativeMicNoiseFloor,
+            nativeMicGateThreshold
         )
     }
 

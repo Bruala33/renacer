@@ -4635,7 +4635,10 @@ app.all('/api/v1/lyrics/transcribe', async (req, res) => {
       const winDurSec = sampleCount / 16000;
       const opts = {
         task: 'transcribe',
-        return_timestamps: 'word'
+        return_timestamps: 'word',
+        max_new_tokens: 128,
+        no_repeat_ngram_size: 5,
+        repetition_penalty: 1.12
       };
       if (rawLang && rawLang !== 'auto' && rawLang !== 'detect') {
         opts.language = rawLang;
@@ -4731,7 +4734,10 @@ app.all('/api/v1/lyrics/transcribe', async (req, res) => {
         if (rms < 0.004) continue;
         const opts = {
           task: 'transcribe',
-          return_timestamps: 'word'
+          return_timestamps: 'word',
+          max_new_tokens: 128,
+          no_repeat_ngram_size: 5,
+          repetition_penalty: 1.12
         };
         if (rawLang && rawLang !== 'auto' && rawLang !== 'detect') {
           opts.language = rawLang;
@@ -4963,16 +4969,19 @@ async function searchYouTubeCandidatesServer(query, rawTitle = '', rawArtist = '
             const isTopicOrAudio = / - Topic$/i.test(author) || /\b(official\s*audio|audio\s*oficial|provided to youtube|lyric|letra)\b/i.test(title);
             const isMusicVideo = /\b(official\s*video|video\s*oficial|videoclip|music\s*video)\b/i.test(title);
             if (isTopicOrAudio) {
-              authScore += 22;
+              authScore += 38;
             }
             if (expectedDurationSec > 55 && durSec > 55) {
               const diffDur = Math.abs(durSec - expectedDurationSec);
-              if (diffDur <= 3) authScore += 36;
+              if (diffDur <= 3) authScore += 42;
               else if (diffDur <= 7) authScore += 24;
-              else if (diffDur <= 12) authScore += 12;
-              else if (diffDur >= 18) authScore -= 28;
+              else if (diffDur <= 12) authScore += 10;
+              else if (diffDur >= 15) authScore -= 34;
+              if (isMusicVideo && !isTopicOrAudio && diffDur > 3) {
+                authScore -= 10;
+              }
             } else if (isMusicVideo && !isTopicOrAudio) {
-              authScore -= 8;
+              authScore -= 18;
             }
             found.push({
               videoId: vid,
@@ -4981,7 +4990,7 @@ async function searchYouTubeCandidatesServer(query, rawTitle = '', rawArtist = '
               channel: author,
               durationSec: durSec || expectedDurationSec || 180,
               thumbnail: thumb,
-              authScore: Math.min(135, Math.round(authScore))
+              authScore: Math.min(155, Math.round(authScore))
             });
           }
         }
