@@ -248,6 +248,50 @@ self.onmessage = async (event) => {
         out = await pipe(audioArr, opts);
       }
 
+      // DETECCIÓN DE COLAPSO DTW EN ATENCIÓN CRUZADA DE WHISPER-TINY:
+      // En pasajes musicales intensos, return_timestamps:'word' puede colapsar todas las palabras
+      // al borde de relleno de ceros (timestamp >= winDur - 0.15s) o apilarlas en el mismo instante.
+      // Si detectamos colapso DTW, reintentar automáticamente con return_timestamps:true (tokens de
+      // tiempo nativos del decoder Whisper, inmunes al colapso de atención cruzada).
+      const hasDtwTimestampCollapse = (resObj) => {
+        const chs = Array.isArray(resObj?.chunks) ? resObj.chunks : [];
+        if (chs.length < 2) return false;
+        let cliffCount = 0;
+        let sameTsPairs = 0;
+        let minTs = Infinity;
+        let maxTs = -Infinity;
+        let validCount = 0;
+        let prevTs0 = -999;
+        for (const c of chs) {
+          const t0 = Array.isArray(c?.timestamp) && Number.isFinite(c.timestamp[0]) ? Number(c.timestamp[0]) : NaN;
+          if (!Number.isFinite(t0)) continue;
+          validCount++;
+          if (t0 >= winDur - 0.18) cliffCount++;
+          if (Math.abs(t0 - prevTs0) < 0.015) sameTsPairs++;
+          if (t0 < minTs) minTs = t0;
+          if (t0 > maxTs) maxTs = t0;
+          prevTs0 = t0;
+        }
+        if (validCount < 2) return false;
+        if (cliffCount >= 2 && cliffCount >= validCount * 0.35) return true;
+        if (validCount >= 4 && sameTsPairs >= validCount * 0.55) return true;
+        if (validCount >= 5 && (maxTs - minTs) < 0.25) return true;
+        return false;
+      };
+
+      let collapsedDtw = false;
+      if (opts.return_timestamps === 'word' && hasDtwTimestampCollapse(out)) {
+        collapsedDtw = true;
+        try {
+          const segOpts = { ...opts, return_timestamps: true };
+          const segOut = await pipe(audioArr, segOpts);
+          if (segOut && Array.isArray(segOut.chunks) && segOut.chunks.length > 0 && !hasDtwTimestampCollapse(segOut)) {
+            out = segOut;
+            collapsedDtw = false;
+          }
+        } catch (_) {}
+      }
+
       if (isCanceled(trackKey, reqId)) {
         self.postMessage({
           type: 'window_result',
@@ -292,8 +336,12 @@ self.onmessage = async (event) => {
         const cleanW = normalizeWordClean(ch?.text || '');
         if (!cleanW || HALLUCINATION_PHRASE_RE.test(cleanW) || HALLUCINATION_WORD_RE.test(cleanW)) continue;
 
-        const rawTs0 = Array.isArray(ch.timestamp) && Number.isFinite(ch.timestamp[0])
-          ? Math.max(0, Math.min(winDur, ch.timestamp[0]))
+        const hasRaw0 = Array.isArray(ch.timestamp) && Number.isFinite(ch.timestamp[0]);
+        // Descartar palabras pegadas artificialmente al borde de zero-padding de 30s (>= winDur - 0.08s)
+        if (hasRaw0 && ch.timestamp[0] >= winDur - 0.08) continue;
+
+        const rawTs0 = hasRaw0
+          ? Math.max(0, Math.min(winDur - 0.08, ch.timestamp[0]))
           : Math.max(0, lastEndSec - startSec);
         const rawTs1 = Array.isArray(ch.timestamp) && Number.isFinite(ch.timestamp[1]) && ch.timestamp[1] > rawTs0
           ? Math.min(winDur + 0.35, ch.timestamp[1])
@@ -358,6 +406,10 @@ self.onmessage = async (event) => {
         }
       }
 
+      if (words.length === 0 && fullTextClean.length >= 6) {
+        collapsedDtw = true;
+      }
+
       self.postMessage({
         type: 'window_result',
         id: reqId,
@@ -367,6 +419,7 @@ self.onmessage = async (event) => {
         totalWins,
         startSec,
         endSec,
+        dtwCollapsed: collapsedDtw,
         text: fullTextClean,
         words
       });

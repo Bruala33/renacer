@@ -1745,6 +1745,8 @@
       this._lastRenderedTrackKey = '';
       this._lastSyncAudioSec = 0;
       this.showTranslation = localStorage.getItem('piano_karaoke_translate') === 'true';
+      // Purgar caché obsoleto v2 de versiones anteriores para evitar bloqueos falsos "Sincro IA · +2.1s"
+      try { localStorage.removeItem('beatstar_whisper_aligned_v2'); } catch (_) {}
     }
 
     _loadUserOffsets() {
@@ -1877,6 +1879,7 @@
         this._serverFallbackTimers.delete(key);
       }
 
+      const isPiecewise = Boolean(meta.isPiecewise || (Number(meta.spreadSec) >= 0.90 && Number(meta.bucketCount) >= 2));
       const isFinalOrLocked = Boolean(meta.hasGlobalLock || meta.isComplete || meta.fromCache || cleanLines.length >= 2);
       if (isFinalOrLocked) {
         this.whisperAlignedMeta.set(key, {
@@ -1884,6 +1887,8 @@
           audioDurSec,
           shiftSec,
           slope,
+          isPiecewise,
+          spreadSec: Number(meta.spreadSec) || 0,
           matchedWords: Number(meta.matchedWords) || 0,
           anchoredLines: Number(meta.anchoredLines) || 0,
           isComplete: Boolean(meta.isComplete || meta.fromCache),
@@ -1905,9 +1910,11 @@
 
       if (meta.isComplete || meta.fromCache || meta.hasGlobalLock) {
         const absShift = Math.abs(shiftSec);
-        const readyLabel = absShift >= 0.65
-          ? `Sincro IA · ${shiftSec > 0 ? '+' : ''}${shiftSec.toFixed(1)}s`
-          : 'Sincro IA · 10ms';
+        const readyLabel = isPiecewise
+          ? 'Sincro · Por tramos'
+          : (absShift >= 0.55
+              ? `Sincro · ${shiftSec > 0 ? '+' : ''}${shiftSec.toFixed(1)}s`
+              : 'Sincro · Exacta');
         this.setKaraokeAiSyncStatus(key, meta.isComplete || meta.fromCache ? readyLabel : `${readyLabel}...`, meta.isComplete || meta.fromCache ? 'ready' : 'working');
       }
 
@@ -2122,9 +2129,11 @@
       } else if (this.currentTrackKey && this.whisperAlignedMeta.has(this.currentTrackKey)) {
         const meta = this.whisperAlignedMeta.get(this.currentTrackKey);
         const absS = Math.abs(Number(meta?.shiftSec) || 0);
-        const lbl = absS >= 0.65
-          ? `Sincro IA · ${meta.shiftSec > 0 ? '+' : ''}${meta.shiftSec.toFixed(1)}s`
-          : 'Sincro IA · 10ms';
+        const lbl = meta?.isPiecewise
+          ? 'Sincro · Por tramos'
+          : (absS >= 0.55
+              ? `Sincro · ${meta.shiftSec > 0 ? '+' : ''}${meta.shiftSec.toFixed(1)}s`
+              : 'Sincro · Exacta');
         this._renderAiSyncChip(lbl, 'ready');
       } else {
         this._renderAiSyncChip('', '');
@@ -2394,6 +2403,8 @@
         const nextPauseT = (pIdx < pauseTimes.length && pauseTimes[pIdx] < nextT) ? pauseTimes[pIdx] : nextT;
         const boundT = Math.min(nextT, nextPauseT);
         deduped[i].endTimeSec = +Math.max(curT + 0.5, Math.min(curT + 6.5, boundT - 0.06)).toFixed(2);
+        deduped[i]._rawLrcTimeSec = deduped[i].timeSec;
+        deduped[i]._rawLrcEndTimeSec = deduped[i].endTimeSec;
       }
       if (lrcDeclaredLengthSec > 0) {
         deduped._lrcLengthSec = lrcDeclaredLengthSec;
@@ -3514,709 +3525,155 @@
         }
       }
 
-      // Guardia rígida de Etapa 1 contra desplazamientos espurios cuando no hay evidencia
-      const rawStage1Shift = bestShift;
-      if (bestScale === 1.0 && Math.abs(bestShift) >= 0.45) {
-        const s1Lock = (bestScore >= 0.14 && margin >= 0.032) || (bestScore >= 0.22 && margin >= 0.022);
-        const strongOverZero = (s1Lock && bestScore >= scoreZero + 0.022) || (bestScore >= scoreZero + 0.042 && bestScore >= 0.11);
-        if (!strongOverZero) {
-          bestShift = 0;
-          bestScore = scoreZero;
-          margin = computeMarginAround(0, scoreZero);
+      // =========================================================================
+      // GUARDIA ESTRICTA ANTI-ALUCINACIÓN (1-2 GDL RÍGIDOS, CERO SOBREAJUSTE CIEGO)
+      // Una envolvente energética sin reconocimiento de palabras NO debe deformar
+      // bloques/líneas libremente (en canciones pop/densa/instrumental sobreajusta
+      // ruido y destroza letras buenas). Aquí solo se aprueba bloqueo instantáneo
+      // cuando existe un pico global inequívoco y unimodal; en canciones densas o
+      // con cortes/saltos no lineales entre estrofas, se entrega la letra limpia al
+      // alineador progresivo por palabras reales (Whisper multi-ventana por tramos).
+      // =========================================================================
+      const getSecondPeakScore = (targetShift) => {
+        let secondBest = -1;
+        for (let i = 0; i < coarseSamples.length; i++) {
+          const item = coarseSamples[i];
+          if (Math.abs(item.s - targetShift) >= 2.5 && item.sc > secondBest) {
+            secondBest = item.sc;
+          }
         }
-      } else if (bestScale === 1.0 && Math.abs(bestShift) < 0.12) {
-        bestShift = 0;
-      }
+        return secondBest;
+      };
 
-      const projectLinesRigid = (sh, sc) => parsedLines.map((l) => {
-        const origT = Number(l.timeSec || 0);
-        const origEnd = Number(l.endTimeSec || (origT + 3.2));
-        const newT = Math.max(0, +(origT * sc + sh).toFixed(2));
-        const newEnd = Math.max(newT + 0.4, +(origEnd * sc + sh).toFixed(2));
-        return { origIdx: 0, timeSec: newT, endTimeSec: newEnd, text: l.text, words: l.words, origT, origEnd };
-      });
+      const secondPeakBest = getSecondPeakScore(bestShift);
+      const effectiveMargin = secondPeakBest > -1 ? Math.max(0, bestScore - secondPeakBest) : margin;
+      const isBimodalSplit = secondPeakBest > 0.14 && secondPeakBest >= bestScore * 0.78;
 
-      let championLines = projectLinesRigid(bestShift, bestScale);
-      let championTpl = buildTemplateFromLines(championLines, 1.0);
-      let championScore = evalTemplateAtShift(championTpl, 0, championLines[0].timeSec);
-      let usedElasticWarp = false;
-
-      // =========================================================================
-      // ETAPA 2: ALINEADOR ELÁSTICO POR BLOQUES/ESTROFAS (VITERBI DP NO LINEAL)
-      // Con conservación vocal acústica universal y comparación dual (escala de
-      // Etapa 1 vs escala 1.0) para no confundir cortes de sección con deriva lineal.
-      // =========================================================================
-      if (parsedLines.length >= 6 && actualDur >= 25) {
-        const deadLineThresh = Math.max(0.24, Math.min(0.32, vadFloor + 0.09));
-
-        const runStage2Blocks = (useScale, baseShiftIn) => {
-          const tplScaled = useScale === 1.0 ? tpl1 : buildTemplateFromLines(parsedLines, useScale);
-          const { tVad: sTV, tOn: sTO, tOff: sTF, tplLen: sTplLen } = tplScaled;
-
-          // Particionar en bloques vocales compactos (>= 2 líneas y ~10-14s, o corte por solo >= 3.5s)
-          const blocks = [];
-          let curStartIdx = 0;
-          for (let i = 1; i < parsedLines.length; i++) {
-            const prevEnd = Number(parsedLines[i - 1].endTimeSec || (Number(parsedLines[i - 1].timeSec || 0) + 3.0)) * useScale;
-            const curStart = Number(parsedLines[i].timeSec || 0) * useScale;
-            const blkFirst = Number(parsedLines[curStartIdx].timeSec || 0) * useScale;
-            const gap = Math.max(0, curStart - prevEnd);
-            const count = i - curStartIdx;
-            const span = prevEnd - blkFirst;
-            const shouldSplit =
-              (gap >= 3.50 && count >= 1) ||
-              (gap >= 1.35 && count >= 2 && span >= 8.0) ||
-              (count >= 2 && span >= 10.0) ||
-              count >= 4;
-            if (shouldSplit) {
-              blocks.push({ startIdx: curStartIdx, endIdx: i - 1 });
-              curStartIdx = i;
-            }
+      // Comprobación de consistencia estructural (primer 40% vs último 40%):
+      // Si un corte o solo añadido a mitad de canción hace que el principio y el final tengan desfases
+      // distintos (|shFirst - shLast| >= 1.8s y ganancia >= 0.08 sobre el ajuste rígido global),
+      // rechazar el bloqueo rígido para que Whisper multi-ventana lo alinee por tramos.
+      let hasHalfSplitMismatch = false;
+      if (parsedLines.length >= 8 && bestScore >= 0.25 && !isBimodalSplit) {
+        const evalSliceAtShift = (tplH, fStart, fEnd, shSec) => {
+          if (!tplH) return -1;
+          const { tVad, tOn, tOff } = tplH;
+          const shiftF = shSec * frameHz;
+          const iLo = Math.max(fStart, Math.ceil(-shiftF));
+          const iHi = Math.min(fEnd, Math.floor(nAudio - 1.001 - shiftF));
+          const nOv = iHi - iLo;
+          if (nOv < Math.round(5 * frameHz)) return -1;
+          let sAV = 0, sTV = 0, sAV2 = 0, sTV2 = 0, sAVTV = 0;
+          let sAO = 0, sTO = 0, sAO2 = 0, sTO2 = 0, sAOTO = 0;
+          let sAF = 0, sTF = 0, sAF2 = 0, sTF2 = 0, sAFTF = 0;
+          for (let i = iLo; i < iHi; i++) {
+            const afPos = i + shiftF;
+            const ai = Math.floor(afPos);
+            const w1 = afPos - ai;
+            const w0 = 1.0 - w1;
+            const av = w0 * vadCurve[ai] + w1 * vadCurve[ai + 1];
+            const tv = tVad[i];
+            sAV += av; sTV += tv; sAV2 += av * av; sTV2 += tv * tv; sAVTV += av * tv;
+            const ao = w0 * vadOnset[ai] + w1 * vadOnset[ai + 1];
+            const to = tOn[i];
+            sAO += ao; sTO += to; sAO2 += ao * ao; sTO2 += to * to; sAOTO += ao * to;
+            const af = w0 * vadOffset[ai] + w1 * vadOffset[ai + 1];
+            const tf = tOff[i];
+            sAF += af; sTF += tf; sAF2 += af * af; sTF2 += tf * tf; sAFTF += af * tf;
           }
-          blocks.push({ startIdx: curStartIdx, endIdx: parsedLines.length - 1 });
-
-          // Fusionar último bloque diminuto de 1 línea solo si está pegado (< 3.5s) al anterior
-          if (blocks.length >= 2) {
-            const lastB = blocks[blocks.length - 1];
-            const prevB = blocks[blocks.length - 2];
-            if (lastB.endIdx === lastB.startIdx) {
-              const pEnd = Number(parsedLines[prevB.endIdx].endTimeSec || (Number(parsedLines[prevB.endIdx].timeSec || 0) + 3.0)) * useScale;
-              const lStart = Number(parsedLines[lastB.startIdx].timeSec || 0) * useScale;
-              if ((lStart - pEnd) < 3.5) {
-                prevB.endIdx = lastB.endIdx;
-                blocks.pop();
-              }
-            }
-          }
-
-          if (blocks.length < 2) return null;
-
-          const stage2BaseShift = baseShiftIn;
-          let maxResSec = 14.0;
-          for (const pk of peaks.slice(0, 4)) {
-            const dPk = Math.abs(pk.shift - stage2BaseShift);
-            if (dPk > maxResSec - 2.0 && dPk <= 22.0) {
-              maxResSec = Math.min(22.0, Math.ceil(dPk + 3.0));
-            }
-          }
-          const resStep = maxResSec > 16.0 ? 0.25 : 0.20;
-          const deltas = [];
-          for (let d = -maxResSec; d <= maxResSec + 1e-4; d += resStep) {
-            deltas.push(+d.toFixed(2));
-          }
-          const nStates = deltas.length;
-          const K = blocks.length;
-
-          // Precalcular metadatos y estadísticas de plantilla por bloque (slice sin copia sobre tplScaled)
-          const blockMeta = [];
-          for (let k = 0; k < K; k++) {
-            const b = blocks[k];
-            const bStart = Number(parsedLines[b.startIdx].timeSec || 0) * useScale;
-            const bEnd = Number(parsedLines[b.endIdx].endTimeSec || (Number(parsedLines[b.endIdx].timeSec || 0) + 3.2)) * useScale;
-            const prevEnd = b.startIdx > 0
-              ? Number(parsedLines[b.startIdx - 1].endTimeSec || (Number(parsedLines[b.startIdx - 1].timeSec || 0) + 3.0)) * useScale
-              : 0;
-            const nextStart = b.endIdx + 1 < parsedLines.length
-              ? Number(parsedLines[b.endIdx + 1].timeSec || 0) * useScale
-              : (bEnd + 5.0);
-            const gapBefore = b.startIdx === 0 ? Math.max(2.0, bStart) : Math.max(0, bStart - prevEnd);
-            const gapAfter = Math.max(0, nextStart - bEnd);
-            const padBefore = Math.min(2.2, Math.max(0.45, gapBefore * 0.65));
-            const padAfter = Math.min(2.0, Math.max(0.45, gapAfter * 0.65));
-            const winStartF = Math.max(0, Math.floor((bStart - padBefore) * frameHz));
-            const winEndF = Math.min(sTplLen - 1, Math.ceil((bEnd + padAfter) * frameHz));
-            const wLen = Math.max(1, winEndF - winStartF + 1);
-
-            const lineStarts = [];
-            const lineEnds = [];
-            for (let li = b.startIdx; li <= b.endIdx; li++) {
-              const ls = Number(parsedLines[li].timeSec || 0) * useScale;
-              const le = Number(parsedLines[li].endTimeSec || (Number(parsedLines[li].timeSec || 0) + 3.2)) * useScale;
-              lineStarts.push(ls);
-              lineEnds.push(Math.max(ls + 0.4, le));
-            }
-
-            let sumTV = 0, sumTV2 = 0, sumTO = 0, sumTO2 = 0, sumTF = 0, sumTF2 = 0;
-            let sungCnt = 0, silCnt = 0;
-            for (let f = winStartF; f <= winEndF; f++) {
-              const tv = sTV[f];
-              const to = sTO[f];
-              const tf = sTF[f];
-              sumTV += tv; sumTV2 += tv * tv;
-              sumTO += to; sumTO2 += to * to;
-              sumTF += tf; sumTF2 += tf * tf;
-              if (tv > 0.5) sungCnt++; else silCnt++;
-            }
-            const varTV = Math.max(0, sumTV2 - (sumTV * sumTV) / wLen);
-            const varTO = Math.max(0, sumTO2 - (sumTO * sumTO) / wLen);
-            const varTF = Math.max(0, sumTF2 - (sumTF * sumTF) / wLen);
-
-            const lastLineStart = Number(parsedLines[b.endIdx].timeSec || 0) * useScale;
-            const lastLineDur = Math.max(0.4, bEnd - lastLineStart);
-
-            blockMeta.push({
-              ...b,
-              bStart,
-              bEnd,
-              lastLineDur,
-              gapBefore,
-              gapAfter,
-              winStartF,
-              winEndF,
-              wLen,
-              lineStarts,
-              lineEnds,
-              sumTV,
-              stdTV: varTV > 1e-7 ? Math.sqrt(varTV) : 0,
-              sumTO,
-              stdTO: varTO > 1e-7 ? Math.sqrt(varTO) : 0,
-              sumTF,
-              stdTF: varTF > 1e-7 ? Math.sqrt(varTF) : 0,
-              sungCnt,
-              silCnt
-            });
-          }
-
-          const scoreBlockAtTotalShift = (bm, totShiftSec) => {
-            const intShift = Math.round(totShiftSec * frameHz);
-            const aStart = bm.winStartF + intShift;
-            const aEnd = bm.winEndF + intShift;
-            if (aEnd < 8 || aStart >= nAudio - 8) return -1.5;
-
-            const f0 = Math.max(bm.winStartF, -intShift);
-            const f1 = Math.min(bm.winEndF, nAudio - 1 - intShift);
-            const ov = f1 - f0 + 1;
-            const minOv = Math.max(10, Math.floor(bm.wLen * 0.55));
-            if (ov < minOv) return -1.5;
-
-            const oobFrac = 1.0 - (ov / bm.wLen);
-            const ai0 = f0 + intShift;
-            const ai1 = f1 + intShift + 1;
-            const sAV = prefVad[ai1] - prefVad[ai0];
-            const sAV2 = prefVad2[ai1] - prefVad2[ai0];
-            const sAO = prefOn[ai1] - prefOn[ai0];
-            const sAO2 = prefOn2[ai1] - prefOn2[ai0];
-            const sAF = prefOff[ai1] - prefOff[ai0];
-            const sAF2 = prefOff2[ai1] - prefOff2[ai0];
-
-            let sAVTV = 0, sAOTO = 0, sAFTF = 0;
-            let sungVadSum = 0, silVadSum = 0, ovSung = 0, ovSil = 0;
-            let tSumV = bm.sumTV, tStdV = bm.stdTV;
-            let tSumO = bm.sumTO, tStdO = bm.stdTO;
-            let tSumF = bm.sumTF, tStdF = bm.stdTF;
-
-            if (ov === bm.wLen) {
-              for (let f = f0; f <= f1; f++) {
-                const ai = f + intShift;
-                const av = vadCurve[ai];
-                const tv = sTV[f];
-                sAVTV += av * tv;
-                sAOTO += vadOnset[ai] * sTO[f];
-                sAFTF += vadOffset[ai] * sTF[f];
-                if (tv > 0.5) { sungVadSum += av; ovSung++; } else { silVadSum += av; ovSil++; }
-              }
-            } else {
-              let lTV = 0, lTV2 = 0, lTO = 0, lTO2 = 0, lTF = 0, lTF2 = 0;
-              for (let f = f0; f <= f1; f++) {
-                const ai = f + intShift;
-                const av = vadCurve[ai];
-                const tv = sTV[f];
-                const to = sTO[f];
-                const tf = sTF[f];
-                lTV += tv; lTV2 += tv * tv; sAVTV += av * tv;
-                lTO += to; lTO2 += to * to; sAOTO += vadOnset[ai] * to;
-                lTF += tf; lTF2 += tf * tf; sAFTF += vadOffset[ai] * tf;
-                if (tv > 0.5) { sungVadSum += av; ovSung++; } else { silVadSum += av; ovSil++; }
-              }
-              tSumV = lTV;
-              const vV = lTV2 - (lTV * lTV) / ov;
-              tStdV = vV > 1e-7 ? Math.sqrt(vV) : 0;
-              tSumO = lTO;
-              const vO = lTO2 - (lTO * lTO) / ov;
-              tStdO = vO > 1e-7 ? Math.sqrt(vO) : 0;
-              tSumF = lTF;
-              const vF = lTF2 - (lTF * lTF) / ov;
-              tStdF = vF > 1e-7 ? Math.sqrt(vF) : 0;
-            }
-
-            const vAV = sAV2 - (sAV * sAV) / ov;
-            const vAO = sAO2 - (sAO * sAO) / ov;
-            const vAF = sAF2 - (sAF * sAF) / ov;
-            const rVad = (vAV > 1e-7 && tStdV > 1e-7) ? ((sAVTV - (sAV * tSumV) / ov) / (Math.sqrt(vAV) * tStdV)) : 0;
-            const rOn = (vAO > 1e-7 && tStdO > 1e-7) ? ((sAOTO - (sAO * tSumO) / ov) / (Math.sqrt(vAO) * tStdO)) : 0;
-            const rOff = (vAF > 1e-7 && tStdF > 1e-7) ? ((sAFTF - (sAF * tSumF) / ov) / (Math.sqrt(vAF) * tStdF)) : 0;
-
-            const meanSung = ovSung > 0 ? (sungVadSum / ovSung) : 0;
-            const meanSil = ovSil > 0 ? (silVadSum / ovSil) : 0;
-            const contrastBonus = (ovSung >= 4 && ovSil >= 4)
-              ? 0.14 * (meanSung - meanSil)
-              : 0.16 * (meanSung - 0.35);
-
-            // Penalizar líneas del bloque que caigan en silencio instrumental puro (deshace alias periódicos en cortes/solos)
-            let deadLineSum = 0;
-            const nLinesB = bm.lineStarts.length;
-            for (let li = 0; li < nLinesB; li++) {
-              const lS = bm.lineStarts[li] + totShiftSec;
-              const lE = bm.lineEnds[li] + totShiftSec;
-              const lVad = meanVadSpan(lS + 0.15, Math.max(lS + 0.35, lE - 0.15));
-              if (lVad < deadLineThresh) {
-                deadLineSum += (deadLineThresh - lVad) / deadLineThresh;
-              }
-            }
-            const deadLinePen = 0.42 * (deadLineSum / Math.max(1, nLinesB));
-
-            return (0.56 * rVad) + (0.29 * rOn) + (0.15 * rOff) + contrastBonus - deadLinePen - (1.20 * oobFrac);
+          const pear = (sX, sY, sX2, sY2, sXY) => {
+            const vx = sX2 - (sX * sX) / nOv;
+            const vy = sY2 - (sY * sY) / nOv;
+            if (vx <= 1e-7 || vy <= 1e-7) return 0;
+            return (sXY - (sX * sY) / nOv) / Math.sqrt(vx * vy);
           };
-
-          // Tabla de emisiones E[k][j] y DP Viterbi con guardia de cobertura vocal pre-Bloque 0 y conservación vocal entre bloques
-          const emit = new Array(K);
-          for (let k = 0; k < K; k++) {
-            const row = new Float32Array(nStates);
-            const bm = blockMeta[k];
-            for (let j = 0; j < nStates; j++) {
-              row[j] = scoreBlockAtTotalShift(bm, stage2BaseShift + deltas[j]);
-            }
-            emit[k] = row;
-          }
-
-          const dp = new Array(K);
-          const back = new Array(K);
-          dp[0] = new Float32Array(nStates);
-          back[0] = new Int16Array(nStates);
-          for (let j = 0; j < nStates; j++) {
-            const candStart0 = blockMeta[0].bStart + stage2BaseShift + deltas[j];
-            let preSkipPen = 0;
-            if (candStart0 > firstAudioVocalSec + 2.0) {
-              const fCand0 = Math.max(fFirstAudioVoc, Math.min(nAudio, Math.round(candStart0 * frameHz)));
-              const skippedActiveSec = Math.max(0, (prefVocActive[fCand0] - prefVocActive[fFirstAudioVoc]) / frameHz);
-              if (skippedActiveSec > 1.8) {
-                preSkipPen = Math.min(2.0, 0.25 + 0.35 * (skippedActiveSec - 1.8));
-              }
-            } else if (firstAudioVocalSec >= 3.0 && candStart0 < firstAudioVocalSec - 2.5) {
-              const preDeadSec = Math.min(blockMeta[0].bEnd - blockMeta[0].bStart, (firstAudioVocalSec - 0.8) - candStart0);
-              if (preDeadSec > 1.8) {
-                preSkipPen = Math.min(2.0, 0.30 + 0.35 * (preDeadSec - 1.8));
-              }
-            }
-            dp[0][j] = emit[0][j] - 0.0022 * Math.abs(deltas[j]) - preSkipPen;
-            back[0][j] = -1;
-          }
-
-          for (let k = 1; k < K; k++) {
-            const curDp = new Float32Array(nStates);
-            const curBack = new Int16Array(nStates);
-            const prevDp = dp[k - 1];
-            const curEmit = emit[k];
-            const prevB = blockMeta[k - 1];
-            const curB = blockMeta[k];
-            const gapK = Math.max(0, curB.bStart - prevB.bEnd);
-            const isStructBreak = gapK >= 1.30;
-            // Si la última línea del bloque previo quedó truncada por compresión del LRC (<4.3s),
-            // tolerar su cola natural de canto antes de empezar a contar canto omitido en el hueco.
-            const tailAllowance = Math.max(0, Math.min(1.4, 4.3 - prevB.lastLineDur));
-
-            for (let j = 0; j < nStates; j++) {
-              const dCur = deltas[j];
-              const curNewStart = curB.bStart + stage2BaseShift + dCur;
-              const anchorPen = 0.0018 * Math.abs(dCur);
-              const em = curEmit[j] - anchorPen;
-              let bestVal = -1e9;
-              let bestPrev = j;
-
-              for (let p = 0; p < nStates; p++) {
-                const prevVal = prevDp[p];
-                if (prevVal <= -1e8) continue;
-                const dPrev = deltas[p];
-                const jump = dCur - dPrev;
-                // Orden físico estricto: el bloque k no puede comenzar antes de terminar el bloque k-1
-                if (gapK + jump < -0.15) continue;
-                const absJ = Math.abs(jump);
-
-                // Conservación vocal acústica universal O(1) con rampa continua (sin escalón explotable por DP):
-                // permite solos/cortes instrumentales reales (0s de canto activo) y penaliza suavemente
-                // cualquier hueco inter-bloque que se trague > 1.85s de canto sostenido.
-                const prevNewEnd = prevB.bEnd + stage2BaseShift + dPrev;
-                const gStart = prevNewEnd + 0.50 + tailAllowance;
-                const gEnd = curNewStart - 0.35;
-                const gSpan = Math.max(0, gEnd - gStart);
-                let gapVocalPen = 0;
-                if (gSpan >= 1.9) {
-                  const fg0 = Math.max(0, Math.min(nAudio, Math.floor(gStart * frameHz)));
-                  const fg1 = Math.max(fg0, Math.min(nAudio, Math.ceil(gEnd * frameHz)));
-                  const skippedGapVocSec = (prefVocActive[fg1] - prefVocActive[fg0]) / frameHz;
-                  if (skippedGapVocSec > 1.85 && ((skippedGapVocSec / gSpan) >= 0.25 || skippedGapVocSec >= 2.8)) {
-                    gapVocalPen = Math.min(2.4, 0.62 * (skippedGapVocSec - 1.85));
-                  }
-                }
-
-                let transPen = 0;
-                if (jump > 1.0) {
-                  transPen = 0.010 + 0.007 * Math.min(7.0, absJ - 1.0);
-                } else if (isStructBreak) {
-                  // Penalización Huber acotada en cortes/pausas >= 1.30s (permite acortar solos/ediciones radio)
-                  transPen = absJ <= 1.2
-                    ? (0.012 * absJ * absJ)
-                    : (0.018 + 0.013 * Math.min(6.0, absJ - 1.2));
-                } else {
-                  if (gapK < 0.85 && absJ > 4.2) continue;
-                  // Continuidad suave entre bloques contiguos sin pausa larga
-                  transPen = absJ <= 1.4
-                    ? (0.025 * absJ * absJ)
-                    : (0.049 + 0.055 * (absJ - 1.4));
-                }
-                const cand = prevVal - transPen - gapVocalPen + em;
-                if (cand > bestVal) {
-                  bestVal = cand;
-                  bestPrev = p;
-                }
-              }
-              curDp[j] = bestVal;
-              curBack[j] = bestPrev;
-            }
-            dp[k] = curDp;
-            back[k] = curBack;
-          }
-
-          let bestLastJ = 0;
-          let bestLastScore = -1e9;
-          for (let j = 0; j < nStates; j++) {
-            if (dp[K - 1][j] > bestLastScore) {
-              bestLastScore = dp[K - 1][j];
-              bestLastJ = j;
-            }
-          }
-
-          const optDeltas = new Float64Array(K);
-          let curJ = bestLastJ;
-          for (let k = K - 1; k >= 0; k--) {
-            optDeltas[k] = deltas[curJ];
-            curJ = back[k][curJ];
-            if (curJ < 0) curJ = 0;
-          }
-
-          // Refinamiento fino sub-frame (±0.20s, paso 0.05s) por bloque respetando monotonicidad
-          for (let k = 0; k < K; k++) {
-            const bm = blockMeta[k];
-            let bestD = optDeltas[k];
-            let bestSc = scoreBlockAtTotalShift(bm, stage2BaseShift + bestD);
-            const minAllowed = k > 0
-              ? (blockMeta[k - 1].bEnd + optDeltas[k - 1] - bm.bStart - 0.10)
-              : -maxResSec - 0.5;
-            const maxAllowed = k + 1 < K
-              ? (blockMeta[k + 1].bStart + optDeltas[k + 1] - bm.bEnd + 0.10)
-              : maxResSec + 0.5;
-            for (let dd = -0.20; dd <= 0.201; dd += 0.05) {
-              const candD = +(optDeltas[k] + dd).toFixed(2);
-              if (candD < minAllowed || candD > maxAllowed) continue;
-              const sc = scoreBlockAtTotalShift(bm, stage2BaseShift + candD);
-              if (sc > bestSc) {
-                bestSc = sc;
-                bestD = candD;
-              }
-            }
-            optDeltas[k] = bestD;
-          }
-
-          // Proyectar líneas desde los desplazamientos óptimos por bloque (rampa suave solo en derivas graduales <=1.2s)
-          const blockProjected = new Array(parsedLines.length);
-          for (let k = 0; k < K; k++) {
-            const bm = blockMeta[k];
-            const dCur = optDeltas[k];
-            const dPrev = k > 0 ? optDeltas[k - 1] : dCur;
-            const dNext = k + 1 < K ? optDeltas[k + 1] : dCur;
-            const smoothLeft = k > 0 && (bm.bStart - blockMeta[k - 1].bEnd) < 1.25 && Math.abs(dCur - dPrev) <= 1.2;
-            const smoothRight = k + 1 < K && (blockMeta[k + 1].bStart - bm.bEnd) < 1.25 && Math.abs(dCur - dNext) <= 1.2;
-            const blkLen = Math.max(1, bm.endIdx - bm.startIdx + 1);
-
-            for (let i = bm.startIdx; i <= bm.endIdx; i++) {
-              const l = parsedLines[i];
-              const origT = Number(l.timeSec || 0);
-              const origEnd = Number(l.endTimeSec || (origT + 3.2));
-              let localDelta = dCur;
-              if (blkLen >= 2) {
-                const pos = (i - bm.startIdx) / (blkLen - 1);
-                if (smoothLeft && pos < 0.35) {
-                  const w = pos / 0.35;
-                  localDelta = dPrev * (0.35 * (1 - w)) + dCur * (1 - 0.35 * (1 - w));
-                } else if (smoothRight && pos > 0.65) {
-                  const w = (pos - 0.65) / 0.35;
-                  localDelta = dCur * (1 - 0.35 * w) + dNext * (0.35 * w);
-                }
-              }
-              const totSh = stage2BaseShift + localDelta;
-              const newT = Math.max(0, +(origT * useScale + totSh).toFixed(2));
-              const newEnd = Math.max(newT + 0.4, +(origEnd * useScale + totSh).toFixed(2));
-              blockProjected[i] = { timeSec: newT, endTimeSec: newEnd, text: l.text, words: l.words, origT, origEnd };
-            }
-          }
-
-          for (let i = 1; i < blockProjected.length; i++) {
-            if (blockProjected[i].timeSec < blockProjected[i - 1].timeSec + 0.15) {
-              blockProjected[i].timeSec = +(blockProjected[i - 1].timeSec + 0.15).toFixed(2);
-            }
-            if (blockProjected[i - 1].endTimeSec > blockProjected[i].timeSec - 0.04) {
-              blockProjected[i - 1].endTimeSec = +Math.max(blockProjected[i - 1].timeSec + 0.35, blockProjected[i].timeSec - 0.04).toFixed(2);
-            }
-          }
-
-          const blockTpl = buildTemplateFromLines(blockProjected, 1.0);
-          const blockScore = evalTemplateAtShift(blockTpl, 0, blockProjected[0].timeSec);
-          return { lines: blockProjected, tpl: blockTpl, score: blockScore, scale: useScale };
+          return (0.54 * pear(sAV, sTV, sAV2, sTV2, sAVTV))
+            + (0.32 * pear(sAO, sTO, sAO2, sTO2, sAOTO))
+            + (0.14 * pear(sAF, sTF, sAF2, sTF2, sAFTF));
         };
-
-        const stage1RigidSnapshot = championLines;
-        const stage1RigidScore = championScore;
-        const primaryBaseShift = (Math.abs(bestShift) < 0.1 && Math.abs(rawStage1Shift) > 1.5 && bestScore < 0.22)
-          ? rawStage1Shift
-          : bestShift;
-        let bestBlockCand = runStage2Blocks(bestScale, primaryBaseShift);
-        if (bestScale !== 1.0) {
-          const unscaledBase = peaks.length > 0 ? peaks[0].shift : 0;
-          const unscaledCand = runStage2Blocks(1.0, unscaledBase);
-          if (unscaledCand && (!bestBlockCand || unscaledCand.score > bestBlockCand.score + 0.004)) {
-            bestBlockCand = unscaledCand;
-          }
-        }
-
-        const minElasticGain = championScore >= 0.34 ? 0.030 : 0.012;
-        if (bestBlockCand && bestBlockCand.score > championScore + minElasticGain) {
-          championLines = bestBlockCand.lines;
-          championTpl = bestBlockCand.tpl;
-          championScore = bestBlockCand.score;
-          bestScale = bestBlockCand.scale;
-          usedElasticWarp = true;
-        }
-
-        // Guardar referencia de Etapa 1 para que Etapa 3 compare también pulido directo desde Etapa 1
-        // (evita que un LRC con jitter humano alternante sea desplazado primero por bloques)
-        this._lastStage1Snap = { lines: stage1RigidSnapshot, score: stage1RigidScore };
-      } else {
-        this._lastStage1Snap = null;
-      }
-
-      // =========================================================================
-      // ETAPA 3: MICRO-ALINEADOR VITERBI POR LÍNEA (RADIO ADAPTATIVO CONTRA JITTER)
-      // Si Etapa 1/2 ya bloqueó fuerte (>=0.34) y >=72% de líneas son limpias,
-      // solo pulido quirúrgico ±0.35s; si hay jitter LRC humano, abre ±1.65s y
-      // compara también pulido directo desde Etapa 1 para deshacer jitter alternante.
-      // =========================================================================
-      if (championLines.length >= 4 && actualDur >= 20) {
-        const runStage3Lines = (srcLines, srcScore) => {
-          const N = srcLines.length;
-          const looksCleanArr = new Uint8Array(N);
-          let cleanCount = 0;
-          for (let i = 0; i < N; i++) {
-            const cur = srcLines[i];
-            const t0 = cur.timeSec;
-            const dur = Math.max(0.5, Math.min(6.5, cur.endTimeSec - t0));
-            const prevEnd = i === 0 ? 0 : srcLines[i - 1].endTimeSec;
-            const gapBefore = i === 0 ? Math.max(1.5, t0) : Math.max(0, t0 - prevEnd);
-            const preV0 = meanVadSpan(Math.max(0, t0 - 0.50), Math.max(0, t0 - 0.06));
-            const headV0 = meanVadSpan(t0 + 0.04, Math.min(actualDur, t0 + Math.min(1.1, dur)));
-            const bodyV0 = meanVadSpan(t0, Math.min(actualDur, t0 + dur));
-            const on0 = sampleSmooth(vadOnset, t0);
-            const clean = (headV0 >= 0.40) && ((headV0 - preV0) >= 0.18 || (on0 >= 0.22 && (headV0 - preV0) >= 0.08));
-            if (clean) {
-              looksCleanArr[i] = 1;
-              cleanCount++;
-            }
-          }
-
-          const alreadyTightLock = srcScore >= 0.34 && (cleanCount / N) >= 0.55;
-          const maxEps = alreadyTightLock ? 0.35 : 2.00;
-          const epsStep = alreadyTightLock ? 0.05 : 0.10;
-          const epsGrid = [];
-          for (let e = -maxEps; e <= maxEps + 1e-4; e += epsStep) epsGrid.push(+e.toFixed(2));
-          const nE = epsGrid.length;
-          const lDp = new Array(N);
-          const lBack = new Array(N);
-          const anchorWeights = new Float32Array(N);
-          const isNoisyLrc = !alreadyTightLock && srcScore < 0.28;
-          for (let i = 0; i < N; i++) {
-            anchorWeights[i] = alreadyTightLock ? 0.25 : (isNoisyLrc ? 0.012 : (looksCleanArr[i] ? 0.07 : 0.010));
-          }
-
-          const scoreLineAt = (idx, candT) => {
-            const cur = srcLines[idx];
-            const dur = Math.max(0.5, Math.min(6.5, cur.endTimeSec - cur.timeSec));
-            if (candT < 0 || candT > actualDur - 0.35) return -1.2;
-            const prevEnd = idx === 0 ? 0 : srcLines[idx - 1].endTimeSec;
-            const nextStart = idx + 1 < N ? srcLines[idx + 1].timeSec : (cur.endTimeSec + 4.0);
-            const gapBefore = idx === 0 ? Math.max(1.5, cur.timeSec) : Math.max(0, cur.timeSec - prevEnd);
-            const gapAfter = Math.max(0, nextStart - cur.endTimeSec);
-
-            const preVad = meanVadSpan(Math.max(0, candT - 0.50), Math.max(0, candT - 0.06));
-            const headVad = meanVadSpan(candT + 0.04, Math.min(actualDur, candT + Math.min(1.1, dur)));
-            const bodyVad = meanVadSpan(candT, Math.min(actualDur, candT + dur));
-            const onPeak = sampleSmooth(vadOnset, candT);
-            const offPeak = (gapAfter >= 0.45 || !alreadyTightLock)
-              ? sampleSmooth(vadOffset, Math.min(actualDur - 0.05, candT + dur))
-              : 0;
-
-            const onsetTerm = (gapBefore >= 0.45 || !alreadyTightLock)
-              ? (0.50 * onPeak + 0.36 * (headVad - preVad))
-              : (0.28 * onPeak + 0.14 * (headVad - preVad));
-            return onsetTerm + (0.26 * bodyVad) + (0.16 * offPeak);
-          };
-
-          lDp[0] = new Float32Array(nE);
-          lBack[0] = new Int16Array(nE);
-          for (let j = 0; j < nE; j++) {
-            const e = epsGrid[j];
-            lDp[0][j] = scoreLineAt(0, srcLines[0].timeSec + e) - anchorWeights[0] * e * e;
-            lBack[0][j] = -1;
-          }
-
-          for (let i = 1; i < N; i++) {
-            const curDp = new Float32Array(nE);
-            const curBack = new Int16Array(nE);
-            const prevDp = lDp[i - 1];
-            const baseCur = srcLines[i].timeSec;
-            const basePrev = srcLines[i - 1].timeSec;
-            const prevDur = Math.max(0.4, srcLines[i - 1].endTimeSec - basePrev);
-            const origGap = Math.max(0.25, baseCur - basePrev);
-            const minStep = Math.max(0.28, Math.min(origGap * 0.55, 1.15));
-            const minFromPrevStart = Math.max(minStep, prevDur - 0.55);
-            const gapBefore = Math.max(0, baseCur - srcLines[i - 1].endTimeSec);
-            const smoothW = alreadyTightLock
-              ? (gapBefore >= 1.2 ? 0.020 : 0.065)
-              : (isNoisyLrc ? 0.004 : (gapBefore >= 0.9 ? 0.008 : 0.018));
-            const aW = anchorWeights[i];
-
-            for (let j = 0; j < nE; j++) {
-              const eCur = epsGrid[j];
-              const candT = baseCur + eCur;
-              const em = scoreLineAt(i, candT) - aW * eCur * eCur;
-              let bestV = -1e9;
-              let bestP = j;
-              for (let p = 0; p < nE; p++) {
-                if (prevDp[p] <= -1e8) continue;
-                const prevT = basePrev + epsGrid[p];
-                if (candT < prevT + minFromPrevStart) continue;
-                const diff = eCur - epsGrid[p];
-                const v = prevDp[p] - smoothW * diff * diff + em;
-                if (v > bestV) {
-                  bestV = v;
-                  bestP = p;
-                }
-              }
-              curDp[j] = bestV;
-              curBack[j] = bestP;
-            }
-            lDp[i] = curDp;
-            lBack[i] = curBack;
-          }
-
-          let bestEndE = 0;
-          let bestEndV = -1e9;
-          for (let j = 0; j < nE; j++) {
-            if (lDp[N - 1][j] > bestEndV) {
-              bestEndV = lDp[N - 1][j];
-              bestEndE = j;
-            }
-          }
-
-          const optEps = new Float64Array(N);
-          let cE = bestEndE;
-          for (let i = N - 1; i >= 0; i--) {
-            optEps[i] = epsGrid[cE];
-            cE = lBack[i][cE];
-            if (cE < 0) cE = 0;
-          }
-
-          if (!alreadyTightLock) {
-            for (let i = 0; i < N; i++) {
-              const baseT = srcLines[i].timeSec;
-              const aW = anchorWeights[i];
-              let bestE = optEps[i];
-              let bestS = scoreLineAt(i, baseT + bestE) - aW * bestE * bestE;
-              for (const dd of [-0.05, 0.05]) {
-                const candE = +(optEps[i] + dd).toFixed(2);
-                const candT = baseT + candE;
-                if (i > 0 && candT < srcLines[i - 1].timeSec + optEps[i - 1] + 0.25) continue;
-                if (i + 1 < N && candT > srcLines[i + 1].timeSec + optEps[i + 1] - 0.25) continue;
-                const sc = scoreLineAt(i, candT) - aW * candE * candE;
-                if (sc > bestS) {
-                  bestS = sc;
-                  bestE = candE;
-                }
-              }
-              optEps[i] = bestE;
-            }
-          }
-
-          const lineWarped = srcLines.map((cl, i) => {
-            const e = optEps[i];
-            const newT = Math.max(0, +(cl.timeSec + e).toFixed(2));
-            const newEnd = Math.max(newT + 0.4, +(cl.endTimeSec + e).toFixed(2));
-            return { ...cl, timeSec: newT, endTimeSec: newEnd };
-          });
-          for (let i = 1; i < lineWarped.length; i++) {
-            if (lineWarped[i].timeSec < lineWarped[i - 1].timeSec + 0.15) {
-              lineWarped[i].timeSec = +(lineWarped[i - 1].timeSec + 0.15).toFixed(2);
-            }
-            if (lineWarped[i - 1].endTimeSec > lineWarped[i].timeSec - 0.04) {
-              lineWarped[i - 1].endTimeSec = +Math.max(lineWarped[i - 1].timeSec + 0.35, lineWarped[i].timeSec - 0.04).toFixed(2);
-            }
-          }
-
-          const lineTpl = buildTemplateFromLines(lineWarped, 1.0);
-          const lineScore = evalTemplateAtShift(lineTpl, 0, lineWarped[0].timeSec);
-          return { lines: lineWarped, tpl: lineTpl, score: lineScore, alreadyTightLock };
+        const makeThird = (loFrac, hiFrac) => {
+          const i0 = Math.max(0, Math.min(parsedLines.length - 4, Math.floor(parsedLines.length * loFrac)));
+          const i1 = Math.max(i0 + 4, Math.min(parsedLines.length, Math.ceil(parsedLines.length * hiFrac)));
+          const sub = parsedLines.slice(i0, i1);
+          const tplH = buildTemplateFromLines(sub, bestScale);
+          const fLo = Math.max(0, Math.floor((Number(sub[0].timeSec || 0) * bestScale - 0.5) * frameHz));
+          const fHi = Math.min(tplH.tplLen, Math.ceil((Number(sub[sub.length - 1].endTimeSec || (Number(sub[sub.length - 1].timeSec || 0) + 3.0)) * bestScale + 0.5) * frameHz));
+          const cGlobal = evalSliceAtShift(tplH, fLo, fHi, bestShift);
+          return { tplH, fLo, fHi, cGlobal, bestSc: cGlobal, bestSh: bestShift };
         };
+        const thirds = [
+          makeThird(0.0, 0.38),
+          makeThird(0.31, 0.69),
+          makeThird(0.62, 1.0)
+        ];
 
-        let bestLineCand = runStage3Lines(championLines, championScore);
-        if (usedElasticWarp && this._lastStage1Snap && championScore < 0.39) {
-          const directCand = runStage3Lines(this._lastStage1Snap.lines, this._lastStage1Snap.score);
-          if (directCand && directCand.score > bestLineCand.score) {
-            bestLineCand = directCand;
+        if (thirds.some(t => t.cGlobal < 0.14)) {
+          hasHalfSplitMismatch = true;
+        } else {
+          for (const th of thirds) {
+            for (let ds = -14.0; ds <= 14.01; ds += 0.5) {
+              const sh = +(bestShift + ds).toFixed(2);
+              const sc = evalSliceAtShift(th.tplH, th.fLo, th.fHi, sh);
+              if (sc > th.bestSc) { th.bestSc = sc; th.bestSh = sh; }
+            }
+          }
+          const strongDivergentThird = thirds.some(
+            (th) => Math.abs(th.bestSh - bestShift) >= 1.8 && th.bestSc >= 0.20 && (th.bestSc - th.cGlobal) >= 0.045
+          );
+          let maxShiftDiff = 0;
+          for (let a = 0; a < thirds.length; a++) {
+            for (let b = a + 1; b < thirds.length; b++) {
+              const d = Math.abs(thirds[a].bestSh - thirds[b].bestSh);
+              if (d > maxShiftDiff) maxShiftDiff = d;
+            }
+          }
+          const avgGlobal = thirds.reduce((s, t) => s + t.cGlobal, 0) / thirds.length;
+          const avgSplit = thirds.reduce((s, t) => s + t.bestSc, 0) / thirds.length;
+          if (strongDivergentThird || (maxShiftDiff >= 1.8 && (avgSplit - avgGlobal) >= 0.06)) {
+            hasHalfSplitMismatch = true;
           }
         }
-        this._lastStage1Snap = null;
-
-        const minLineGain = bestLineCand.alreadyTightLock ? 0.018 : 0.012;
-        if (bestLineCand.score > championScore + minLineGain) {
-          championLines = bestLineCand.lines;
-          championTpl = bestLineCand.tpl;
-          championScore = bestLineCand.score;
-          usedElasticWarp = true;
-        }
       }
 
-      // Calcular margen real contra desplazamientos señuelo para validar bloqueo de la alineación ganadora
-      let finalScore = championScore;
-      let finalMargin = margin;
-      if (usedElasticWarp) {
-        let maxDecoy = -1;
-        for (const decoySh of [-9.0, -6.0, -3.5, 3.5, 6.0, 9.0]) {
-          const dSc = evalTemplateAtShift(championTpl, decoySh, championLines[0].timeSec);
-          if (dSc > maxDecoy) maxDecoy = dSc;
-        }
-        if (maxDecoy > -1) {
-          finalMargin = Math.max(0, finalScore - maxDecoy);
-        }
+      const isVerifiedLock = Boolean(
+        !isBimodalSplit && !hasHalfSplitMismatch && (
+          (bestScore >= 0.28 && effectiveMargin >= 0.080) ||
+          (bestScore >= 0.34 && effectiveMargin >= 0.055)
+        )
+      );
+
+      // Si no hay bloqueo global inequívoco, NO alterar la letra original bajo ningún concepto
+      let finalShift = bestShift;
+      let finalScale = bestScale;
+      let finalScore = bestScore;
+      let finalMargin = effectiveMargin;
+
+      if (!isVerifiedLock) {
+        finalShift = 0;
+        finalScale = 1.0;
+        finalScore = scoreZero;
+        finalMargin = computeMarginAround(0, scoreZero);
+      } else if (finalScale === 1.0 && Math.abs(finalShift) < 0.14) {
+        finalShift = 0;
       }
 
-      const isVerifiedLock = (finalScore >= 0.14 && finalMargin >= 0.032) || (finalScore >= 0.22 && finalMargin >= 0.022);
+      const aligned = parsedLines.map((origLine, idx) => {
+        const origT = Number(origLine.timeSec || 0);
+        const origEnd = Number(origLine.endTimeSec || (origT + 3.2));
+        const rawT = Number.isFinite(Number(origLine._rawLrcTimeSec)) ? Number(origLine._rawLrcTimeSec) : origT;
+        const rawEnd = Number.isFinite(Number(origLine._rawLrcEndTimeSec)) ? Number(origLine._rawLrcEndTimeSec) : origEnd;
 
-      // Si no se aplicó deformación elástica, aplicar micro-snap suave ±0.20s sobre picos claros tras pausas >= 1.2s
-      let minLineDelta = Infinity;
-      let maxLineDelta = -Infinity;
-      let deltaSum = 0;
+        let newT = isVerifiedLock ? Math.max(0, +(origT * finalScale + finalShift).toFixed(2)) : origT;
+        let newEnd = isVerifiedLock ? Math.max(newT + 0.4, +(origEnd * finalScale + finalShift).toFixed(2)) : origEnd;
 
-      const aligned = championLines.map((cl, idx) => {
-        const origT = Number(parsedLines[idx].timeSec || 0);
-        const origEnd = Number(parsedLines[idx].endTimeSec || (origT + 3.2));
-        let newT = cl.timeSec;
-        let newEnd = cl.endTimeSec;
-
-        if (!usedElasticWarp && isVerifiedLock) {
+        // Micro-ajuste suave ±0.18s solo en bloqueo verificado tras pausas reales >= 1.2s
+        if (isVerifiedLock) {
           const prevOrigEnd = idx === 0 ? 0 : Number(parsedLines[idx - 1].endTimeSec || (Number(parsedLines[idx - 1].timeSec || 0) + 3.0));
-          const gapBefore = idx === 0 ? newT : (origT - prevOrigEnd) * bestScale;
+          const gapBefore = idx === 0 ? newT : (origT - prevOrigEnd) * finalScale;
           if (gapBefore >= 1.20 && newT >= 0.35 && newT < actualDur - 0.5) {
             const centerF = Math.round(newT * frameHz);
             const curOn = (centerF >= 0 && centerF < nAudio) ? vadOnset[centerF] : 0;
-            const winF = Math.max(2, Math.round(0.20 * frameHz));
+            const winF = Math.max(2, Math.round(0.18 * frameHz));
             let peakF = centerF;
             let peakOn = curOn;
             for (let df = -winF; df <= winF; df++) {
@@ -4227,32 +3684,35 @@
               }
             }
             if (peakF !== centerF && peakOn >= 0.26 && peakOn >= curOn * 1.40) {
-              const microDelta = Math.max(-0.20, Math.min(0.20, +((peakF / frameHz) - newT).toFixed(2)));
+              const microDelta = Math.max(-0.18, Math.min(0.18, +((peakF / frameHz) - newT).toFixed(2)));
               newT = Math.max(0, +(newT + microDelta).toFixed(2));
               if (newEnd < newT + 0.45) newEnd = +(newT + 0.45).toFixed(2);
             }
           }
         }
 
-        const lineDelta = newT - origT;
-        if (lineDelta < minLineDelta) minLineDelta = lineDelta;
-        if (lineDelta > maxLineDelta) maxLineDelta = lineDelta;
-        deltaSum += lineDelta;
-
-        const out = { timeSec: newT, endTimeSec: newEnd, text: parsedLines[idx].text, elasticOffsetSec: 0 };
-        if (Array.isArray(parsedLines[idx].words)) {
+        const out = {
+          timeSec: newT,
+          endTimeSec: newEnd,
+          text: origLine.text,
+          elasticOffsetSec: 0,
+          _rawLrcTimeSec: rawT,
+          _rawLrcEndTimeSec: rawEnd
+        };
+        if (Array.isArray(origLine.words)) {
           const origSpan = Math.max(0.25, origEnd - origT);
           const newSpan = Math.max(0.25, newEnd - newT);
           const spanRatio = Math.max(0.65, Math.min(1.45, newSpan / origSpan));
-          out.words = parsedLines[idx].words.map(w => ({
-            timeSec: Math.max(0, +(newT + (Number(w.timeSec || origT) - origT) * spanRatio).toFixed(3)),
+          out.words = origLine.words.map(w => ({
+            timeSec: isVerifiedLock
+              ? Math.max(0, +(newT + (Number(w.timeSec || origT) - origT) * spanRatio).toFixed(3))
+              : Number(w.timeSec || origT),
             text: w.text
           }));
         }
         return out;
       });
 
-      // Garantizar estricta monotonicidad tras cualquier ajuste elástico
       for (let i = 1; i < aligned.length; i++) {
         if (aligned[i].timeSec < aligned[i - 1].timeSec + 0.15) {
           aligned[i].timeSec = +(aligned[i - 1].timeSec + 0.15).toFixed(2);
@@ -4262,22 +3722,15 @@
         }
       }
 
-      const elasticSpreadSec = (Number.isFinite(minLineDelta) && Number.isFinite(maxLineDelta))
-        ? +(maxLineDelta - minLineDelta).toFixed(2)
-        : 0;
-      const effectiveShiftSec = usedElasticWarp
-        ? +(deltaSum / Math.max(1, aligned.length)).toFixed(2)
-        : +bestShift.toFixed(2);
-
       return {
-        shiftSec: effectiveShiftSec,
-        scale: bestScale,
+        shiftSec: +finalShift.toFixed(2),
+        scale: finalScale,
         score: +finalScore.toFixed(4),
         scoreZero: +scoreZero.toFixed(4),
         margin: +finalMargin.toFixed(4),
         isVerifiedLock,
-        usedElasticWarp: Boolean(usedElasticWarp && elasticSpreadSec >= 0.45),
-        elasticSpreadSec,
+        usedElasticWarp: false,
+        elasticSpreadSec: 0,
         lines: aligned
       };
     }
@@ -4469,28 +3922,25 @@
         let champion = null;
         for (const cand of pool.slice(0, 6)) {
           const aligned = this._computeDspAlignment(cand.parsed, cand.itemDur, dspEnvelope);
-          const lockBonus = aligned.isVerifiedLock ? 24 : 0;
+          if (!aligned.isVerifiedLock) continue;
           const marginBonus = Math.min(0.15, Math.max(0, Number(aligned.margin) || 0)) * 120;
-          const combinedQuality = (cand.textScore * 0.45) + (aligned.score * 140) + lockBonus + marginBonus;
+          const combinedQuality = (cand.textScore * 0.45) + (aligned.score * 140) + 24 + marginBonus;
           if (!champion || combinedQuality > champion.combinedQuality) {
             champion = { ...aligned, cand, combinedQuality };
           }
         }
-        if (champion && Array.isArray(champion.lines) && champion.lines.length >= 3) {
-          const isVadLock = Boolean(champion.isVerifiedLock);
+        if (champion && champion.isVerifiedLock && Array.isArray(champion.lines) && champion.lines.length >= 3) {
           const vadShift = Number(champion.shiftSec) || 0;
           const vadScore = Number(champion.score) || 0;
           const vadMargin = Number(champion.margin) || 0;
-          const vadElastic = Boolean(champion.usedElasticWarp);
-          const vadSpread = Number(champion.elasticSpreadSec) || 0;
           outLines = champion.lines.map(l => ({
             ...l,
-            _vocalVadVerified: isVadLock,
+            _vocalVadVerified: true,
             _vocalVadShiftSec: vadShift,
             _vocalVadScore: vadScore,
             _vocalVadMargin: vadMargin,
-            _vocalVadElastic: vadElastic,
-            _vocalVadSpreadSec: vadSpread
+            _vocalVadElastic: false,
+            _vocalVadSpreadSec: 0
           }));
           chosenBest = champion.cand;
           chosenDur = dspEnvelope.actualDur || champion.cand.itemDur;
@@ -5179,11 +4629,11 @@
       const combined = `${rawA}${rawT}`;
       const durNum = Number(actualDurSec) || 0;
 
-      // 1) Prioridad máxima: alineación verificada directamente sobre el audio real (v2 con chequeo de duración)
+      // 1) Prioridad máxima: alineación verificada por palabras reales (v4 con chequeo de duración)
       try {
-        const rawStoreV2 = localStorage.getItem('beatstar_whisper_aligned_v2');
-        if (rawStoreV2) {
-          const map = JSON.parse(rawStoreV2);
+        const rawStoreV4 = localStorage.getItem('beatstar_sync_aligned_v4');
+        if (rawStoreV4) {
+          const map = JSON.parse(rawStoreV4);
           const k = this._makeKey(track);
           const hit = (vid && map[`vid:${vid}`]) || (k && map[k]) || (rawT && rawT.length >= 5 && map[`title:${rawT}`]);
           if (hit && hit.syncedLyrics && String(hit.syncedLyrics).includes('[')) {
@@ -5225,13 +4675,13 @@
       this._aiSyncStatusMap.delete(key);
       this._whisperLaunchGuard.delete(key);
       try {
-        const rawStore = localStorage.getItem('beatstar_whisper_aligned_v2');
+        const rawStore = localStorage.getItem('beatstar_sync_aligned_v4');
         if (rawStore) {
           const map = JSON.parse(rawStore);
           if (key) delete map[key];
           if (vid) delete map[`vid:${vid}`];
           if (rawT && rawT.length >= 5) delete map[`title:${rawT}`];
-          localStorage.setItem('beatstar_whisper_aligned_v2', JSON.stringify(map));
+          localStorage.setItem('beatstar_sync_aligned_v4', JSON.stringify(map));
         }
       } catch (_) {}
     }
@@ -5281,6 +4731,8 @@
         audioDurSec: cleanDur,
         shiftSec: Number.isFinite(Number(options?.shiftSec)) ? +Number(options.shiftSec).toFixed(2) : 0,
         slope: Number.isFinite(Number(options?.slope)) ? +Number(options.slope).toFixed(4) : 1.0,
+        isPiecewise: Boolean(options?.isPiecewise),
+        spreadSec: Number(options?.spreadSec) || 0,
         matchedWords: Number(options?.matchedWords) || 0,
         anchoredLines: Number(options?.anchoredLines) || 0,
         syncedLyrics: lrcStr,
@@ -5291,22 +4743,26 @@
         isWhisperVerified: true
       };
 
-      try {
-        const rawStore = localStorage.getItem('beatstar_whisper_aligned_v2');
-        const map = rawStore ? JSON.parse(rawStore) : {};
-        if (key) map[key] = entry;
-        if (vid) map[`vid:${vid}`] = entry;
-        if (rawT && rawT.length >= 5) map[`title:${rawT}`] = entry;
-        // Limitar el almacén local a las ~60 claves más recientes para no superar la cuota de localStorage
-        const keys = Object.keys(map);
-        if (keys.length > 72) {
-          keys.sort((a, b) => (Number(map[b]?.updatedAt) || 0) - (Number(map[a]?.updatedAt) || 0));
-          for (const dropK of keys.slice(60)) {
-            delete map[dropK];
+      // Persistir solo cuando el barrido multi-ventana terminó con anclaje sólido (nunca guardar un bloqueo parcial)
+      const isCompleteSave = Boolean(options?.isComplete ?? true);
+      const hasStrongEvidence = (entry.anchoredLines >= 3 && entry.matchedWords >= 6) || Boolean(options?.forcePersist);
+      if (isCompleteSave && hasStrongEvidence) {
+        try {
+          const rawStore = localStorage.getItem('beatstar_sync_aligned_v4');
+          const map = rawStore ? JSON.parse(rawStore) : {};
+          if (key) map[key] = entry;
+          if (vid) map[`vid:${vid}`] = entry;
+          if (rawT && rawT.length >= 5) map[`title:${rawT}`] = entry;
+          const keys = Object.keys(map);
+          if (keys.length > 72) {
+            keys.sort((a, b) => (Number(map[b]?.updatedAt) || 0) - (Number(map[a]?.updatedAt) || 0));
+            for (const dropK of keys.slice(60)) {
+              delete map[dropK];
+            }
           }
-        }
-        localStorage.setItem('beatstar_whisper_aligned_v2', JSON.stringify(map));
-      } catch (_) {}
+          localStorage.setItem('beatstar_sync_aligned_v4', JSON.stringify(map));
+        } catch (_) {}
+      }
 
       const parsed = this.parseLrc(lrcStr, { track });
       if (parsed.length >= 2) {
@@ -5319,6 +4775,8 @@
             audioDurSec: cleanDur,
             shiftSec: entry.shiftSec,
             slope: entry.slope,
+            isPiecewise: entry.isPiecewise,
+            spreadSec: entry.spreadSec,
             matchedWords: entry.matchedWords,
             anchoredLines: entry.anchoredLines,
             isComplete: Boolean(options?.isComplete ?? true)
@@ -5687,8 +5145,8 @@
       );
       const isVocalVadLocked = Boolean(cleanInit.length >= 3 && !isPlain && cleanInit[0]._vocalVadVerified === true);
 
-      // POLÍTICA RÁPIDA FIABLE: Si Vocal-Onset VAD ya bloqueó el LRC al audio real (<1s),
-      // mostrar estado listo de inmediato y NO lanzar Whisper-tiny lento en cliente.
+      // POLÍTICA RÁPIDA FIABLE: Si Vocal-Onset VAD rígido (1-2 DOF) bloqueó el LRC al audio real (<100ms),
+      // mostrar estado listo de inmediato y NO lanzar Whisper innecesario.
       if (isVocalVadLocked) {
         const pendingTimer = this._serverFallbackTimers.get(key);
         if (pendingTimer) {
@@ -5696,12 +5154,9 @@
           this._serverFallbackTimers.delete(key);
         }
         const vadShift = Number(cleanInit[0]._vocalVadShiftSec) || 0;
-        const isElastic = Boolean(cleanInit[0]._vocalVadElastic && (Number(cleanInit[0]._vocalVadSpreadSec) || 0) >= 0.8);
-        const readyLabel = isElastic
-          ? 'Sincro · Elástica'
-          : (Math.abs(vadShift) >= 0.55
-              ? `Sincro · ${vadShift > 0 ? '+' : ''}${vadShift.toFixed(1)}s`
-              : 'Sincro · Exacta');
+        const readyLabel = Math.abs(vadShift) >= 0.55
+          ? `Sincro · ${vadShift > 0 ? '+' : ''}${vadShift.toFixed(1)}s`
+          : 'Sincro · Exacta';
         this.setKaraokeAiSyncStatus(key, readyLabel, 'ready');
         return;
       }
@@ -5716,7 +5171,7 @@
         if (this._whisperLaunchGuard.get(key) === guardSig) return;
         this._whisperLaunchGuard.set(key, guardSig);
 
-        // Si tenemos LRC sincronizado y aún no se ejecutó Vocal-Onset VAD sobre este blob, correrlo primero (<150ms)
+        // Si tenemos LRC sincronizado y aún no se ejecutó Vocal-Onset VAD rígido sobre este blob, correrlo primero (<100ms)
         const stNow = this.trackCalibrationState.get(key);
         if (cleanInit.length >= 3 && !isPlain && (!stNow || !stNow.dspEnvelope)) {
           this.setKaraokeAiSyncStatus(key, 'Sincronizando...', 'working');
@@ -5742,8 +5197,8 @@
                     _vocalVadShiftSec: Number(aligned.shiftSec) || 0,
                     _vocalVadScore: Number(aligned.score) || 0,
                     _vocalVadMargin: Number(aligned.margin) || 0,
-                    _vocalVadElastic: Boolean(aligned.usedElasticWarp),
-                    _vocalVadSpreadSec: Number(aligned.elasticSpreadSec) || 0
+                    _vocalVadElastic: false,
+                    _vocalVadSpreadSec: 0
                   }));
                 }
               }
@@ -5752,29 +5207,28 @@
                 this._refreshCurrentLyrics(track, key, env.actualDur || effDur);
                 if (vadLines[0]._vocalVadVerified === true) {
                   const sh = Number(vadLines[0]._vocalVadShiftSec) || 0;
-                  const isEl = Boolean(vadLines[0]._vocalVadElastic && (Number(vadLines[0]._vocalVadSpreadSec) || 0) >= 0.8);
-                  const readyLabel = isEl
-                    ? 'Sincro · Elástica'
-                    : (Math.abs(sh) >= 0.55
-                        ? `Sincro · ${sh > 0 ? '+' : ''}${sh.toFixed(1)}s`
-                        : 'Sincro · Exacta');
+                  const readyLabel = Math.abs(sh) >= 0.55
+                    ? `Sincro · ${sh > 0 ? '+' : ''}${sh.toFixed(1)}s`
+                    : 'Sincro · Exacta';
                   this.setKaraokeAiSyncStatus(key, readyLabel, 'ready');
                   return;
                 }
               }
             }
-            // Confianza Vocal-VAD insuficiente: recurrir a Whisper rápido de 3 sondas
-            this.setKaraokeAiSyncStatus(key, 'Sincro IA...', 'working');
-            ss.alignOrTranscribeForKaraoke(track, key, audioBlob, cleanInit, effDur).catch(() => {});
+            // Confianza Vocal-VAD rígida insuficiente (canción densa o cortes no lineales):
+            // pasar a verificación real palabra por palabra en múltiples ventanas con Whisper
+            const rawForWhisper = (this.cache.get(key) || cleanInit);
+            this.setKaraokeAiSyncStatus(key, 'Sincro · Verificando...', 'working');
+            ss.alignOrTranscribeForKaraoke(track, key, audioBlob, rawForWhisper, (env && env.actualDur) || effDur).catch(() => {});
           }).catch(() => {
-            this.setKaraokeAiSyncStatus(key, 'Sincro IA...', 'working');
+            this.setKaraokeAiSyncStatus(key, 'Sincro · Verificando...', 'working');
             ss.alignOrTranscribeForKaraoke(track, key, audioBlob, cleanInit, effDur).catch(() => {});
           });
           return;
         }
 
-        // Sin letra, texto plano o confianza Vocal-VAD baja -> lanzar Whisper rápido (3 sondas si hay LRC)
-        this.setKaraokeAiSyncStatus(key, 'Sincro IA...', 'working');
+        // Sin letra, texto plano o confianza Vocal-VAD rígida insuficiente -> verificación real multi-ventana Whisper
+        this.setKaraokeAiSyncStatus(key, 'Sincro · Verificando...', 'working');
         ss.alignOrTranscribeForKaraoke(track, key, audioBlob, cleanInit, effDur).catch(() => {});
         return;
       }
@@ -5795,7 +5249,7 @@
           if (window.SingStarVocalEngine && typeof window.SingStarVocalEngine.isActiveWhisperFor === 'function' && window.SingStarVocalEngine.isActiveWhisperFor(key)) return;
           const latestLines = this.cache.has(key) ? this.cache.get(key) : cleanInit;
           if (Array.isArray(latestLines) && latestLines.length >= 3 && latestLines[0]?._vocalVadVerified === true) return;
-          this.setKaraokeAiSyncStatus(key, 'Sincro IA...', 'working');
+          this.setKaraokeAiSyncStatus(key, 'Sincro · Verificando...', 'working');
           window.SingStarVocalEngine.alignOrTranscribeForKaraoke(track, key, null, latestLines, (stNow && stNow.actualDur) || effDur).catch(() => {});
         }, 4500);
         this._serverFallbackTimers.set(key, tid);
@@ -7863,9 +7317,11 @@
         const cached = this.studioAnalysisCache.get(key);
         if (cached && !cached.hasPlaceholderLyrics && !cached.hasUnalignedPlainLyrics && (cached.isWhisperVerified || cached.isVocalVadLocked) && cached.hasDspMelody) {
           this._applyStudioAnalysisToStage(cached, userOff, false);
-          const sh = Number(cached.vadShiftSec) || 0;
+          const sh = Number(cached.isWhisperVerified ? cached.shiftSec : cached.vadShiftSec) || 0;
           const lbl = cached.isWhisperVerified
-            ? 'Sincro IA · 10ms'
+            ? (cached.isPiecewise
+                ? 'Sincro · Por tramos'
+                : (Math.abs(sh) >= 0.55 ? `Sincro · ${sh > 0 ? '+' : ''}${sh.toFixed(1)}s` : 'Sincro · Exacta'))
             : (Math.abs(sh) >= 0.55 ? `Sincro · ${sh > 0 ? '+' : ''}${sh.toFixed(1)}s` : 'Sincro · Exacta');
           this._setSyncStatusChip(lbl, 'ready');
           if (loadView) loadView.classList.add('hidden');
@@ -7900,7 +7356,7 @@
             this._applyStudioAnalysisToStage(sData, userOff, false);
           }
         }
-        this._setSyncStatusChip('Sincro IA en curso...', 'working');
+        this._setSyncStatusChip('Sincro · Verificando...', 'working');
         return;
       }
 
@@ -7913,7 +7369,7 @@
         const rawVidTrack = String(track.videoId || track.id || '').replace(/^magic_yt_|^yt_/, '').trim();
         const vidTrack = /^[A-Za-z0-9_-]{11}$/.test(rawVidTrack) ? rawVidTrack : '';
 
-        // PASO 1: Comprobar si existe letra verificada v2, LRC externo o texto plano
+        // PASO 1: Comprobar si existe letra verificada v4, LRC externo o texto plano
         let baseLines = [];
         let builtInEntry = null;
         let hasWhisperVerifiedCache = false;
@@ -7970,11 +7426,11 @@
         } else if (loadView) {
           loadView.classList.remove('hidden');
           this._setStudioLoadingProgress(1, 18, isPlainUnaligned
-            ? 'Letra sin tiempos detectada · Preparando alineación con IA...'
-            : 'Aislando voz y preparando transcripción automática con IA...');
+            ? 'Letra sin tiempos detectada · Preparando alineación con audio real...'
+            : 'Aislando voz y preparando transcripción automática...');
         }
 
-        // PASO 2: Obtener el Blob de audio completo (hasta 16s para conexiones móviles lentas)
+        // PASO 2: Obtener el Blob EXACTO del audio en reproducción (jamás sustituir SoundCloud por YouTube)
         this._setStudioLoadingProgress(2, 26, 'Cargando flujo de audio maestro para análisis vocal...');
         this._setSyncStatusChip('Cargando audio...', 'working');
         let audioBlob = null;
@@ -7984,7 +7440,17 @@
           } else if (typeof this.audioEngine._getCachedFullBlobForTrack === 'function') {
             audioBlob = this.audioEngine._getCachedFullBlobForTrack(track);
           }
-          if ((!audioBlob || audioBlob.size < 50000) && typeof this.audioEngine.preloadFullTrackInBackground === 'function') {
+          if ((!audioBlob || audioBlob.size < 50000) && typeof this.audioEngine.getOrAwaitExactPlayingBlob === 'function') {
+            try {
+              audioBlob = await this.audioEngine.getOrAwaitExactPlayingBlob(track, 16000);
+            } catch (_) {}
+          }
+          const hasLockedDirectStream = Boolean(
+            this.audioEngine.currentTrack &&
+            this.karaokeService?._makeKey(this.audioEngine.currentTrack) === key &&
+            this.audioEngine._activeDirectStreamUrl
+          );
+          if ((!audioBlob || audioBlob.size < 50000) && !hasLockedDirectStream && typeof this.audioEngine.preloadFullTrackInBackground === 'function') {
             try {
               audioBlob = await Promise.race([
                 this.audioEngine.preloadFullTrackInBackground(track),
@@ -8019,7 +7485,7 @@
           }
         }
 
-        // Revalidar compatibilidad de duración de cualquier caché v2 ahora que conocemos actualDurSec exacto
+        // Revalidar compatibilidad de duración de cualquier caché v4 ahora que conocemos actualDurSec exacto
         if (hasWhisperVerifiedCache && builtInEntry && builtInEntry.isWhisperVerified) {
           const hitDur = Number(builtInEntry.audioDurSec || builtInEntry.duration || 0);
           if (actualDurSec >= 35 && hitDur >= 35 && Math.abs(hitDur - actualDurSec) > 3.5) {
@@ -8030,10 +7496,11 @@
           hasWhisperVerifiedCache = false;
         }
 
-        // PASO 3.5 (MOTOR RÁPIDO VOCAL-ONSET VAD ELÁSTICO < 60ms): Alinear LRC tramo a tramo contra el audio real antes de decidir si hace falta Whisper
+        // PASO 3.5 (MOTOR RÁPIDO VOCAL-ONSET VAD RÍGIDO 1-2 DOF < 60ms):
+        // Bloquea al instante desfases uniformes/tempo real; si la pista es densa o tiene cortes por tramos,
+        // deja la letra intacta y delega a Whisper multi-ventana palabra por palabra.
         let hasVocalVadLock = Boolean(hasRealLyrics && !isPlainUnaligned && baseLines[0]?._vocalVadVerified === true);
         let vadShiftSec = Number(baseLines[0]?._vocalVadShiftSec) || 0;
-        let vadIsElastic = Boolean(baseLines[0]?._vocalVadElastic && (Number(baseLines[0]?._vocalVadSpreadSec) || 0) >= 0.8);
         if (hasRealLyrics && !isPlainUnaligned && !hasWhisperVerifiedCache && karaokeDspEnvelope && this.karaokeService) {
           if (!hasVocalVadLock || forceReanalyze) {
             const stKar = this.karaokeService.trackCalibrationState?.get(key);
@@ -8050,8 +7517,8 @@
                   _vocalVadShiftSec: Number(vadRes.shiftSec) || 0,
                   _vocalVadScore: Number(vadRes.score) || 0,
                   _vocalVadMargin: Number(vadRes.margin) || 0,
-                  _vocalVadElastic: Boolean(vadRes.usedElasticWarp),
-                  _vocalVadSpreadSec: Number(vadRes.elasticSpreadSec) || 0
+                  _vocalVadElastic: false,
+                  _vocalVadSpreadSec: 0
                 }));
               }
             }
@@ -8059,7 +7526,6 @@
               baseLines = vadLines;
               hasVocalVadLock = Boolean(vadLines[0]?._vocalVadVerified === true);
               vadShiftSec = Number(vadLines[0]?._vocalVadShiftSec) || 0;
-              vadIsElastic = Boolean(vadLines[0]?._vocalVadElastic && (Number(vadLines[0]?._vocalVadSpreadSec) || 0) >= 0.8);
               // Compartir bloqueo Vocal-VAD exacto con Karaoke en vivo
               this.karaokeService.cache.set(key, vadLines.map(l => ({ ...l })));
               if (this.karaokeService.currentTrackKey === key) {
@@ -8068,11 +7534,9 @@
                 this.karaokeService.renderLinesToDom({ skipSingStarNotify: true });
               }
               if (hasVocalVadLock) {
-                const vadLabel = vadIsElastic
-                  ? 'Sincro · Elástica'
-                  : (Math.abs(vadShiftSec) >= 0.55
-                      ? `Sincro · ${vadShiftSec > 0 ? '+' : ''}${vadShiftSec.toFixed(1)}s`
-                      : 'Sincro · Exacta');
+                const vadLabel = Math.abs(vadShiftSec) >= 0.55
+                  ? `Sincro · ${vadShiftSec > 0 ? '+' : ''}${vadShiftSec.toFixed(1)}s`
+                  : 'Sincro · Exacta';
                 this.karaokeService.setKaraokeAiSyncStatus(key, vadLabel, 'ready');
               }
             }
@@ -8090,6 +7554,10 @@
           ? initialLines
           : this._alignSyllablesWithVocalProfile(key, initialLines, vocalDspProfile, actualDurSec);
 
+        const verifiedMeta = this.karaokeService?.whisperAlignedMeta?.get(key) || builtInEntry || null;
+        const cachedIsPiecewise = Boolean(verifiedMeta && verifiedMeta.isPiecewise);
+        const cachedShiftSec = Number(verifiedMeta && verifiedMeta.shiftSec) || 0;
+
         const studioData = {
           track,
           key,
@@ -8102,9 +7570,10 @@
           hasUnalignedPlainLyrics: isPlainUnaligned,
           isAudioTranscribed: hasWhisperVerifiedCache,
           isWhisperVerified: hasWhisperVerifiedCache,
+          isPiecewise: cachedIsPiecewise,
+          shiftSec: cachedShiftSec,
           isVocalVadLocked: hasVocalVadLock,
-          vadShiftSec,
-          vadIsElastic
+          vadShiftSec
         };
         this._putStudioAnalysisCache(key, studioData);
         this._applyStudioAnalysisToStage(studioData, Number(this.karaokeService?.timeOffsetSec || 0), false);
@@ -8113,16 +7582,16 @@
         if (loadView) loadView.classList.add('hidden');
 
         // PASO 6: Política rápida no bloqueante:
-        // Si Vocal-Onset VAD ya bloqueó el LRC al audio real (<1s) y no se pidió forceReanalyze,
-        // NO lanzar Whisper cliente lento. Whisper solo corre cuando falta letra, es texto plano,
-        // la confianza Vocal-VAD fue baja o el usuario pulsó Re-sincronizar.
+        // Si Vocal-Onset VAD rígido bloqueó el LRC al audio real (<100ms) y no se pidió forceReanalyze,
+        // NO lanzar Whisper innecesario. Whisper multi-ventana corre cuando falta letra, es texto plano,
+        // la canción es densa/no-lineal (confianza rígida insuficiente) o el usuario pulsó Re-sincronizar.
         const needsWhisper = Boolean(
           forceReanalyze ||
           (!hasWhisperVerifiedCache && (!hasRealLyrics || isPlainUnaligned || !hasVocalVadLock))
         );
         if (needsWhisper) {
           if (!forceReanalyze && this.isActiveWhisperFor(key)) {
-            this._setSyncStatusChip('Sincro IA en curso...', 'working');
+            this._setSyncStatusChip('Sincro · Verificando...', 'working');
           } else {
             if (!mono16k && audioBlob && audioBlob.size >= 40000) {
               const dec16 = await this._decodeAudioBlobSinglePass(track, key, audioBlob, null, null, {
@@ -8134,12 +7603,12 @@
             }
             if (mono16k || vidTrack) {
               const modeLabel = !hasRealLyrics
-                ? 'Transcribiendo IA...'
-                : (isPlainUnaligned ? 'Alineando texto IA...' : 'Sincronizando IA...');
+                ? 'Transcribiendo...'
+                : (isPlainUnaligned ? 'Alineando texto...' : 'Sincro · Verificando...');
               this._setSyncStatusChip(modeLabel, 'working');
               this._spawnPopup(
-                !hasRealLyrics ? 'WHISPER IA · SÍLABAS 10MS' : 'SINCRONIZACIÓN REAL CON IA',
-                !hasRealLyrics ? 'Transcribiendo letra real directamente del audio...' : 'Ajustando Karaoke y SingStar a la voz real...',
+                !hasRealLyrics ? 'TRANSCRIPCIÓN VOCAL EN DIRECTO' : 'SINCRONIZACIÓN POR PALABRAS',
+                !hasRealLyrics ? 'Transcribiendo letra real directamente del audio...' : 'Verificando Karaoke y SingStar contra la voz real...',
                 '#38bdf8',
                 1700
               );
@@ -8160,16 +7629,16 @@
           }
         } else {
           const readyLabel = hasWhisperVerifiedCache
-            ? 'Sincro IA · 10ms'
-            : (vadIsElastic
-                ? 'Sincro · Elástica'
-                : (Math.abs(vadShiftSec) >= 0.55 ? `Sincro · ${vadShiftSec > 0 ? '+' : ''}${vadShiftSec.toFixed(1)}s` : 'Sincro · Exacta'));
+            ? (cachedIsPiecewise
+                ? 'Sincro · Por tramos'
+                : (Math.abs(cachedShiftSec) >= 0.55 ? `Sincro · ${cachedShiftSec > 0 ? '+' : ''}${cachedShiftSec.toFixed(1)}s` : 'Sincro · Exacta'))
+            : (Math.abs(vadShiftSec) >= 0.55 ? `Sincro · ${vadShiftSec > 0 ? '+' : ''}${vadShiftSec.toFixed(1)}s` : 'Sincro · Exacta');
           this._setSyncStatusChip(readyLabel, 'ready');
           if (studioData.hasDspMelody) {
-            const subMsg = vadIsElastic
-              ? 'Sincronización elástica por tramos aplicada a Karaoke y SingStar'
-              : (Math.abs(vadShiftSec) >= 0.55
-                  ? `Desfase corregido (${vadShiftSec > 0 ? '+' : ''}${vadShiftSec.toFixed(1)}s) en Karaoke y SingStar`
+            const subMsg = cachedIsPiecewise
+              ? 'Sincronización verificada por tramos en Karaoke y SingStar'
+              : (Math.abs(hasWhisperVerifiedCache ? cachedShiftSec : vadShiftSec) >= 0.55
+                  ? `Desfase corregido (${(hasWhisperVerifiedCache ? cachedShiftSec : vadShiftSec) > 0 ? '+' : ''}${(hasWhisperVerifiedCache ? cachedShiftSec : vadShiftSec).toFixed(1)}s) en Karaoke y SingStar`
                   : 'Letra, sílabas y melodía MPM sincronizadas al audio real');
             this._spawnPopup('SINCRONIZACIÓN EXACTA', subMsg, '#34d399', 1350);
           }
@@ -8192,7 +7661,7 @@
         return this._whisperWorker;
       }
       try {
-        const worker = new Worker('./whisper_worker.js?v=88.0', { type: 'module' });
+        const worker = new Worker('./whisper_worker.js?v=89.0', { type: 'module' });
         this._whisperWorkerCallbacks = new Map();
         this._whisperWorkerSeq = 0;
 
@@ -8344,22 +7813,31 @@
       if (!audioBuffer) return null;
       const srcSr = audioBuffer.sampleRate || 44100;
       const targetSr = 16000;
+      const hasStereo = audioBuffer.numberOfChannels > 1;
       const ch0 = audioBuffer.getChannelData(0);
-      const ch1 = audioBuffer.numberOfChannels > 1 ? audioBuffer.getChannelData(1) : ch0;
+      const ch1 = hasStereo ? audioBuffer.getChannelData(1) : ch0;
       const totalSrc = ch0.length;
       const ratio = srcSr / targetSr;
       const outLen = Math.floor(totalSrc / ratio);
-      const out = new Float32Array(outLen);
+      const midBuf = new Float32Array(outLen);
+      const gateBuf = hasStereo ? new Float32Array(outLen) : null;
 
-      // Submuestreo mono anti-aliasing (promedio por ventana) + filtro paso-alto suave a 70 Hz
-      // para preservar el rango completo de voz y consonantes (70 Hz - 8 kHz) que espera Whisper ONNX.
+      // Submuestreo anti-aliasing + filtro paso-alto a 110 Hz (elimina bombo/subgrave que ahoga a Whisper)
+      // + puerta suave de canal central (Mid vs Side a 25 ms) para realzar la voz principal en estribillos densos.
       const dt = 1.0 / targetSr;
-      const rcHp = 1.0 / (2.0 * Math.PI * 70.0);
+      const rcHp = 1.0 / (2.0 * Math.PI * 110.0);
       const aHp = rcHp / (rcHp + dt);
+      const envDecay = 0.9975; // ~25ms a 16 kHz
+      const envAlpha = 1.0 - envDecay;
 
-      let hp = 0;
-      let prevIn = 0;
-      let sumSq = 0;
+      let hpM = 0;
+      let prevM = 0;
+      let hpS = 0;
+      let prevS = 0;
+      let eM = 1e-6;
+      let eS = 1e-6;
+      let totM = 0;
+      let totS = 0;
 
       for (let i = 0; i < outLen; i++) {
         if (i > 0 && (i % 48000) === 0) {
@@ -8368,25 +7846,57 @@
         }
         const s0 = Math.min(totalSrc - 1, Math.floor(i * ratio));
         const s1 = Math.min(totalSrc, Math.max(s0 + 1, Math.floor((i + 1) * ratio)));
-        let acc = 0;
-        for (let s = s0; s < s1; s++) {
-          acc += 0.5 * (ch0[s] + ch1[s]);
+        let accM = 0;
+        let accS = 0;
+        if (hasStereo) {
+          for (let s = s0; s < s1; s++) {
+            const l = ch0[s];
+            const r = ch1[s];
+            accM += 0.5 * (l + r);
+            accS += 0.5 * (l - r);
+          }
+        } else {
+          for (let s = s0; s < s1; s++) {
+            accM += ch0[s];
+          }
         }
-        const midMono = acc / (s1 - s0);
-        hp = aHp * (hp + midMono - prevIn);
-        prevIn = midMono;
-        out[i] = hp;
-        sumSq += hp * hp;
+        const invCnt = 1.0 / (s1 - s0);
+        const mIn = accM * invCnt;
+        hpM = aHp * (hpM + mIn - prevM);
+        prevM = mIn;
+        midBuf[i] = hpM;
+        const mSq = hpM * hpM;
+        totM += mSq;
+
+        if (hasStereo) {
+          const sIn = accS * invCnt;
+          hpS = aHp * (hpS + sIn - prevS);
+          prevS = sIn;
+          const sSq = hpS * hpS;
+          totS += sSq;
+          eM = envDecay * eM + envAlpha * mSq;
+          eS = envDecay * eS + envAlpha * sSq;
+          gateBuf[i] = eM / (eM + 1.4 * eS + 1e-10);
+        }
+      }
+
+      // Solo aplicar puerta vocal de centro si la pista tiene información estéreo real (totS > 4% de totM)
+      const useCenterGate = Boolean(hasStereo && gateBuf && totS > totM * 0.04);
+      let sumSq = 0;
+      for (let i = 0; i < outLen; i++) {
+        const v = useCenterGate ? (midBuf[i] * Math.max(0.12, Math.min(1.0, gateBuf[i]))) : midBuf[i];
+        midBuf[i] = v;
+        sumSq += v * v;
       }
 
       const rms = Math.sqrt(sumSq / Math.max(1, outLen));
       if (rms > 1e-5) {
-        const gain = Math.min(8.0, 0.14 / rms);
+        const gain = Math.min(8.0, 0.15 / rms);
         for (let i = 0; i < outLen; i++) {
-          out[i] = Math.max(-0.98, Math.min(0.98, out[i] * gain));
+          midBuf[i] = Math.max(-0.98, Math.min(0.98, midBuf[i] * gain));
         }
       }
-      return out;
+      return midBuf;
     }
 
     _detectLanguageHintForTrack(track, referenceLines = []) {
@@ -8408,22 +7918,37 @@
     }
 
     _findActiveVocalWindowsForWhisper(vocalProfile, totalDurSec, prioritySec = 0, options = {}) {
-      // Ventanas de 24s (solape de 2.0s, <28.5s): el encoder de Whisper siempre procesa 30s de mel-espectrograma,
-      // así que 24s ofrece un 33% menos de pasadas y más palabras por ventana para anclaje instantáneo sin deriva.
+      // Ventanas de 24s (el encoder de Whisper procesa 30s de mel-espectrograma).
+      // En modo alineación forzada se usa paso de 20s (4s de solape) y se acota al rango útil de la letra
+      // para no desperdiciar pasadas en intros/outros instrumentales lejanos.
+      const isAlign = Boolean(options && options.forAlignment);
       const winLenSec = 24.0;
-      const stepSec = 22.0;
+      const stepSec = isAlign ? 20.0 : 22.0;
       const maxDur = Math.min(totalDurSec, 380);
       const rawWindows = [];
+
+      const hasRefSpan = Boolean(
+        isAlign &&
+        Number.isFinite(Number(options.refStartSec)) &&
+        Number.isFinite(Number(options.refEndSec)) &&
+        Number(options.refEndSec) > Number(options.refStartSec) + 12.0
+      );
+      const firstVocRaw = (vocalProfile && Number.isFinite(vocalProfile.firstVocalSec)) ? Math.max(0, vocalProfile.firstVocalSec - 0.5) : 0;
+      const scanStart = hasRefSpan
+        ? Math.max(0, Math.min(maxDur - 24, Math.max(firstVocRaw > 3.5 ? Math.min(firstVocRaw, Number(options.refStartSec) - 4.0) : Number(options.refStartSec) - 4.0, 0)))
+        : firstVocRaw;
+      const scanEnd = hasRefSpan
+        ? Math.min(maxDur, Math.max(Number(options.refEndSec) + 18.0, scanStart + 48.0))
+        : maxDur;
 
       if (vocalProfile && vocalProfile.vocEnergyDb) {
         const fps = vocalProfile.frameHz || 100;
         const nFrames = vocalProfile.nFrames || vocalProfile.vocEnergyDb.length;
         const thVoc = Number.isFinite(vocalProfile.thVoc) ? vocalProfile.thVoc : -32;
-        const firstVocalSec = Number.isFinite(vocalProfile.firstVocalSec) ? Math.max(0, vocalProfile.firstVocalSec - 0.5) : 0;
 
-        let curSec = firstVocalSec;
-        while (curSec < maxDur - 1.2 && rawWindows.length < 24) {
-          const endSec = Math.min(maxDur, curSec + winLenSec);
+        let curSec = scanStart;
+        while (curSec < scanEnd - 1.2 && rawWindows.length < 24) {
+          const endSec = Math.min(scanEnd, curSec + winLenSec);
           const f0 = Math.max(0, Math.floor(curSec * fps));
           const f1 = Math.min(nFrames - 1, Math.ceil(endSec * fps));
           let voicedFrames = 0;
@@ -8435,14 +7960,17 @@
           if (voicedFrames >= Math.round(0.30 * fps)) {
             rawWindows.push({ startSec: +curSec.toFixed(2), endSec: +endSec.toFixed(2) });
           }
+          if (endSec >= scanEnd - 0.5) break;
           curSec += stepSec;
         }
       }
 
-      // Respaldo: si el detector de islas fue demasiado estricto (voces muy suaves/acústicas), cubrir toda la pista
+      // Respaldo: si el detector de islas fue demasiado estricto (voces muy suaves/acústicas), cubrir todo el rango
       if (rawWindows.length === 0) {
-        for (let t = 0; t < maxDur - 1.0 && rawWindows.length < 22; t += stepSec) {
-          rawWindows.push({ startSec: +t.toFixed(2), endSec: +Math.min(maxDur, t + winLenSec).toFixed(2) });
+        for (let t = scanStart; t < scanEnd - 1.0 && rawWindows.length < 22; t += stepSec) {
+          const endT = Math.min(scanEnd, t + winLenSec);
+          rawWindows.push({ startSec: +t.toFixed(2), endSec: +endT.toFixed(2) });
+          if (endT >= scanEnd - 0.5) break;
         }
       }
 
@@ -8454,31 +7982,37 @@
         if (found >= 0) prioIdx = found;
       }
 
-      // En modo alineación forzada (cuando ya existe letra LRC/texto), priorizar:
-      //  1) Ventana actual + siguiente (bloqueo instantáneo incluso si la 1ª es intro instrumental)
-      //  2) Sondas media (~42%) y tardía (~72%) para detectar deriva de tempo o solos instrumentales al instante
-      //  3) Resto de ventanas en orden natural desde la posición actual
-      if (options && options.forAlignment && rawWindows.length >= 3) {
+      // En modo alineación forzada multi-ventana (con letra LRC/texto), cubrir TODA la letra:
+      //  1) Ventana actual (prioIdx) primero para bloquear el verso que está sonando en ~2s
+      //  2) Orden progresivo uniforme sobre todo el rango de la letra (estrofa 1, estribillo 1,
+      //     estrofa 2, puente/solo, estribillo 2 y final) para capturar cualquier corte por tramos.
+      if (isAlign && rawWindows.length >= 2) {
         const maxProbes = Number(options.maxProbes) || 0;
+        const nWin = rawWindows.length;
         const picked = new Set();
         const ordered = [];
         const addIdx = (idx) => {
-          if (idx >= 0 && idx < rawWindows.length && !picked.has(idx)) {
-            picked.add(idx);
-            ordered.push(rawWindows[idx]);
+          const c = Math.max(0, Math.min(nWin - 1, idx));
+          if (!picked.has(c)) {
+            picked.add(c);
+            ordered.push(rawWindows[c]);
           }
         };
         addIdx(prioIdx);
-        addIdx(Math.floor(rawWindows.length * 0.42));
-        addIdx(Math.floor(rawWindows.length * 0.72));
-        if (maxProbes > 0) {
-          addIdx(prioIdx + 1 < rawWindows.length ? prioIdx + 1 : prioIdx - 1);
-          return ordered.slice(0, maxProbes);
+        const spreadFracs = [0.50, 0.85, 0.25, 0.68, 1.0, 0.12, 0.38, 0.76, 0.92];
+        for (const frac of spreadFracs) {
+          if (maxProbes > 0 && ordered.length >= maxProbes) break;
+          addIdx(Math.round((nWin - 1) * frac));
         }
-        addIdx(prioIdx + 1 < rawWindows.length ? prioIdx + 1 : prioIdx - 1);
-        for (let i = prioIdx; i < rawWindows.length; i++) addIdx(i);
-        for (let i = 0; i < prioIdx; i++) addIdx(i);
-        return ordered;
+        for (let i = prioIdx; i < nWin; i++) {
+          if (maxProbes > 0 && ordered.length >= maxProbes) break;
+          addIdx(i);
+        }
+        for (let i = 0; i < prioIdx; i++) {
+          if (maxProbes > 0 && ordered.length >= maxProbes) break;
+          addIdx(i);
+        }
+        return maxProbes > 0 ? ordered.slice(0, maxProbes) : ordered;
       }
 
       // En modo transcripción pura (sin letra previa), seguir orden lineal desde la posición actual
@@ -8655,21 +8189,30 @@
     }
 
     /**
-     * ALINEADOR FORZADO DE AUDIO REAL EN 2 ETAPAS (UNIFICADO KARAOKE + SINGSTAR):
-     * - Etapa 1 (Hough ponderado por palabras + bigramas 5x + trigramas 9x + ajuste lineal RANSAC/Theil-Sen):
-     *   Corrige CUALQUIER desfase global desde -45s hasta +95s (intros de YouTube, videoclips, másters distintos)
-     *   y CUALQUIER deriva de velocidad/tempo [0.92, 1.08] ya desde la primera ventana de Whisper (~4-8s).
-     * - Etapa 2 (Programación dinámica LCS monotónica palabra a palabra + anclaje a ataques vocales 100 Hz
-     *   + interpolación suave por tramos entre versos anclados + división fonética en sílabas 10 ms):
-     *   Fija palabras y sílabas exactas a la voz real, absorbiendo solos instrumentales, rubatos y errores locales del LRC.
+     * ALINEADOR FORZADO PALABRA A PALABRA MULTI-VENTANA POR TRAMOS (v8.9.0 — KARAOKE + SINGSTAR):
+     * - Etapa 1 (Clústeres adaptativos por ventana Whisper + Top-4 Picos Hough por cubeta + Cadena Monotónica DP):
+     *   Desambigua estribillos repetidos, ignora cubetas instrumentales/ruidosas y captura CUALQUIER salto no lineal
+     *   entre secciones (±35s, solos, puentes, intros o cortes) sin inventar jamás pendientes lineales falsas (0.93).
+     * - Etapa 2 (Modelo honesto: constante / tempo suave [0.975..1.025] solo si todos los tramos son lineales <0.80s /
+     *   curva monotónica lineal por tramos con extrapolación plana slope=1.0 en bordes).
+     * - Etapa 3 (LCS monotónica palabra a palabra en corredor ±5.5s + ajuste a ataques vocálicos 100 Hz + filtro de
+     *   picos aislados + salto consciente de pausa entre estrofas sin decaimiento exponencial + barrera estricta anti-falso-positivo).
      */
     _alignReferenceLyricsToWhisperRealAudio(key, refLines, whisperWords, vocalProfile, actualDurSec = 195) {
-      if (!Array.isArray(refLines) || refLines.length === 0) {
-        return { lines: null, shiftSec: 0, slope: 1.0, anchoredLines: 0, matchedWords: 0, hasGlobalLock: false };
-      }
-      if (!Array.isArray(whisperWords) || whisperWords.length < 2) {
-        return { lines: null, shiftSec: 0, slope: 1.0, anchoredLines: 0, matchedWords: 0, hasGlobalLock: false };
-      }
+      const emptyResult = {
+        lines: null,
+        shiftSec: 0,
+        slope: 1.0,
+        anchoredLines: 0,
+        matchedWords: 0,
+        matchedContentWords: 0,
+        hasGlobalLock: false,
+        isPiecewise: false,
+        spreadSec: 0,
+        bucketCount: 0
+      };
+      if (!Array.isArray(refLines) || refLines.length === 0) return emptyResult;
+      if (!Array.isArray(whisperWords) || whisperWords.length < 3) return emptyResult;
 
       const norm = (s) => String(s || '')
         .toLowerCase()
@@ -8693,7 +8236,11 @@
       const STOPWORDS = new Set([
         'a', 'e', 'i', 'o', 'u', 'y', 'de', 'la', 'el', 'en', 'un', 'es', 'no', 'si', 'se',
         'me', 'te', 'lo', 'le', 'al', 'su', 'mi', 'tu', 'que', 'las', 'los', 'del', 'por', 'con',
-        'the', 'and', 'you', 'for', 'are', 'but', 'not', 'all', 'can', 'was', 'its', 'my', 'to', 'in', 'of', 'on', 'it', 'is', 'me', 'be', 'so', 'we'
+        'the', 'and', 'you', 'for', 'are', 'but', 'not', 'all', 'can', 'was', 'its', 'my', 'to', 'in', 'of', 'on', 'it', 'is', 'be', 'so', 'we'
+      ]);
+
+      const HALLUCINATION_TOKENS = new Set([
+        'subtitulos', 'subtitulado', 'amara', 'suscribete', 'suscribanse', 'graciasporver', 'music', 'musica', 'aplausos'
       ]);
 
       const diceSim = (a, b) => {
@@ -8724,7 +8271,6 @@
         if (rTok.phon && wTok.phon && rTok.phon === wTok.phon) {
           return rTok.phon.length >= 3 ? 0.94 : 0.72;
         }
-        // Tolerancia de plural/conjugación final (p. ej. palabras/palabra, cantar/canta)
         const minL = Math.min(rTok.phon.length, wTok.phon.length);
         if (minL >= 4 && Math.abs(rTok.phon.length - wTok.phon.length) <= 2) {
           if (rTok.phon.startsWith(wTok.phon) || wTok.phon.startsWith(rTok.phon)) {
@@ -8738,7 +8284,7 @@
         return 0;
       };
 
-      // 1) Instantánea limpia de tiempos LRC originales (sin acumular desplazamientos entre ventanas)
+      // 1) Instantánea limpia e inmutable de tiempos LRC originales (jamás acumular desplazamientos entre ventanas)
       const rawLines = [];
       for (let li = 0; li < refLines.length; li++) {
         const l = refLines[li];
@@ -8756,11 +8302,8 @@
             : (Number.isFinite(Number(l.endTimeSec)) ? Number(l.endTimeSec) : (rawStart + 3.2))
         });
       }
-      if (rawLines.length === 0) {
-        return { lines: null, shiftSec: 0, slope: 1.0, anchoredLines: 0, matchedWords: 0, hasGlobalLock: false };
-      }
+      if (rawLines.length === 0) return emptyResult;
 
-      // Normalizar rawEnd de cada línea para evitar solapes en las coordenadas de referencia
       for (let li = 0; li < rawLines.length; li++) {
         const nextS = (li + 1 < rawLines.length) ? rawLines[li + 1].rawStart : (rawLines[li].rawStart + 4.0);
         const maxEnd = Math.max(rawLines[li].rawStart + 0.45, Math.min(rawLines[li].rawStart + 7.5, nextS - 0.04));
@@ -8769,7 +8312,7 @@
         }
       }
 
-      // 2) Construir secuencia de palabras de referencia R con tiempos internos estimados y pesos IDF
+      // 2) Secuencia de palabras de referencia R con pesos IDF
       const R = [];
       const lineWordSpans = new Array(rawLines.length);
       const wordFreq = new Map();
@@ -8814,8 +8357,8 @@
         }
       }
 
-      // 3) Preparar palabras detectadas por Whisper W ordenadas cronológicamente
-      const W = whisperWords
+      // 3) Palabras Whisper W ordenadas cronológicamente + filtro anti-bucle/alucinación
+      const sortedRawW = whisperWords
         .map((w) => {
           const rawText = String(w?.text || '').trim();
           const n = norm(rawText);
@@ -8829,11 +8372,42 @@
             endSec: Number.isFinite(eSec) ? Math.max(sSec + 0.10, eSec) : (sSec + 0.30)
           };
         })
-        .filter(w => w.startSec >= 0 && w.norm.length >= 1)
+        .filter(w => w.startSec >= 0 && w.norm.length >= 1 && !HALLUCINATION_TOKENS.has(w.norm))
         .sort((a, b) => a.startSec - b.startSec);
 
-      if (R.length < 2 || W.length < 2) {
-        return { lines: null, shiftSec: 0, slope: 1.0, anchoredLines: 0, matchedWords: 0, hasGlobalLock: false };
+      const W = [];
+      let repRunNorm = '';
+      let repRunCount = 0;
+      let repRunStart = -10;
+      for (const w of sortedRawW) {
+        if (w.norm === repRunNorm && (w.startSec - repRunStart) <= 2.5) {
+          repRunCount++;
+          if (repRunCount >= 5) continue; // descartar bucles sintéticos repetidos de Whisper
+        } else {
+          repRunNorm = w.norm;
+          repRunCount = 1;
+          repRunStart = w.startSec;
+        }
+        W.push(w);
+      }
+
+      if (R.length < 2 || W.length < 3) return emptyResult;
+
+      // Agrupar W en clústeres adaptativos por sección (<= 18s o pausa > 4.0s)
+      // para que ventanas adyacentes con distinto desfase nunca se fusionen en una misma cubeta.
+      const wBucketIds = new Int32Array(W.length);
+      let curClusterId = 0;
+      let curClusterStartSec = W[0].startSec;
+      for (let j = 0; j < W.length; j++) {
+        if (j > 0) {
+          const gapPrev = W[j].startSec - W[j - 1].startSec;
+          const spanFromStart = W[j].startSec - curClusterStartSec;
+          if (gapPrev > 4.0 || spanFromStart >= 18.0) {
+            curClusterId++;
+            curClusterStartSec = W[j].startSec;
+          }
+        }
+        wBucketIds[j] = curClusterId;
       }
 
       const refFirstSec = rawLines[0].rawStart;
@@ -8842,19 +8416,15 @@
       const maxDeltaAllowed = Math.min(95.0, Math.max(30.0, actualDurSec - refFirstSec + 8.0));
       const firstVocalHint = (vocalProfile && Number.isFinite(vocalProfile.firstVocalSec)) ? vocalProfile.firstVocalSec : null;
 
-      // 4) ETAPA 1: Votación Hough ponderada (palabras + bigramas 5x + trigramas 9x) en cubetas de ~22s
-      //    Permite encontrar cualquier desfase [-45s, +95s] y deriva de tempo [0.92, 1.08]
+      // 4) ETAPA 1: Votación Hough ponderada por clúster de Whisper (palabras + bigramas 5x + trigramas 9x)
       const allVotes = [];
       const bucketVotesMap = new Map();
-      const BUCKET_SEC = 22.0;
 
-      const pushVote = (delta, rSec, wSec, weight, isPhraseHit) => {
+      const pushVote = (delta, rSec, wSec, weight, isPhraseHit, bId, rLineIdx, contentRIdx) => {
         if (!Number.isFinite(delta) || delta < minDeltaAllowed || delta > maxDeltaAllowed) return;
-        // Evitar que toda la letra quede fuera de la duración real del audio
         if (refFirstSec + delta < -4.0) return;
         if (actualDurSec >= 35 && refLastSec + delta > actualDurSec + 22.0 && refFirstSec + delta > actualDurSec - 5.0) return;
-        const bId = Math.floor(wSec / BUCKET_SEC);
-        const v = { delta, rSec, wSec, weight, isPhraseHit, bId };
+        const v = { delta, rSec, wSec, weight, isPhraseHit, bId, rLineIdx, contentRIdx };
         allVotes.push(v);
         let arr = bucketVotesMap.get(bId);
         if (!arr) {
@@ -8864,12 +8434,13 @@
         arr.push(v);
       };
 
-      const maxRForHough = Math.min(R.length, 750);
-      const maxWForHough = Math.min(W.length, 750);
+      const maxRForHough = Math.min(R.length, 800);
+      const maxWForHough = Math.min(W.length, 800);
 
       for (let j = 0; j < maxWForHough; j++) {
         const w1 = W[j];
         if (!w1.norm) continue;
+        const bId = wBucketIds[j];
         for (let i = 0; i < maxRForHough; i++) {
           const r1 = R[i];
           if (!r1.norm) continue;
@@ -8879,16 +8450,15 @@
           const sim1 = wordSim(r1, w1);
           if (sim1 < 0.62) continue;
 
-          // Voto unigrama solo para palabras de contenido reales (>= 3 letras, no stopwords)
           if (!r1.isStop && sim1 >= 0.72) {
-            pushVote(d1, r1.rawStartSec, w1.startSec, sim1 * r1.idfWeight, false);
+            pushVote(d1, r1.rawStartSec, w1.startSec, sim1 * r1.idfWeight, false, bId, r1.lineIdx, r1.idx);
           }
 
-          // Voto bigrama (5x) y trigrama (9x): incluso stopwords son oro en secuencias consecutivas ("que no", "las que")
           if (i + 1 < maxRForHough) {
             const r2 = R[i + 1];
             const rGap12 = r2.rawStartSec - r1.rawStartSec;
             for (let step = 1; step <= 2 && j + step < maxWForHough; step++) {
+              if (wBucketIds[j + step] !== bId) break;
               const w2 = W[j + step];
               const wGap12 = w2.startSec - w1.startSec;
               if (wGap12 < -0.05 || wGap12 > 4.2) continue;
@@ -8899,19 +8469,21 @@
               const dMid = 0.5 * (d1 + (w2.startSec - r2.rawStartSec));
               const contentBoost = 0.75 + 0.35 * Math.max(r1.idfWeight, r2.idfWeight);
               const bigramW = 5.0 * (0.5 * (sim1 + sim2)) * contentBoost * (step === 1 ? 1.0 : 0.78);
-              pushVote(dMid, 0.5 * (r1.rawStartSec + r2.rawStartSec), 0.5 * (w1.startSec + w2.startSec), bigramW, true);
+              const cIdx = !r1.isStop ? r1.idx : (!r2.isStop ? r2.idx : -1);
+              pushVote(dMid, 0.5 * (r1.rawStartSec + r2.rawStartSec), 0.5 * (w1.startSec + w2.startSec), bigramW, true, bId, r1.lineIdx, cIdx);
 
-              // Comprobar trigrama consecutivo (bono adicional +4.5x)
               if (i + 2 < maxRForHough) {
                 const r3 = R[i + 2];
                 for (let step3 = step + 1; step3 <= step + 2 && j + step3 < maxWForHough; step3++) {
+                  if (wBucketIds[j + step3] !== bId) break;
                   const w3 = W[j + step3];
                   const wGap23 = w3.startSec - w2.startSec;
                   if (wGap23 < -0.05 || wGap23 > 4.2) continue;
                   const sim3 = wordSim(r3, w3);
                   if (sim3 >= 0.64) {
                     const dTri = (d1 + (w2.startSec - r2.rawStartSec) + (w3.startSec - r3.rawStartSec)) / 3;
-                    pushVote(dTri, r2.rawStartSec, w2.startSec, 4.5 * ((sim1 + sim2 + sim3) / 3) * contentBoost, true);
+                    const cIdx3 = !r2.isStop ? r2.idx : (!r3.isStop ? r3.idx : cIdx);
+                    pushVote(dTri, r2.rawStartSec, w2.startSec, 4.5 * ((sim1 + sim2 + sim3) / 3) * contentBoost, true, bId, r2.lineIdx, cIdx3);
                     break;
                   }
                 }
@@ -8922,234 +8494,287 @@
         }
       }
 
-      if (allVotes.length === 0) {
-        return { lines: null, shiftSec: 0, slope: 1.0, anchoredLines: 0, matchedWords: 0, hasGlobalLock: false };
-      }
+      if (allVotes.length === 0) return emptyResult;
 
-      // Buscar picos de consenso (con radio ±1.05s) en una lista de votos
-      const findBestConsensusInVotes = (votes, radiusSec = 1.05) => {
-        if (!Array.isArray(votes) || votes.length === 0) return null;
+      // Extraer hasta Top-K picos de consenso no solapados (separados >= 2.4s en delta) dentro de un conjunto de votos
+      const findTopKConsensusInVotes = (votes, radiusSec = 1.05, maxPeaks = 4) => {
+        if (!Array.isArray(votes) || votes.length === 0) return [];
         const sorted = votes.slice().sort((a, b) => a.delta - b.delta);
-        let left = 0;
-        let winWeight = 0;
-        let bestAdjScore = -1;
-        let bestRawWeight = 0;
-        let bestRange = null;
+        const masked = new Uint8Array(sorted.length);
+        const peaks = [];
 
-        for (let right = 0; right < sorted.length; right++) {
-          winWeight += sorted[right].weight;
-          while (sorted[right].delta - sorted[left].delta > radiusSec * 2) {
-            winWeight -= sorted[left].weight;
-            left++;
-          }
-          const centerDelta = 0.5 * (sorted[left].delta + sorted[right].delta);
-          // Prior suave anti-estribillo-repetido: en empate entre dos estribillos iguales, preferir menor |delta|
-          const distPrior = 1.0 / (1.0 + Math.abs(centerDelta) / 95.0);
-          let vocalBonus = 1.0;
-          if (firstVocalHint !== null) {
-            const predFirst = refFirstSec + centerDelta;
-            if (predFirst >= firstVocalHint - 4.0 && predFirst <= firstVocalHint + 12.0) {
-              vocalBonus = 1.12;
+        for (let k = 0; k < maxPeaks; k++) {
+          let left = 0;
+          let winWeight = 0;
+          let bestAdjScore = -1;
+          let bestRawWeight = 0;
+          let bestRange = null;
+
+          for (let right = 0; right < sorted.length; right++) {
+            if (!masked[right]) winWeight += sorted[right].weight;
+            while (left <= right && (masked[left] || sorted[right].delta - sorted[left].delta > radiusSec * 2)) {
+              if (!masked[left]) winWeight -= sorted[left].weight;
+              left++;
+            }
+            if (winWeight <= 0 || left > right) continue;
+            const centerDelta = 0.5 * (sorted[left].delta + sorted[right].delta);
+            const distPrior = 1.0 / (1.0 + Math.abs(centerDelta) / 110.0);
+            let vocalBonus = 1.0;
+            if (firstVocalHint !== null) {
+              const predFirst = refFirstSec + centerDelta;
+              if (predFirst >= firstVocalHint - 4.0 && predFirst <= firstVocalHint + 12.0) {
+                vocalBonus = 1.08;
+              }
+            }
+            const adj = winWeight * distPrior * vocalBonus;
+            if (adj > bestAdjScore) {
+              bestAdjScore = adj;
+              bestRawWeight = winWeight;
+              bestRange = [left, right];
             }
           }
-          const adj = winWeight * distPrior * vocalBonus;
-          if (adj > bestAdjScore) {
-            bestAdjScore = adj;
-            bestRawWeight = winWeight;
-            bestRange = [left, right];
+
+          if (!bestRange || bestRawWeight < 3.8) break;
+          const inliers = [];
+          for (let idx = bestRange[0]; idx <= bestRange[1]; idx++) {
+            if (!masked[idx]) inliers.push(sorted[idx]);
           }
-        }
+          if (inliers.length === 0) break;
 
-        if (!bestRange) return null;
-        const inliers = sorted.slice(bestRange[0], bestRange[1] + 1);
-        const totalW = inliers.reduce((s, v) => s + v.weight, 0) || 1;
-        // Mediana ponderada robusta de delta y centroide (rSec, wSec)
-        let accW = 0;
-        let medDelta = inliers[0].delta;
-        for (const v of inliers) {
-          accW += v.weight;
-          if (accW >= totalW * 0.5) {
-            medDelta = v.delta;
-            break;
-          }
-        }
-        let sumR = 0;
-        let sumW = 0;
-        let phraseHits = 0;
-        for (const v of inliers) {
-          sumR += v.rSec * v.weight;
-          sumW += v.wSec * v.weight;
-          if (v.isPhraseHit) phraseHits++;
-        }
-        return {
-          delta: medDelta,
-          rSec: sumR / totalW,
-          wSec: sumW / totalW,
-          rawWeight: bestRawWeight,
-          adjScore: bestAdjScore,
-          count: inliers.length,
-          phraseHits
-        };
-      };
-
-      // Calcular anclas locales fuertes por cada cubeta de 22s de Whisper
-      const bucketAnchors = [];
-      for (const [, bVotes] of bucketVotesMap.entries()) {
-        const peak = findBestConsensusInVotes(bVotes, 1.05);
-        if (peak && (peak.rawWeight >= 5.2 || (peak.phraseHits >= 1 && peak.rawWeight >= 4.2))) {
-          bucketAnchors.push(peak);
-        }
-      }
-      bucketAnchors.sort((a, b) => a.wSec - b.wSec);
-
-      const globalPeak = findBestConsensusInVotes(allVotes, 1.15);
-
-      // Evaluar modelos candidatos (slope, intercept):
-      //  - Modelo constante (slope = 1.0) desde globalPeak y desde cada ancla de cubeta
-      //  - Modelos con deriva de tempo [0.92, 1.08] generados por pares de anclas separadas >= 22s
-      const candidateModels = [];
-      if (globalPeak) {
-        candidateModels.push({ slope: 1.0, intercept: globalPeak.delta, isConst: true });
-      }
-      for (const ba of bucketAnchors) {
-        candidateModels.push({ slope: 1.0, intercept: ba.delta, isConst: true });
-      }
-      for (let a = 0; a < bucketAnchors.length; a++) {
-        for (let b = a + 1; b < bucketAnchors.length; b++) {
-          const dr = bucketAnchors[b].rSec - bucketAnchors[a].rSec;
-          const dw = bucketAnchors[b].wSec - bucketAnchors[a].wSec;
-          if (dr < 22.0 || dw < 20.0) continue;
-          const sl = dw / dr;
-          if (sl >= 0.92 && sl <= 1.08) {
-            const ic = bucketAnchors[a].wSec - sl * bucketAnchors[a].rSec;
-            if (ic >= minDeltaAllowed - 10 && ic <= maxDeltaAllowed + 10) {
-              candidateModels.push({ slope: sl, intercept: ic, isConst: Math.abs(sl - 1.0) < 0.004 });
-            }
-          }
-        }
-      }
-
-      let bestModel = null;
-      let bestModelScore = -1;
-      for (const cand of candidateModels) {
-        let inlierScore = 0;
-        let phraseHits = 0;
-        for (const v of allVotes) {
-          const predW = cand.slope * v.rSec + cand.intercept;
-          const err = Math.abs(v.wSec - predW);
-          if (err <= 1.35) {
-            inlierScore += v.weight * (1.0 - 0.25 * (err / 1.35));
-            if (v.isPhraseHit) phraseHits++;
-          }
-        }
-        const midDelta = cand.intercept + (cand.slope - 1.0) * (0.5 * (refFirstSec + refLastSec));
-        const distPrior = 1.0 / (1.0 + Math.abs(midDelta) / 95.0);
-        // Preferencia suave de parsimonia por slope = 1.0 si no hay ganancia clara por deriva de tempo
-        const parsimony = cand.isConst ? 1.08 : 1.0;
-        const totalScore = inlierScore * distPrior * parsimony;
-        if (totalScore > bestModelScore) {
-          bestModelScore = totalScore;
-          bestModel = { ...cand, rawInlierScore: inlierScore, phraseHits };
-        }
-      }
-
-      // Comprobar confianza mínima para declarar bloqueo global real (evita falsos positivos con 1 palabra suelta)
-      const hasGlobalLock = Boolean(
-        bestModel && (bestModel.rawInlierScore >= 6.0 || (bestModel.phraseHits >= 1 && bestModel.rawInlierScore >= 4.5))
-      );
-      if (!hasGlobalLock) {
-        return { lines: null, shiftSec: 0, slope: 1.0, anchoredLines: 0, matchedWords: 0, hasGlobalLock: false };
-      }
-
-      // Refinar (slope, intercept) por regresión lineal ponderada sobre todos sus inliers (±1.4s)
-      const modelInliers = allVotes.filter(v => Math.abs(v.wSec - (bestModel.slope * v.rSec + bestModel.intercept)) <= 1.45);
-      let finalSlope = bestModel.slope;
-      let finalIntercept = bestModel.intercept;
-
-      if (modelInliers.length >= 2) {
-        let sW = 0, sR = 0, sY = 0;
-        let minR = Infinity, maxR = -Infinity;
-        for (const v of modelInliers) {
-          sW += v.weight;
-          sR += v.weight * v.rSec;
-          sY += v.weight * v.wSec;
-          if (v.rSec < minR) minR = v.rSec;
-          if (v.rSec > maxR) maxR = v.rSec;
-        }
-        const meanR = sR / Math.max(1e-6, sW);
-        const meanY = sY / Math.max(1e-6, sW);
-
-        if (!bestModel.isConst && (maxR - minR) >= 24.0) {
-          let num = 0, den = 0;
-          for (const v of modelInliers) {
-            const dr = v.rSec - meanR;
-            num += v.weight * dr * (v.wSec - meanY);
-            den += v.weight * dr * dr;
-          }
-          if (den > 10.0) {
-            const estSlope = Math.max(0.92, Math.min(1.08, num / den));
-            finalSlope = Math.abs(estSlope - 1.0) < 0.005 ? 1.0 : estSlope;
-            finalIntercept = meanY - finalSlope * meanR;
-          }
-        } else {
-          // Mediana ponderada robusta de (wSec - rSec) para desplazamiento constante
-          const deltas = modelInliers.map(v => ({ d: v.wSec - v.rSec, w: v.weight })).sort((a, b) => a.d - b.d);
-          let acc = 0;
-          finalSlope = 1.0;
-          for (const item of deltas) {
-            acc += item.w;
-            if (acc >= sW * 0.5) {
-              finalIntercept = item.d;
+          const totalW = inliers.reduce((s, v) => s + v.weight, 0) || 1;
+          let accW = 0;
+          let medDelta = inliers[0].delta;
+          for (const v of inliers) {
+            accW += v.weight;
+            if (accW >= totalW * 0.5) {
+              medDelta = v.delta;
               break;
             }
           }
-        }
-      }
+          let sumR = 0;
+          let sumW = 0;
+          let phraseHits = 0;
+          const contentSet = new Set();
+          const lineSet = new Set();
+          for (const v of inliers) {
+            sumR += v.rSec * v.weight;
+            sumW += v.wSec * v.weight;
+            if (v.isPhraseHit) phraseHits++;
+            if (v.contentRIdx >= 0) contentSet.add(v.contentRIdx);
+            if (v.rLineIdx >= 0) lineSet.add(v.rLineIdx);
+          }
 
-      // Construir proyección priorTime(rawSec): usa (finalSlope, finalIntercept) y, si hay anclas de cubetas
-      // fuertemente monotónicas con salto no lineal (p. ej. solo de guitarra añadido a mitad de canción),
-      // aplica interpolación suave por tramos sobre esas cubetas.
-      const linearProj = (rSec) => Math.max(0, finalSlope * rSec + finalIntercept);
-      const validPiecewiseAnchors = [];
-      for (const ba of bucketAnchors) {
-        if (ba.rawWeight >= 8.0 && ba.phraseHits >= 1) {
-          const prev = validPiecewiseAnchors[validPiecewiseAnchors.length - 1];
-          if (!prev || (ba.rSec > prev.rSec + 10 && ba.wSec > prev.wSec + 8)) {
-            validPiecewiseAnchors.push(ba);
+          peaks.push({
+            delta: medDelta,
+            rSec: sumR / totalW,
+            wSec: sumW / totalW,
+            rawWeight: bestRawWeight,
+            adjScore: bestAdjScore,
+            count: inliers.length,
+            phraseHits,
+            uniqueContentWords: contentSet.size,
+            uniqueLines: lineSet.size,
+            bId: inliers[0].bId
+          });
+
+          // Enmascarar votos dentro de ±2.3s de este pico para buscar el siguiente candidato (p. ej. otro estribillo)
+          for (let idx = 0; idx < sorted.length; idx++) {
+            if (!masked[idx] && Math.abs(sorted[idx].delta - medDelta) <= 2.3) {
+              masked[idx] = 1;
+            }
+          }
+        }
+        return peaks;
+      };
+
+      // 5) ETAPA 2: Cadena Monotónica Multi-Cubeta por Programación Dinámica (desambigua estribillos repetidos y captura cortes ±35s)
+      const sortedBucketIds = Array.from(bucketVotesMap.keys()).sort((a, b) => a - b);
+      const allBucketCandidates = [];
+      for (const bId of sortedBucketIds) {
+        const bVotes = bucketVotesMap.get(bId);
+        const topPeaks = findTopKConsensusInVotes(bVotes, 1.05, 4);
+        for (const pk of topPeaks) {
+          const isValidBucketPeak =
+            (pk.phraseHits >= 1 && pk.rawWeight >= 4.6 && pk.uniqueContentWords >= 2) ||
+            (pk.rawWeight >= 7.5 && pk.uniqueContentWords >= 3);
+          if (isValidBucketPeak) {
+            allBucketCandidates.push(pk);
           }
         }
       }
-      const hasNonLinearBreak = validPiecewiseAnchors.length >= 2 &&
-        validPiecewiseAnchors.some(ba => Math.abs(ba.wSec - linearProj(ba.rSec)) > 2.4);
+      allBucketCandidates.sort((a, b) => (a.wSec - b.wSec) || (b.rawWeight - a.rawWeight));
+
+      let selectedChain = [];
+      if (allBucketCandidates.length > 0) {
+        const N = allBucketCandidates.length;
+        const dpScore = new Float64Array(N);
+        const dpParent = new Int32Array(N).fill(-1);
+
+        const nodeBaseScore = (p) => {
+          const distPen = Math.abs(p.delta) * 0.04;
+          const phraseBon = Math.min(20, p.phraseHits * 1.4) + Math.min(12, p.uniqueContentWords * 1.2);
+          return p.rawWeight + phraseBon - distPen;
+        };
+
+        for (let i = 0; i < N; i++) {
+          const cur = allBucketCandidates[i];
+          let bestS = nodeBaseScore(cur);
+          let bestPrev = -1;
+
+          for (let prevIdx = 0; prevIdx < i; prevIdx++) {
+            const prev = allBucketCandidates[prevIdx];
+            if (prev.bId === cur.bId) continue;
+            const dw = cur.wSec - prev.wSec;
+            const dr = cur.rSec - prev.rSec;
+            if (dw < 6.0 || dr < 4.0) continue;
+
+            const deltaJump = cur.delta - prev.delta;
+            if (Math.abs(deltaJump) > 35.0) continue;
+            // Impedir compresión/expansión absurda (p.ej. saltar 60s de letra en 6s de audio)
+            if (deltaJump > 0 && dr < dw * 0.22) continue;
+            if (deltaJump < 0 && dw < dr * 0.22) continue;
+
+            // Bono suave por continuidad de desfase; penalización leve por saltos grandes para desambiguar estribillos repetidos
+            const jumpAbs = Math.abs(deltaJump);
+            const consistencyBonus = jumpAbs <= 1.2 ? 3.5 : (jumpAbs <= 3.0 ? 1.0 : -0.22 * Math.min(28.0, jumpAbs - 1.2));
+            const candScore = dpScore[prevIdx] + nodeBaseScore(cur) + consistencyBonus;
+            if (candScore > bestS) {
+              bestS = candScore;
+              bestPrev = prevIdx;
+            }
+          }
+          dpScore[i] = bestS;
+          dpParent[i] = bestPrev;
+        }
+
+        let bestEnd = 0;
+        for (let i = 1; i < N; i++) {
+          if (dpScore[i] > dpScore[bestEnd]) bestEnd = i;
+        }
+        let curIdx = bestEnd;
+        while (curIdx >= 0) {
+          selectedChain.push(allBucketCandidates[curIdx]);
+          curIdx = dpParent[curIdx];
+        }
+        selectedChain.reverse();
+      }
+
+      // Respaldo global de desplazamiento constante por si solo hubo 1 pico repartido entre bordes
+      if (selectedChain.length === 0) {
+        const gPeaks = findTopKConsensusInVotes(allVotes, 1.15, 2);
+        const gp = gPeaks[0];
+        if (gp && ((gp.phraseHits >= 2 && gp.uniqueContentWords >= 4 && gp.rawWeight >= 7.5) || (gp.uniqueContentWords >= 5 && gp.rawWeight >= 10.0))) {
+          selectedChain = [gp];
+        }
+      }
+
+      if (selectedChain.length === 0) return emptyResult;
+
+      // 6) Modelo priorTime(rSec) HONESTO:
+      //    - NUNCA ajusta pendientes absurdas (0.93) a saltos no lineales
+      //    - Solo usa slope ∈ [0.975, 1.025] si >= 3 cubetas cumplen linealidad estricta (error máx <= 0.80s)
+      //    - Si hay saltos entre tramos (> 0.85s), usa directamente la curva monotónica por tramos con extrapolación plana (slope = 1.0)
+      const chainOffsets = selectedChain.map(p => p.delta);
+      const minChainOff = Math.min(...chainOffsets);
+      const maxChainOff = Math.max(...chainOffsets);
+      const bucketSpreadSec = maxChainOff - minChainOff;
+
+      let finalSlope = 1.0;
+      let finalIntercept = selectedChain[0].delta;
+      let hasPiecewiseBreak = false;
+
+      if (selectedChain.length === 1) {
+        finalSlope = 1.0;
+        finalIntercept = selectedChain[0].delta;
+      } else if (bucketSpreadSec <= 0.85) {
+        // Consenso constante en toda la canción -> mediana ponderada de deltas
+        const totalCW = selectedChain.reduce((s, p) => s + p.rawWeight, 0) || 1;
+        const sortedC = selectedChain.slice().sort((a, b) => a.delta - b.delta);
+        let acc = 0;
+        for (const p of sortedC) {
+          acc += p.rawWeight;
+          if (acc >= totalCW * 0.5) {
+            finalIntercept = p.delta;
+            break;
+          }
+        }
+        finalSlope = 1.0;
+      } else {
+        // Comprobar si >= 3 cubetas se explican con una deriva de tempo genuina suave [0.975, 1.025]
+        let linearAccepted = false;
+        if (selectedChain.length >= 3) {
+          const rSpan = selectedChain[selectedChain.length - 1].rSec - selectedChain[0].rSec;
+          if (rSpan >= 45.0) {
+            let sW = 0, sR = 0, sY = 0;
+            for (const p of selectedChain) {
+              sW += p.rawWeight;
+              sR += p.rawWeight * p.rSec;
+              sY += p.rawWeight * p.wSec;
+            }
+            const meanR = sR / Math.max(1e-6, sW);
+            const meanY = sY / Math.max(1e-6, sW);
+            let num = 0, den = 0;
+            for (const p of selectedChain) {
+              const dr = p.rSec - meanR;
+              num += p.rawWeight * dr * (p.wSec - meanY);
+              den += p.rawWeight * dr * dr;
+            }
+            if (den > 10.0) {
+              const estSlope = num / den;
+              if (estSlope >= 0.975 && estSlope <= 1.025) {
+                const estIc = meanY - estSlope * meanR;
+                let maxResid = 0;
+                for (const p of selectedChain) {
+                  const err = Math.abs(p.wSec - (estSlope * p.rSec + estIc));
+                  if (err > maxResid) maxResid = err;
+                }
+                if (maxResid <= 0.80) {
+                  finalSlope = Math.abs(estSlope - 1.0) < 0.004 ? 1.0 : estSlope;
+                  finalIntercept = estIc;
+                  linearAccepted = true;
+                }
+              }
+            }
+          }
+        }
+        if (!linearAccepted) {
+          // Ruptura no lineal confirmada por palabras en distintas secciones -> curva por tramos directa con bordes slope=1.0
+          hasPiecewiseBreak = true;
+          finalSlope = 1.0;
+          const sortedOffs = chainOffsets.slice().sort((a, b) => a - b);
+          finalIntercept = sortedOffs[Math.floor(sortedOffs.length / 2)];
+        }
+      }
 
       const priorTime = (rSec) => {
-        if (!hasNonLinearBreak) return linearProj(rSec);
-        const firstA = validPiecewiseAnchors[0];
-        const lastA = validPiecewiseAnchors[validPiecewiseAnchors.length - 1];
+        if (!hasPiecewiseBreak) {
+          return Math.max(0, finalSlope * rSec + finalIntercept);
+        }
+        const firstA = selectedChain[0];
+        const lastA = selectedChain[selectedChain.length - 1];
+        // Extrapolación plana (slope = 1.0) antes del primer y después del último tramo verificado
         if (rSec <= firstA.rSec) {
-          return Math.max(0, firstA.wSec + (rSec - firstA.rSec) * finalSlope);
+          return Math.max(0, firstA.wSec + (rSec - firstA.rSec));
         }
         if (rSec >= lastA.rSec) {
-          return Math.max(0, lastA.wSec + (rSec - lastA.rSec) * finalSlope);
+          return Math.max(0, lastA.wSec + (rSec - lastA.rSec));
         }
-        for (let k = 0; k < validPiecewiseAnchors.length - 1; k++) {
-          const a = validPiecewiseAnchors[k];
-          const b = validPiecewiseAnchors[k + 1];
+        for (let k = 0; k < selectedChain.length - 1; k++) {
+          const a = selectedChain[k];
+          const b = selectedChain[k + 1];
           if (rSec >= a.rSec && rSec <= b.rSec) {
             const t = (rSec - a.rSec) / Math.max(0.01, b.rSec - a.rSec);
             return Math.max(0, a.wSec + t * (b.wSec - a.wSec));
           }
         }
-        return linearProj(rSec);
+        return Math.max(0, rSec + finalIntercept);
       };
 
-      // 5) ETAPA 2: Alineación monotónica LCS palabra a palabra dentro de corredor ±5.5s sobre priorTime
-      //    Filtrar solo las palabras R cercanas a alguna ventana cubierta por W para ejecutar DP en < 2 ms
+      // 7) ETAPA 3: Alineación monotónica LCS palabra a palabra dentro de corredor ±5.5s sobre priorTime
       const CORRIDOR_SEC = 5.5;
       const activeR = [];
       for (let i = 0; i < R.length; i++) {
         const pT = priorTime(R[i].rawStartSec);
-        // Búsqueda rápida en W ordenada
         let lo = 0, hi = W.length - 1;
         while (lo < hi) {
           const mid = (lo + hi) >> 1;
@@ -9163,11 +8788,11 @@
 
       const matchedWordByRIdx = new Map();
       if (activeR.length >= 2 && W.length >= 2) {
-        const P = Math.min(activeR.length, 620);
-        const Q = Math.min(W.length, 620);
+        const P = Math.min(activeR.length, 680);
+        const Q = Math.min(W.length, 680);
         const cols = Q + 1;
         const dp = new Float32Array((P + 1) * cols);
-        const dir = new Uint8Array((P + 1) * cols); // 0 = skipR, 1 = skipW, 2 = match
+        const dir = new Uint8Array((P + 1) * cols);
 
         for (let i = 1; i <= P; i++) {
           const { r: rTok, priorSec } = activeR[i - 1];
@@ -9186,7 +8811,7 @@
             if (dtErr <= CORRIDOR_SEC) {
               const sim = wordSim(rTok, wTok);
               if (sim >= 0.66) {
-                const gain = sim * (rTok.isStop ? 0.55 : 1.25) - dtErr * 0.035;
+                const gain = sim * (rTok.isStop ? 0.55 : 1.25) - dtErr * 0.085;
                 if (gain > 0.15) {
                   const diag = dp[prevRowOff + (j - 1)] + gain;
                   if (diag > best) {
@@ -9246,20 +8871,20 @@
         return bestScore > -1e8 ? (bestF / fHz) : secVal;
       };
 
-      // 6) Calcular anclas por línea a partir de las palabras emparejadas por LCS
+      // 8) Calcular anclas por línea con offset absoluto real (offsetSec = estStart - rl.rawStart)
       const lineAnchors = new Array(rawLines.length).fill(null);
-      let anchoredLineCount = 0;
+      let prevAnchoredEndSec = -1;
 
       for (let li = 0; li < rawLines.length; li++) {
         const span = lineWordSpans[li];
         const hits = [];
-        let strongContentHit = false;
+        let contentHitCount = 0;
         for (let k = 0; k < span.count; k++) {
           const rIdx = span.startIdx + k;
           const m = matchedWordByRIdx.get(rIdx);
           if (m) {
             const rTok = R[rIdx];
-            if (!rTok.isStop && m.sim >= 0.72) strongContentHit = true;
+            if (!rTok.isStop && m.sim >= 0.72) contentHitCount++;
             const snappedS = snapWordStartTo100HzOnset(m.w.startSec);
             const snappedE = Math.max(snappedS + 0.12, m.w.endSec);
             hits.push({
@@ -9272,43 +8897,181 @@
           }
         }
         if (hits.length === 0) continue;
-        if (!strongContentHit && hits.length < 2) continue;
+        if (contentHitCount === 0 && hits.length < 2) continue;
 
         const rl = rawLines[li];
         const expectedDur = Math.max(0.5, (rl.rawEnd - rl.rawStart) * finalSlope);
         const firstHit = hits[0];
         const lastHit = hits[hits.length - 1];
 
-        // Si la primera palabra coincidió, usar su ataque exacto; si coincidió una interna, retroproyectar
-        const estStart = (firstHit.wi === 0)
+        // Mediana ponderada robusta de inicio de verso (palabras de contenido 3x vs stopwords 0.35x):
+        // evita que una stopword aislada pegada al inicio de ventana Whisper ("Y@0.00s") adelante el verso -1.3s.
+        const startEsts = hits.map((h) => ({
+          val: Math.max(0, h.startSec - Math.max(0, (h.rTok.rawStartSec - rl.rawStart) * finalSlope)),
+          w: (!h.rTok.isStop ? 3.0 : 0.35) * (h.wi === 0 && !h.rTok.isStop ? 1.5 : 1.0)
+        })).sort((a, b) => a.val - b.val);
+        const totalEstW = startEsts.reduce((s, e) => s + e.w, 0) || 1;
+        let accEstW = 0;
+        let medEstStart = startEsts[0].val;
+        for (const e of startEsts) {
+          accEstW += e.w;
+          if (accEstW >= totalEstW * 0.5) {
+            medEstStart = e.val;
+            break;
+          }
+        }
+        const firstHitEst = firstHit.wi === 0
           ? firstHit.startSec
           : Math.max(0, firstHit.startSec - Math.max(0, (firstHit.rTok.rawStartSec - rl.rawStart) * finalSlope));
+        const isEarlyStopwordOutlier = Boolean(
+          firstHit.wi === 0 && firstHit.rTok.isStop && hits.length >= 2 && (medEstStart - firstHit.startSec) > 0.55
+        );
+        const isMidLineFirstOutlier = Boolean(
+          firstHit.wi > 0 && hits.length >= 3 && Math.abs(firstHitEst - medEstStart) > 1.1
+        );
+        const estStart = (isEarlyStopwordOutlier || isMidLineFirstOutlier)
+          ? medEstStart
+          : firstHitEst;
         const estEnd = (lastHit.wi === span.count - 1)
           ? lastHit.endSec
           : Math.max(estStart + 0.55, lastHit.endSec + Math.max(0, (rl.rawEnd - lastHit.rTok.rawEndSec) * finalSlope));
 
-        const pStart = priorTime(rl.rawStart);
-        const localResid = Math.max(-4.8, Math.min(4.8, estStart - pStart));
+        // Guardia anti-robo de palabra final: si solo coincidió 1 palabra NO inicial cuya retroproyección
+        // invade la línea anterior ya anclada o salta > 2.5s respecto a priorTime, descartar esa ancla espuria.
+        if (hits.length === 1 && firstHit.wi > 0) {
+          const pStart = priorTime(rl.rawStart);
+          if ((prevAnchoredEndSec > 0 && estStart < prevAnchoredEndSec - 0.35) || Math.abs(estStart - pStart) > 2.5) {
+            continue;
+          }
+        }
 
+        const clampedEnd = Math.max(estStart + 0.45, Math.min(estStart + Math.max(expectedDur * 1.6, 8.0), estEnd));
         lineAnchors[li] = {
           startSec: Math.max(0, estStart),
-          endSec: Math.max(estStart + 0.45, Math.min(estStart + Math.max(expectedDur * 1.6, 8.0), estEnd)),
-          localResid,
+          endSec: clampedEnd,
+          offsetSec: Math.max(0, estStart) - rl.rawStart,
+          contentHitCount,
           hits
         };
-        anchoredLineCount++;
+        prevAnchoredEndSec = clampedEnd;
       }
 
-      // 7) Interpolación suave por tramos de localResid para líneas no cubiertas aún por Whisper
-      const anchoredIndices = [];
+      // Filtro de picos aislados (3 puntos): descartar anclas débiles de 1 sola palabra que salten > 2.2s respecto a sus 2 vecinas concordantes
+      let anchoredIndices = [];
       for (let li = 0; li < rawLines.length; li++) {
         if (lineAnchors[li]) anchoredIndices.push(li);
       }
+      if (anchoredIndices.length >= 3) {
+        const toDrop = [];
+        for (let k = 1; k < anchoredIndices.length - 1; k++) {
+          const prevAi = anchoredIndices[k - 1];
+          const curAi = anchoredIndices[k];
+          const nextAi = anchoredIndices[k + 1];
+          const curA = lineAnchors[curAi];
+          if (curA.hits.length > 1) continue;
+          const spanSec = rawLines[nextAi].rawStart - rawLines[prevAi].rawStart;
+          if (spanSec > 20.0) continue;
+          const prevOff = lineAnchors[prevAi].offsetSec;
+          const nextOff = lineAnchors[nextAi].offsetSec;
+          if (Math.abs(prevOff - nextOff) <= 1.25) {
+            const avgNeighbor = 0.5 * (prevOff + nextOff);
+            if (Math.abs(curA.offsetSec - avgNeighbor) > 2.2) {
+              toDrop.push(curAi);
+            }
+          }
+        }
+        for (const dropIdx of toDrop) lineAnchors[dropIdx] = null;
+        if (toDrop.length > 0) {
+          anchoredIndices = [];
+          for (let li = 0; li < rawLines.length; li++) {
+            if (lineAnchors[li]) anchoredIndices.push(li);
+          }
+        }
+      }
 
-      const getInterpolatedResid = (li) => {
-        if (anchoredIndices.length === 0) return 0;
-        let prevIdx = -1;
-        let nextIdx = -1;
+      // 9) BARRERA ESTRICTA ANTI-FALSO-BLOQUEO (0 alucinaciones en instrumentales o falsas coincidencias)
+      const anchoredLineCount = anchoredIndices.length;
+      let matchedContentWords = 0;
+      const survivingRIndices = [];
+      for (const ai of anchoredIndices) {
+        const a = lineAnchors[ai];
+        matchedContentWords += a.contentHitCount;
+        for (const h of a.hits) survivingRIndices.push(h.rTok.idx);
+      }
+      survivingRIndices.sort((a, b) => a - b);
+      let consecutivePhrasePairs = 0;
+      for (let k = 1; k < survivingRIndices.length; k++) {
+        if (survivingRIndices[k] - survivingRIndices[k - 1] <= 2) consecutivePhrasePairs++;
+      }
+      const chainPhraseHits = selectedChain.reduce((s, p) => s + p.phraseHits, 0);
+      const totalPhraseHits = Math.max(consecutivePhrasePairs, chainPhraseHits);
+      const bucketCount = selectedChain.length;
+
+      const passesStrictWordLock = bucketCount >= 2
+        ? (anchoredLineCount >= 2 && matchedContentWords >= 4 && (totalPhraseHits >= 2 || matchedContentWords >= 6))
+        : (
+            (anchoredLineCount >= 3 && matchedContentWords >= 6 && totalPhraseHits >= 2) ||
+            (rawLines.length <= 6 && anchoredLineCount >= 2 && matchedContentWords >= 4 && totalPhraseHits >= 2)
+          );
+
+      if (!passesStrictWordLock) {
+        return {
+          ...emptyResult,
+          anchoredLines: anchoredLineCount,
+          matchedWords: matchedWordByRIdx.size,
+          matchedContentWords,
+          bucketCount
+        };
+      }
+
+      // 10) Curva por tramos consciente de pausas entre estrofas para líneas no ancladas (CERO decaimiento exponencial)
+      const intervalSplitCache = new Map();
+      const getIntervalSplitIdx = (prevIdx, nextIdx) => {
+        const cKey = `${prevIdx}_${nextIdx}`;
+        if (intervalSplitCache.has(cKey)) return intervalSplitCache.get(cKey);
+        const gaps = [];
+        let maxGap = -1;
+        let maxGapIdx = -1;
+        for (let k = prevIdx; k < nextIdx; k++) {
+          const g = Math.max(0, rawLines[k + 1].rawStart - rawLines[k].rawEnd);
+          gaps.push(g);
+          if (g > maxGap) {
+            maxGap = g;
+            maxGapIdx = k;
+          }
+        }
+        const sortedG = gaps.slice().sort((a, b) => a - b);
+        const medGap = sortedG[Math.floor(sortedG.length / 2)] || 0;
+        // Saltar en el corte de estrofa/interludio cuando existe una pausa musical dominante (>= 1.30s)
+        const splitK = (maxGapIdx >= 0 && maxGap >= Math.max(1.30, medGap * 1.15)) ? maxGapIdx : -1;
+        intervalSplitCache.set(cKey, splitK);
+        return splitK;
+      };
+
+      const getUnanchoredStartSec = (li) => {
+        const rl = rawLines[li];
+        const firstAi = anchoredIndices[0];
+        const lastAi = anchoredIndices[anchoredIndices.length - 1];
+
+        // Antes del primer ancla: extrapolación plana sin decaimiento (o tempo lineal verificado)
+        if (li < firstAi) {
+          if (!hasPiecewiseBreak && finalSlope !== 1.0) {
+            const firstResid = lineAnchors[firstAi].startSec - priorTime(rawLines[firstAi].rawStart);
+            return Math.max(0, priorTime(rl.rawStart) + firstResid);
+          }
+          return Math.max(0, rl.rawStart + lineAnchors[firstAi].offsetSec);
+        }
+        // Después del último ancla: extrapolación plana sin decaimiento
+        if (li > lastAi) {
+          if (!hasPiecewiseBreak && finalSlope !== 1.0) {
+            const lastResid = lineAnchors[lastAi].startSec - priorTime(rawLines[lastAi].rawStart);
+            return Math.max(0, priorTime(rl.rawStart) + lastResid);
+          }
+          return Math.max(0, rl.rawStart + lineAnchors[lastAi].offsetSec);
+        }
+
+        let prevIdx = firstAi;
+        let nextIdx = lastAi;
         for (let k = 0; k < anchoredIndices.length; k++) {
           const ai = anchoredIndices[k];
           if (ai < li) prevIdx = ai;
@@ -9317,25 +9080,24 @@
             break;
           }
         }
-        if (prevIdx >= 0 && nextIdx >= 0) {
-          const rPrev = rawLines[prevIdx].rawStart;
-          const rNext = rawLines[nextIdx].rawStart;
-          const t = (rawLines[li].rawStart - rPrev) / Math.max(0.05, rNext - rPrev);
-          return lineAnchors[prevIdx].localResid + t * (lineAnchors[nextIdx].localResid - lineAnchors[prevIdx].localResid);
+        const offPrev = lineAnchors[prevIdx].offsetSec;
+        const offNext = lineAnchors[nextIdx].offsetSec;
+        const jump = Math.abs(offNext - offPrev);
+
+        if (jump > 2.4) {
+          const splitK = getIntervalSplitIdx(prevIdx, nextIdx);
+          if (splitK >= 0) {
+            return Math.max(0, rl.rawStart + (li <= splitK ? offPrev : offNext));
+          }
         }
-        if (prevIdx >= 0) {
-          // Amortiguar suavemente el residuo local hacia 0 si nos alejamos mucho del último ancla
-          const dist = Math.max(0, rawLines[li].rawStart - rawLines[prevIdx].rawStart);
-          return lineAnchors[prevIdx].localResid * Math.exp(-dist / 45.0);
-        }
-        if (nextIdx >= 0) {
-          const dist = Math.max(0, rawLines[nextIdx].rawStart - rawLines[li].rawStart);
-          return lineAnchors[nextIdx].localResid * Math.exp(-dist / 45.0);
-        }
-        return 0;
+        const rPrev = rawLines[prevIdx].rawStart;
+        const rNext = rawLines[nextIdx].rawStart;
+        const t = (rl.rawStart - rPrev) / Math.max(0.05, rNext - rPrev);
+        const interpOff = offPrev + t * (offNext - offPrev);
+        return Math.max(0, rl.rawStart + interpOff);
       };
 
-      // 8) Construir líneas finales monotónicas con sílabas 10 ms sincronizadas palabra a palabra
+      // 11) Construir líneas finales monotónicas con sílabas 10 ms sincronizadas palabra a palabra
       const draftLines = new Array(rawLines.length);
       for (let li = 0; li < rawLines.length; li++) {
         const rl = rawLines[li];
@@ -9347,8 +9109,7 @@
             anchor
           };
         } else {
-          const resid = getInterpolatedResid(li);
-          const s = Math.max(0, priorTime(rl.rawStart) + resid);
+          const s = getUnanchoredStartSec(li);
           const dur = Math.max(0.55, (rl.rawEnd - rl.rawStart) * finalSlope);
           draftLines[li] = {
             startSec: s,
@@ -9382,7 +9143,6 @@
         const span = lineWordSpans[li];
 
         if (dl.anchor && span.count > 0) {
-          // Construir tiempos exactos palabra por palabra (ancladas + interpoladas suavemente entre anclas)
           const hitMap = new Map();
           for (const h of dl.anchor.hits) hitMap.set(h.wi, h);
 
@@ -9394,7 +9154,6 @@
             }
           }
 
-          // Rellenar huecos entre palabras ancladas proporcionalmente a su longitud de caracteres
           let wi = 0;
           while (wi < span.count) {
             if (wordTimes[wi]) {
@@ -9424,7 +9183,6 @@
             }
           }
 
-          // Asegurar monotonicidad palabra a palabra y dividir cada palabra en sílabas 10 ms
           const syls = [];
           let prevEnd = dl.startSec;
           for (let k = 0; k < span.count; k++) {
@@ -9470,7 +9228,6 @@
         }
       }
 
-      // Alinear sílabas 10 ms de las líneas proyectadas (todavía no ancladas palabra a palabra) contra vocalProfile
       if (unanchoredDraftObjs.length > 0) {
         const dspAlignedSubset = this._alignSyllablesWithVocalProfile(key, unanchoredDraftObjs, vocalProfile, actualDurSec);
         for (let u = 0; u < unanchoredIndicesToDsp.length; u++) {
@@ -9489,14 +9246,24 @@
         }
       }
 
-      const representativeShift = +(linearProj(refFirstSec) - refFirstSec).toFixed(2);
+      const sortedAnchorOffs = anchoredIndices.map(ai => lineAnchors[ai].offsetSec).sort((a, b) => a - b);
+      const p10Off = sortedAnchorOffs[Math.floor((sortedAnchorOffs.length - 1) * 0.1)] || 0;
+      const p90Off = sortedAnchorOffs[Math.ceil((sortedAnchorOffs.length - 1) * 0.9)] || 0;
+      const spreadSec = +Math.max(bucketSpreadSec, p90Off - p10Off).toFixed(2);
+      const isPiecewise = Boolean(hasPiecewiseBreak || (bucketCount >= 2 && spreadSec >= 0.95));
+      const representativeShift = +(sortedAnchorOffs[Math.floor(sortedAnchorOffs.length / 2)] || 0).toFixed(2);
+
       return {
         lines: finalLines,
         shiftSec: representativeShift,
         slope: +finalSlope.toFixed(4),
         anchoredLines: anchoredLineCount,
         matchedWords: matchedWordByRIdx.size,
-        hasGlobalLock: true
+        matchedContentWords,
+        hasGlobalLock: true,
+        isPiecewise,
+        spreadSec,
+        bucketCount
       };
     }
 
@@ -10060,7 +9827,16 @@
         };
 
         let lockedOnce = false;
-        let lastShiftSec = 0;
+        let lastAlignMeta = { shiftSec: 0, isPiecewise: false, spreadSec: 0, bucketCount: 0 };
+
+        const formatReadyLabel = (meta) => {
+          const isPw = Boolean(meta && (meta.isPiecewise || (Number(meta.spreadSec) >= 0.95 && Number(meta.bucketCount) >= 2)));
+          if (isPw) return 'Sincro · Por tramos';
+          const s = Number(meta && meta.shiftSec) || 0;
+          return Math.abs(s) >= 0.55
+            ? `Sincro · ${s > 0 ? '+' : ''}${s.toFixed(1)}s`
+            : 'Sincro · Exacta';
+        };
 
         const applyTranscribedLinesLive = (stageLines, pureLinesToPersist, isComplete = false, alignMeta = {}) => {
           if (!Array.isArray(stageLines) || stageLines.length === 0) return;
@@ -10069,6 +9845,7 @@
             ? stageLines
             : this._alignSyllablesWithVocalProfile(key, stageLines, vocalDspProfile, actualDurSec);
           const verifiedNow = Boolean(isComplete || alignMeta.hasGlobalLock || !hasReferenceLyrics || isPlainUnaligned);
+          const isPw = Boolean(alignMeta.isPiecewise || (Number(alignMeta.spreadSec) >= 0.95 && Number(alignMeta.bucketCount) >= 2));
           const studioData = {
             track,
             key,
@@ -10081,6 +9858,9 @@
             hasUnalignedPlainLyrics: false,
             isAudioTranscribed: verifiedNow,
             isWhisperVerified: verifiedNow,
+            isPiecewise: isPw,
+            spreadSec: Number(alignMeta.spreadSec) || 0,
+            bucketCount: Number(alignMeta.bucketCount) || 0,
             shiftSec: Number(alignMeta.shiftSec) || 0,
             slope: Number(alignMeta.slope) || 1.0
           };
@@ -10091,24 +9871,36 @@
             : [];
           if (cleanToSave.length >= 2) {
             lockedOnce = true;
-            if (Number.isFinite(Number(alignMeta.shiftSec))) lastShiftSec = Number(alignMeta.shiftSec);
+            lastAlignMeta = {
+              shiftSec: Number(alignMeta.shiftSec) || 0,
+              isPiecewise: isPw,
+              spreadSec: Number(alignMeta.spreadSec) || 0,
+              bucketCount: Number(alignMeta.bucketCount) || 0
+            };
             this._commitAlignedLinesToKaraoke(key, cleanToSave, {
               track,
               audioDurSec: actualDurSec,
               shiftSec: Number(alignMeta.shiftSec) || 0,
               slope: Number(alignMeta.slope) || 1.0,
+              isPiecewise: isPw,
+              spreadSec: Number(alignMeta.spreadSec) || 0,
+              bucketCount: Number(alignMeta.bucketCount) || 0,
               matchedWords: Number(alignMeta.matchedWords) || 0,
               anchoredLines: Number(alignMeta.anchoredLines) || cleanToSave.length,
               hasGlobalLock: Boolean(alignMeta.hasGlobalLock ?? true),
               isComplete
             });
-            if (this.karaokeService && (isComplete || alignMeta.hasGlobalLock || (!hasReferenceLyrics && cleanToSave.length >= 3))) {
+            // Persistir en caché v4 ÚNICAMENTE al completar todas las ventanas (nunca guardar un bloqueo parcial de 1 ventana)
+            if (this.karaokeService && isComplete) {
               this.karaokeService.saveTranscribedLyricsToPersistentStore(track, cleanToSave, actualDurSec, {
                 skipSingStarNotify: true,
                 skipApplyCache: true,
-                isComplete,
+                isComplete: true,
                 shiftSec: Number(alignMeta.shiftSec) || 0,
                 slope: Number(alignMeta.slope) || 1.0,
+                isPiecewise: isPw,
+                spreadSec: Number(alignMeta.spreadSec) || 0,
+                bucketCount: Number(alignMeta.bucketCount) || 0,
                 matchedWords: Number(alignMeta.matchedWords) || 0,
                 anchoredLines: Number(alignMeta.anchoredLines) || cleanToSave.length
               });
@@ -10126,13 +9918,6 @@
           }
         };
 
-        const formatReadyLabel = (shiftVal) => {
-          const s = Number(shiftVal) || 0;
-          return Math.abs(s) >= 0.65
-            ? `Sincro IA · ${s > 0 ? '+' : ''}${s.toFixed(1)}s`
-            : 'Sincro IA · 10ms';
-        };
-
         try {
           const languageHint = this._detectLanguageHintForTrack(track, hasReferenceLyrics ? rawRefLines : []);
 
@@ -10141,55 +9926,113 @@
             try { this._whisperWorker.postMessage({ type: 'reset_cancel' }); } catch (_) {}
           }
 
-          // 1) Transcripción / Alineación forzada directa sobre el flujo vocal 16 kHz (Worker local ONNX -> respaldo Server PCM)
+          // 1) Transcripción / Alineación forzada multi-ventana directa sobre el flujo vocal 16 kHz (Center-Vocal Boost)
           if (mono16k && mono16k.length >= 16000) {
             const prioritySec = this.audioEngine ? (this.audioEngine.getCurrentSongTimeSec() || 0) : 0;
-            const fastProbeMode = Boolean(hasReferenceLyrics && !isPlainUnaligned);
+            const isRefSyncMode = Boolean(hasReferenceLyrics && !isPlainUnaligned);
+            const refStartSec = (isRefSyncMode && rawRefLines.length >= 2) ? Number(rawRefLines[0]._rawLrcTimeSec) : undefined;
+            const refEndSec = (isRefSyncMode && rawRefLines.length >= 2) ? Number(rawRefLines[rawRefLines.length - 1]._rawLrcEndTimeSec) : undefined;
             const windows = this._findActiveVocalWindowsForWhisper(vocalDspProfile, actualDurSec, prioritySec, {
               forAlignment: hasReferenceLyrics,
-              maxProbes: fastProbeMode ? 3 : 0
+              maxProbes: isRefSyncMode ? 9 : 0,
+              refStartSec,
+              refEndSec
             });
+            const targetNonEmpty = isRefSyncMode ? Math.min(6, windows.length) : windows.length;
             const collectedWords = [];
-            let lockedProbeHits = 0;
+            let nonEmptyWins = 0;
 
             for (let wIdx = 0; wIdx < windows.length; wIdx++) {
               if (!isStillRelevant()) return null;
 
               const win = windows[wIdx];
+              const dispTotal = isRefSyncMode ? targetNonEmpty : windows.length;
+              const dispStep = Math.min(dispTotal, isRefSyncMode ? (nonEmptyWins + 1) : (wIdx + 1));
               const stepLabel = lockedOnce
-                ? `${formatReadyLabel(lastShiftSec)} (${wIdx + 1}/${windows.length})`
-                : (hasReferenceLyrics ? `Sincro IA ${wIdx + 1}/${windows.length}` : `Transcribiendo IA ${wIdx + 1}/${windows.length}`);
+                ? `${formatReadyLabel(lastAlignMeta)} (${dispStep}/${dispTotal})`
+                : (hasReferenceLyrics ? `Sincro · ${dispStep}/${dispTotal}` : `Transcribiendo ${dispStep}/${dispTotal}`);
               if (this.karaokeService) {
                 this.karaokeService.setKaraokeAiSyncStatus(key, stepLabel, 'working');
               }
               if (this.currentTrackKey === key && this.isActive) {
                 this._setSyncStatusChip(stepLabel, 'working');
                 if (badge) {
-                  badge.textContent = `WHISPER IA (${wIdx + 1}/${windows.length}) · ${Math.round(win.startSec)}s`;
+                  badge.textContent = `AUDIO REAL (${dispStep}/${dispTotal}) · ${Math.round(win.startSec)}s`;
                 }
               }
-              const sSample = Math.max(0, Math.floor(win.startSec * 16000));
-              const eSample = Math.min(mono16k.length, Math.ceil(win.endSec * 16000));
-              if (eSample - sSample < 8000) continue;
-
-              const slicePcm = mono16k.subarray(sSample, eSample);
-              let res = await this._transcribeWindowViaWorker(
-                slicePcm,
-                win.startSec,
-                languageHint,
-                (statusMsg) => {
-                  if (badge && this.currentTrackKey === key && this.isActive && statusMsg) {
-                    badge.textContent = statusMsg.toUpperCase().slice(0, 34);
+              const extractNormSlice = (aSec, bSec) => {
+                const sSample = Math.max(0, Math.floor(aSec * 16000));
+                const eSample = Math.min(mono16k.length, Math.ceil(bSec * 16000));
+                const sliceLen = eSample - sSample;
+                if (sliceLen < 8000) return null;
+                const pcm = new Float32Array(sliceLen);
+                let winSumSq = 0;
+                for (let k = 0; k < sliceLen; k++) {
+                  const v = mono16k[sSample + k];
+                  pcm[k] = v;
+                  winSumSq += v * v;
+                }
+                const winRms = Math.sqrt(winSumSq / sliceLen);
+                if (winRms > 1e-4) {
+                  const winGain = Math.min(6.0, 0.16 / winRms);
+                  for (let k = 0; k < sliceLen; k++) {
+                    pcm[k] = Math.max(-0.98, Math.min(0.98, pcm[k] * winGain));
                   }
                 }
-              );
+                return pcm;
+              };
+
+              const slicePcm = extractNormSlice(win.startSec, win.endSec);
+              if (!slicePcm) continue;
+
+              const statusCb = (statusMsg) => {
+                if (badge && this.currentTrackKey === key && this.isActive && statusMsg) {
+                  badge.textContent = statusMsg.toUpperCase().slice(0, 34);
+                }
+              };
+              let res = await this._transcribeWindowViaWorker(slicePcm, win.startSec, languageHint, statusCb);
               if (!isStillRelevant()) return null;
+
+              // Recuperación inteligente de bordes: si Whisper oyó voz pero colapsó DTW (corte en mitad de frase),
+              // si la 1ª ventana cayó en una intro instrumental, o si vocalDspProfile confirma >= 3.5s de canto
+              // activo dentro de una ventana vacía, desplazar el corte (-2.5s / +2.0s / +4.0s) y reintentar 1 vez.
+              if (res && (!Array.isArray(res.words) || res.words.length === 0) && !this._whisperWorkerFailed) {
+                let retryStart = -1;
+                if (wIdx === 0 && win.startSec < 20.0 && (win.startSec + 16.0) < actualDurSec) {
+                  retryStart = +(win.startSec + 4.0).toFixed(2);
+                } else if (res.dtwCollapsed && win.startSec >= 2.5) {
+                  retryStart = +(win.startSec - 2.5).toFixed(2);
+                } else if (isRefSyncMode && vocalDspProfile && vocalDspProfile.vocEnergyDb && (win.startSec + 16.0) < actualDurSec) {
+                  const fps = vocalDspProfile.frameHz || 100;
+                  const thVoc = Number.isFinite(vocalDspProfile.thVoc) ? vocalDspProfile.thVoc : -32;
+                  const f0 = Math.max(0, Math.floor(win.startSec * fps));
+                  const f1 = Math.min(vocalDspProfile.vocEnergyDb.length - 1, Math.ceil(win.endSec * fps));
+                  let vf = 0;
+                  for (let f = f0; f <= f1; f++) {
+                    if (vocalDspProfile.vocEnergyDb[f] >= thVoc && vocalDspProfile.midiFrames[f] >= 45) vf++;
+                  }
+                  if (vf >= Math.round(3.5 * fps)) {
+                    retryStart = win.startSec >= 3.0 ? +(win.startSec - 2.5).toFixed(2) : +(win.startSec + 2.0).toFixed(2);
+                  }
+                }
+                if (retryStart >= 0) {
+                  const retryEnd = Math.min(actualDurSec, retryStart + (win.endSec - win.startSec));
+                  const retryPcm = extractNormSlice(retryStart, retryEnd);
+                  if (retryPcm) {
+                    const retryRes = await this._transcribeWindowViaWorker(retryPcm, retryStart, languageHint, statusCb);
+                    if (!isStillRelevant()) return null;
+                    if (retryRes && Array.isArray(retryRes.words) && retryRes.words.length > 0) {
+                      res = retryRes;
+                    }
+                  }
+                }
+              }
 
               // Si el Web Worker WASM/ONNX falló o no está disponible, respaldo automático Server PCM
               if (!res || !Array.isArray(res.words) || res.words.length === 0) {
                 if (this._whisperWorkerFailed || !this._whisperWorker) {
                   if (this.currentTrackKey === key && this.isActive) {
-                    this._setSyncStatusChip(`IA Servidor ${wIdx + 1}/${windows.length}`, 'working');
+                    this._setSyncStatusChip(`Servidor ${dispStep}/${dispTotal}`, 'working');
                   }
                   res = await this._transcribeWindowViaServerPcm(slicePcm, win.startSec, languageHint, track);
                   if (!isStillRelevant()) return null;
@@ -10197,6 +10040,7 @@
               }
 
               if (res && Array.isArray(res.words) && res.words.length > 0) {
+                nonEmptyWins++;
                 for (const w of res.words) {
                   const txt = String(w?.text || '').trim();
                   if (!txt) continue;
@@ -10216,7 +10060,8 @@
                 }
                 collectedWords.sort((a, b) => a.startSec - b.startSec);
 
-                const isLastWin = (wIdx === windows.length - 1);
+                const reachedGoal = Boolean(isRefSyncMode && nonEmptyWins >= targetNonEmpty);
+                const isLastWin = (wIdx === windows.length - 1) || reachedGoal;
                 if (hasReferenceLyrics && isPlainUnaligned) {
                   const alignedPlain = this._alignPlainLyricsWithWhisperAndIslands(
                     key,
@@ -10233,6 +10078,7 @@
                     });
                   }
                 } else if (hasReferenceLyrics) {
+                  // Actualizar en vivo ventana a ventana SIN cortar tras la 1ª ventana para capturar cortes/estribillos en toda la pista
                   const alignRes = this._alignReferenceLyricsToWhisperRealAudio(
                     key,
                     rawRefLines,
@@ -10241,15 +10087,7 @@
                     actualDurSec
                   );
                   if (alignRes && alignRes.hasGlobalLock && Array.isArray(alignRes.lines) && alignRes.lines.length >= 2) {
-                    lockedProbeHits++;
-                    const strongEarlyLock = fastProbeMode && (
-                      (Number(alignRes.matchedWords) >= 8 && Number(alignRes.anchoredLines) >= 3) ||
-                      lockedProbeHits >= 2
-                    );
-                    applyTranscribedLinesLive(alignRes.lines, alignRes.lines, isLastWin || strongEarlyLock, alignRes);
-                    if (strongEarlyLock) {
-                      break;
-                    }
+                    applyTranscribedLinesLive(alignRes.lines, alignRes.lines, isLastWin, alignRes);
                   }
                 } else {
                   const liveLines = this._buildLinesFromWhisperWordsAndDsp(
@@ -10269,12 +10107,16 @@
                     });
                   }
                 }
+                if (reachedGoal) break;
+              } else if (isRefSyncMode && wIdx >= 3 && collectedWords.length === 0) {
+                // 4 ventanas repartidas por toda la pista sin ninguna palabra -> instrumental pura, salir limpiamente
+                break;
               }
             }
 
             if (collectedWords.length >= 3) {
               let finalLines = [];
-              let finalMeta = { hasGlobalLock: true, shiftSec: 0, slope: 1.0, matchedWords: collectedWords.length, anchoredLines: 0 };
+              let finalMeta = { hasGlobalLock: true, shiftSec: 0, slope: 1.0, isPiecewise: false, spreadSec: 0, bucketCount: 0, matchedWords: collectedWords.length, anchoredLines: 0 };
               if (hasReferenceLyrics && isPlainUnaligned) {
                 finalLines = this._alignPlainLyricsWithWhisperAndIslands(key, rawRefLines, collectedWords, vocalDspProfile, actualDurSec);
                 finalMeta.anchoredLines = finalLines.length;
@@ -10291,17 +10133,19 @@
 
               if (finalLines.length >= 1) {
                 applyTranscribedLinesLive(finalLines, finalLines, true, finalMeta);
-                const readyTxt = formatReadyLabel(finalMeta.shiftSec);
+                const readyTxt = formatReadyLabel(finalMeta);
                 if (this.karaokeService) {
                   this.karaokeService.setKaraokeAiSyncStatus(key, readyTxt, 'ready');
                 }
                 if (this.currentTrackKey === key && this.isActive) {
                   this._setSyncStatusChip(readyTxt, 'ready');
-                  if (badge) badge.textContent = 'WHISPER IA + SÍLABAS 10MS';
+                  if (badge) badge.textContent = 'AUDIO REAL + SÍLABAS 10MS';
                   const shiftAbs = Math.abs(Number(finalMeta.shiftSec) || 0);
-                  const popSub = shiftAbs >= 0.65
-                    ? `Desfase corregido (${finalMeta.shiftSec > 0 ? '+' : ''}${finalMeta.shiftSec.toFixed(1)}s) en Karaoke y SingStar`
-                    : `${collectedWords.length} palabras ancladas al audio real`;
+                  const popSub = finalMeta.isPiecewise
+                    ? `Sincronización por tramos (${finalMeta.anchoredLines} versos anclados)`
+                    : (shiftAbs >= 0.55
+                        ? `Desfase corregido (${finalMeta.shiftSec > 0 ? '+' : ''}${finalMeta.shiftSec.toFixed(1)}s) en Karaoke y SingStar`
+                        : `${collectedWords.length} palabras ancladas al audio real`);
                   this._spawnPopup('SINCRONIZADO CON AUDIO REAL', popSub, '#34d399', 1750);
                 }
                 return finalLines;
@@ -10318,19 +10162,27 @@
             }
           }
 
-          // 2) Respaldo en el servidor (/api/v1/lyrics/transcribe por videoId) cuando no hubo blob local
-          //    o el worker ONNX local no logró bloqueo — funciona tanto CON letra de referencia como SIN ella.
-          if (!lockedOnce) {
+          // 2) Respaldo en el servidor (/api/v1/lyrics/transcribe por videoId) SOLO si no hubo blob local
+          //    o el worker ONNX local falló, y NUNCA si el reproductor está reproduciendo un stream externo distinto (p.ej. SoundCloud).
+          const hasLockedExternalStream = Boolean(
+            this.audioEngine &&
+            this.audioEngine.currentTrack &&
+            this.karaokeService?._makeKey(this.audioEngine.currentTrack) === key &&
+            this.audioEngine._activeDirectStreamUrl &&
+            /^https?:\/\//i.test(this.audioEngine._activeDirectStreamUrl) &&
+            !this.audioEngine._activeDirectStreamUrl.includes('/api/v1/audio/extract')
+          );
+          if (!lockedOnce && (!mono16k || this._whisperWorkerFailed) && !hasLockedExternalStream) {
             const rawVid = String(track.videoId || track.id || '').replace(/^magic_yt_|^yt_/, '').trim();
             const vid = /^[A-Za-z0-9_-]{11}$/.test(rawVid) ? rawVid : '';
             const baseUrl = typeof window.getApiBaseUrl === 'function' ? window.getApiBaseUrl() : '';
             if (vid) {
               try {
                 if (this.karaokeService) {
-                  this.karaokeService.setKaraokeAiSyncStatus(key, 'Sincro IA servidor...', 'working');
+                  this.karaokeService.setKaraokeAiSyncStatus(key, 'Sincro · Servidor...', 'working');
                 }
                 if (this.currentTrackKey === key && this.isActive) {
-                  this._setSyncStatusChip('Sincro IA servidor...', 'working');
+                  this._setSyncStatusChip('Sincro · Servidor...', 'working');
                 }
                 const ctrl = new AbortController();
                 const tid = setTimeout(() => ctrl.abort(), 28000);
@@ -10344,7 +10196,7 @@
                   const data = await resp.json();
                   if (data && Array.isArray(data.words) && data.words.length >= 3) {
                     let srvLines = [];
-                    let srvMeta = { hasGlobalLock: true, shiftSec: 0, slope: 1.0, matchedWords: data.words.length, anchoredLines: 0 };
+                    let srvMeta = { hasGlobalLock: true, shiftSec: 0, slope: 1.0, isPiecewise: false, spreadSec: 0, bucketCount: 0, matchedWords: data.words.length, anchoredLines: 0 };
                     if (hasReferenceLyrics && isPlainUnaligned) {
                       srvLines = this._alignPlainLyricsWithWhisperAndIslands(key, rawRefLines, data.words, vocalDspProfile, actualDurSec);
                       srvMeta.anchoredLines = srvLines.length;
@@ -10360,13 +10212,13 @@
                     }
                     if (srvLines.length >= 2) {
                       applyTranscribedLinesLive(srvLines, srvLines, true, srvMeta);
-                      const readyTxt = formatReadyLabel(srvMeta.shiftSec);
+                      const readyTxt = formatReadyLabel(srvMeta);
                       if (this.karaokeService) {
                         this.karaokeService.setKaraokeAiSyncStatus(key, readyTxt, 'ready');
                       }
                       if (this.currentTrackKey === key && this.isActive) {
                         this._setSyncStatusChip(readyTxt, 'ready');
-                        if (badge) badge.textContent = 'WHISPER IA + DTW 10MS';
+                        if (badge) badge.textContent = 'AUDIO REAL + DTW 10MS';
                       }
                       this._spawnPopup('SINCRONIZADO CON AUDIO REAL', `${srvLines.length} versos bloqueados a la voz real`, '#34d399', 1600);
                       return srvLines;
@@ -10376,10 +10228,10 @@
                     if (parsed.length >= 2) {
                       applyTranscribedLinesLive(parsed, parsed, true, { hasGlobalLock: true, anchoredLines: parsed.length });
                       if (this.currentTrackKey === key && this.isActive) {
-                        this._setSyncStatusChip('Sincro IA · 10ms', 'ready');
-                        if (badge) badge.textContent = 'WHISPER IA + DTW 10MS';
+                        this._setSyncStatusChip('Sincro · Exacta', 'ready');
+                        if (badge) badge.textContent = 'AUDIO REAL + DTW 10MS';
                       }
-                      this._spawnPopup('LETRA TRANSCRITA CON IA', `${parsed.length} versos sincronizados del audio`, '#34d399', 1600);
+                      this._spawnPopup('LETRA TRANSCRITA DEL AUDIO', `${parsed.length} versos sincronizados del audio`, '#34d399', 1600);
                       return parsed;
                     }
                   }
@@ -10405,7 +10257,7 @@
               this.karaokeService.setKaraokeAiSyncStatus(key, '', '');
             }
             if (!lockedOnce && this.currentTrackKey === key && this.isActive) {
-              this._setSyncStatusChip(vocalDspProfile ? 'Sincronizado DTW 10ms' : '', vocalDspProfile ? 'ready' : '');
+              this._setSyncStatusChip('', '');
             }
           }
         }
@@ -13680,6 +13532,30 @@
 
     /**
      * Reproduce SIEMPRE la canción COMPLETA desde 0:00 (sin previews de 30s ni bucles cortos)
+     * Devuelve o espera el Blob EXACTO de la fuente que se está reproduciendo actualmente,
+     * evitando que SingStar descargue YouTube mientras el reproductor reproduce SoundCloud u otro stream directo.
+     */
+    async getOrAwaitExactPlayingBlob(track, timeoutMs = 16000) {
+      if (!track) return null;
+      const tid = String(track.id || '');
+      if (this.currentTrack && String(this.currentTrack.id || '') === tid && this.fullTrackBlob && this.fullTrackBlob.size >= 50000) {
+        return this.fullTrackBlob;
+      }
+      const pending = this._activeExactBlobPromise;
+      if (pending && pending.reqId === this._playRequestId && pending.trackId === tid && pending.promise) {
+        try {
+          const b = await Promise.race([
+            pending.promise,
+            new Promise(r => setTimeout(() => r(null), timeoutMs))
+          ]);
+          if (b && b.size >= 50000) return b;
+        } catch (_) {}
+      }
+      return null;
+    }
+
+    /**
+     * Inicia la reproducción de la pista SIEMPRE COMPLETA desde 0:00 (CERO previews de 30s)
      * mediante HTML5 <audio> real, arrancando en frío por stream chunked del servidor (/api/v1/audio/extract)
      * en carrera paralela con la extracción directa en cliente y calibración acústica DSP.
      */
@@ -13693,6 +13569,8 @@
       this.fullTrackBlob = null;
       this._fullAudioIsLocalBlob = false;
       this._currentFullAudioTrackId = '';
+      this._activeDirectStreamUrl = '';
+      this._activeExactBlobPromise = null;
       this.isCrossfading = false;
       this.pendingUserSeekSec = null;
       this._seekGuard = null;
@@ -13766,9 +13644,38 @@
         this._activeServerRaceCtrl = null;
       }
 
-      // Descarga silenciosa del Blob SOLO para análisis DSP Vocal-VAD / SingStar y caché de seek futuro.
-      // REGLA DE ORO: JAMÁS reemplaza fullAudio.src ni mata yt_bridge a mitad de reproducción (0 cortes, 0 cambios de timbre ni saltos de volumen).
+      // Descarga silenciosa del Blob EXACTO del mismo stream en reproducción (SOLO para análisis DSP / Whisper / SingStar).
+      // REGLAS DE ORO:
+      // 1) JAMÁS reemplaza fullAudio.src ni mata yt_bridge a mitad de reproducción (0 cortes ni cambios de volumen).
+      // 2) BLOQUEO DE FUENTE EXACTA: si hay activeStreamUrl (p.ej. SoundCloud CDN sin cabeceras CORS), reintenta
+      //    ESE MISMO activeStreamUrl a través de proxies CORS y JAMÁS cae en preloadFullTrackInBackground (YouTube).
       const attachBackgroundDspBlobOnly = (activeStreamUrl = '', preloadOpts = {}) => {
+        const cleanActiveUrl = String(activeStreamUrl || '').trim();
+        this._activeDirectStreamUrl = cleanActiveUrl;
+
+        const tryFetchAudioBlobFromUrl = async (targetUrl, timeoutMs = 18000) => {
+          const ctrl = new AbortController();
+          const tid = setTimeout(() => ctrl.abort(), timeoutMs);
+          try {
+            const resp = await fetch(targetUrl, { signal: ctrl.signal });
+            clearTimeout(tid);
+            if (resp && resp.ok) {
+              const cType = String(resp.headers.get('content-type') || '').toLowerCase();
+              if (!cType.includes('text/html') && !cType.includes('application/json')) {
+                const matchedVid = resp.headers.get('X-Video-Id');
+                if (matchedVid && !track.videoId) track.videoId = decodeURIComponent(matchedVid);
+                const durHdr = Number(resp.headers.get('X-Audio-Duration')) || 0;
+                if (durHdr > 45) track.durationSec = durHdr;
+                const exactBlob = await resp.blob();
+                if (exactBlob && exactBlob.size >= 60000) return exactBlob;
+              }
+            }
+          } catch (_) {
+            clearTimeout(tid);
+          }
+          return null;
+        };
+
         const fetchMatchingBlob = async () => {
           if (preloadOpts && preloadOpts.existingResp) {
             try {
@@ -13780,32 +13687,38 @@
               if (b && b.size >= 60000) return b;
             } catch (_) {}
           }
-          if (activeStreamUrl && /^(?:https?:\/\/|\/)/i.test(activeStreamUrl)) {
-            const ctrl = new AbortController();
-            const tid = setTimeout(() => ctrl.abort(), 18000);
-            try {
-              const resp = await fetch(activeStreamUrl, { signal: ctrl.signal });
-              clearTimeout(tid);
-              if (resp && resp.ok) {
-                const cType = String(resp.headers.get('content-type') || '').toLowerCase();
-                if (!cType.includes('text/html') && !cType.includes('application/json')) {
-                  const matchedVid = resp.headers.get('X-Video-Id');
-                  if (matchedVid && !track.videoId) track.videoId = decodeURIComponent(matchedVid);
-                  const durHdr = Number(resp.headers.get('X-Audio-Duration')) || 0;
-                  if (durHdr > 45) track.durationSec = durHdr;
-                  const exactBlob = await resp.blob();
-                  if (exactBlob && exactBlob.size >= 60000) return exactBlob;
-                }
-              }
-            } catch (_) {
-              clearTimeout(tid);
+          if (cleanActiveUrl && /^(?:https?:\/\/|\/)/i.test(cleanActiveUrl)) {
+            const exactCandidates = [cleanActiveUrl];
+            const isExternalHttp = /^https?:\/\//i.test(cleanActiveUrl);
+            const isAlreadyProxied = /(?:workers\.dev|\/api\/proxy)/i.test(cleanActiveUrl);
+            const isOwnServerExtract = /\/api\/v1\/audio\/extract/i.test(cleanActiveUrl);
+            if (isExternalHttp && !isAlreadyProxied && !isOwnServerExtract) {
+              const enc = encodeURIComponent(cleanActiveUrl);
+              exactCandidates.push(`https://drive-proxi.jocomomolobruno.workers.dev/?url=${enc}`);
+              exactCandidates.push(`https://tight-breeze-969f.p1822994.workers.dev/?url=${enc}`);
+              const apiBase = typeof window.getApiBaseUrl === 'function' ? String(window.getApiBaseUrl() || '').replace(/\/$/, '') : '';
+              exactCandidates.push(`${apiBase}/api/proxy?url=${enc}`);
             }
+            for (const candUrl of exactCandidates) {
+              if (reqId !== this._playRequestId) return null;
+              const exactBlob = await tryFetchAudioBlobFromUrl(candUrl, 18000);
+              if (exactBlob && exactBlob.size >= 60000) return exactBlob;
+            }
+            // BLOQUEO DE FUENTE EXACTA: nunca descargar otra pista distinta (p.ej. YouTube) si ya reproducimos activeStreamUrl
+            return null;
           }
-          // Solo si el stream directo falló CORS/red o no había URL directa (p.ej. yt_bridge), descargar respaldo emparejado
+          // Solo cuando NO había URL directa (p.ej. yt_bridge con videoIdOnly exacto), descargar ese mismo videoId
           return this.preloadFullTrackInBackground(track, preloadOpts);
         };
 
-        fetchMatchingBlob().then((blob) => {
+        const exactPromise = fetchMatchingBlob();
+        this._activeExactBlobPromise = {
+          reqId,
+          trackId: String(track.id || ''),
+          promise: exactPromise
+        };
+
+        exactPromise.then((blob) => {
           if (reqId !== this._playRequestId || !blob || blob.size < 60000) return;
           this.fullTrackBlob = blob;
           this._storeFullBlobInGlobalCache(track, blob);
