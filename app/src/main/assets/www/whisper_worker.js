@@ -223,9 +223,14 @@ self.onmessage = async (event) => {
 
       // Para ventanas <= 28.5s usar pase único nativo de Whisper (30s) SIN stride_length_s:
       // evita 100% los duplicados con saltos hacia atrás en el tiempo y duplica la velocidad.
+      // Limitar max_new_tokens + no_repeat_ngram_size impide los bucles de repetición en pasajes
+      // musicales/vibrato que podían colgar una ventana 30+ segundos en WASM.
       const opts = {
         task: 'transcribe',
-        return_timestamps: 'word'
+        return_timestamps: 'word',
+        max_new_tokens: Math.min(180, Math.max(88, Math.round(winDur * 7.5))),
+        no_repeat_ngram_size: 5,
+        repetition_penalty: 1.12
       };
       if (winDur > 28.5) {
         opts.chunk_length_s = 26;

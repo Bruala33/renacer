@@ -1721,6 +1721,11 @@
       this.topVocalOnsetsMap = new Map();
       this.inflight = new Map();
       this.trackCalibrationState = new Map();
+      this.whisperAlignedMeta = new Map();
+      this._manualOffsetAfterAiKeys = new Set();
+      this._aiSyncStatusMap = new Map();
+      this._serverFallbackTimers = new Map();
+      this._whisperLaunchGuard = new Map();
       this.dspEnvelopeCache = typeof WeakMap !== 'undefined' ? new WeakMap() : new Map();
       this.previewEnvCache = new Map();
       this.currentLyrics = [];
@@ -1775,6 +1780,13 @@
       if (!resolvedKey) return 0;
       const clamped = Math.max(-120, Math.min(120, +(Number(offsetSec) || 0).toFixed(2)));
       const normalized = Math.abs(clamped) < 0.05 ? 0 : clamped;
+      if (!options?.fromAiReset && this.whisperAlignedMeta.has(resolvedKey)) {
+        if (normalized !== 0) {
+          this._manualOffsetAfterAiKeys.add(resolvedKey);
+        } else {
+          this._manualOffsetAfterAiKeys.delete(resolvedKey);
+        }
+      }
       if (normalized === 0) {
         delete this.userOffsetsMap[resolvedKey];
       } else {
@@ -1786,21 +1798,133 @@
         this._userScrollingUntil = 0;
         this._userManualScrollUntil = 0;
         this._syncToolbarUI();
-        if (Array.isArray(this.currentLyrics) && this.currentLyrics.length > 0) {
-          this.renderLinesToDom();
+        if (!options?.skipRender && Array.isArray(this.currentLyrics) && this.currentLyrics.length > 0) {
+          this.renderLinesToDom({ skipSingStarNotify: Boolean(options?.skipSingStarNotify) });
         }
-        const curSec = (typeof dualStreamEngine !== 'undefined' && dualStreamEngine)
-          ? dualStreamEngine.getCurrentSongTimeSec()
-          : (this._lastSyncAudioSec || 0);
-        this.activeLineIndex = -1;
-        const syncOpts = { forceScroll: true };
-        if (Number.isFinite(options?.immediateLineIdx)) {
-          syncOpts.immediateLineIdx = options.immediateLineIdx;
+        if (!options?.skipRender) {
+          const curSec = (typeof dualStreamEngine !== 'undefined' && dualStreamEngine)
+            ? dualStreamEngine.getCurrentSongTimeSec()
+            : (this._lastSyncAudioSec || 0);
+          this.activeLineIndex = -1;
+          const syncOpts = { forceScroll: true };
+          if (Number.isFinite(options?.immediateLineIdx)) {
+            syncOpts.immediateLineIdx = options.immediateLineIdx;
+          }
+          this.syncTime(curSec, syncOpts);
         }
-        this.syncTime(curSec, syncOpts);
         return this.timeOffsetSec;
       }
       return normalized;
+    }
+
+    isWhisperVerifiedFor(trackKey, actualDurSec = 0) {
+      if (!trackKey) return false;
+      const meta = this.whisperAlignedMeta.get(trackKey);
+      if (!meta || !meta.verified) return false;
+      if (actualDurSec >= 35 && meta.audioDurSec >= 35 && Math.abs(meta.audioDurSec - actualDurSec) > 3.5) {
+        return false;
+      }
+      return true;
+    }
+
+    setKaraokeAiSyncStatus(trackKey, label = '', state = '') {
+      if (trackKey) {
+        if (label) {
+          this._aiSyncStatusMap.set(trackKey, { label, state: state || '' });
+        } else {
+          this._aiSyncStatusMap.delete(trackKey);
+        }
+      }
+      if (!trackKey || trackKey === this.currentTrackKey) {
+        this._renderAiSyncChip(label, state);
+      }
+    }
+
+    _renderAiSyncChip(label = '', state = '') {
+      const chip = document.getElementById('npKaraokeAiSyncChip');
+      if (!chip) return;
+      if (!label) {
+        chip.classList.add('hidden');
+        chip.classList.remove('working', 'ready');
+        chip.textContent = '';
+        return;
+      }
+      chip.textContent = label;
+      chip.classList.remove('hidden', 'working', 'ready');
+      if (state === 'working' || state === 'ready') {
+        chip.classList.add(state);
+      }
+    }
+
+    applyWhisperVerifiedLines(track, key, alignedLines, meta = {}) {
+      if (!key || !Array.isArray(alignedLines) || alignedLines.length === 0) return false;
+      const cleanLines = alignedLines
+        .filter(l => l && !l._isAcousticVocalIsland && !l._isFallbackPlaceholder && String(l.text || '').trim().length > 0)
+        .map(l => ({ ...l, _isWhisperAligned: true }));
+      if (cleanLines.length === 0) return false;
+
+      const st = track ? this._getOrInitTrackState(track) : this.trackCalibrationState.get(key);
+      const audioDurSec = Number(meta.audioDurSec) || (st && st.actualDur) || this.knownAudioDurations.get(key) || 0;
+      const shiftSec = Number.isFinite(Number(meta.shiftSec)) ? +Number(meta.shiftSec).toFixed(2) : 0;
+      const slope = Number.isFinite(Number(meta.slope)) ? +Number(meta.slope).toFixed(4) : 1.0;
+
+      // Cancelar cualquier temporizador de respaldo de servidor pendiente
+      const pendingTimer = this._serverFallbackTimers.get(key);
+      if (pendingTimer) {
+        clearTimeout(pendingTimer);
+        this._serverFallbackTimers.delete(key);
+      }
+
+      const isFinalOrLocked = Boolean(meta.hasGlobalLock || meta.isComplete || meta.fromCache || cleanLines.length >= 2);
+      if (isFinalOrLocked) {
+        this.whisperAlignedMeta.set(key, {
+          verified: true,
+          audioDurSec,
+          shiftSec,
+          slope,
+          matchedWords: Number(meta.matchedWords) || 0,
+          anchoredLines: Number(meta.anchoredLines) || 0,
+          isComplete: Boolean(meta.isComplete || meta.fromCache),
+          updatedAt: Date.now()
+        });
+      }
+
+      // Al bloquear por primera vez con IA real, limpiar cualquier offset manual antiguo obsoleto
+      // (respetando ajustes manuales que el usuario haga DESPUÉS del bloqueo IA).
+      if (isFinalOrLocked && !this._manualOffsetAfterAiKeys.has(key) && Math.abs(this.getUserOffsetSec(key)) >= 0.05) {
+        this.setUserOffsetSec(key, 0, { fromAiReset: true, skipRender: true, skipSingStarNotify: true });
+      }
+
+      if (st) {
+        st.isFallbackOnly = false;
+        if (audioDurSec >= 35) st.actualDur = audioDurSec;
+      }
+      this.cache.set(key, cleanLines.map(l => ({ ...l })));
+
+      if (meta.isComplete || meta.fromCache || meta.hasGlobalLock) {
+        const absShift = Math.abs(shiftSec);
+        const readyLabel = absShift >= 0.65
+          ? `Sincro IA · ${shiftSec > 0 ? '+' : ''}${shiftSec.toFixed(1)}s`
+          : 'Sincro IA · 10ms';
+        this.setKaraokeAiSyncStatus(key, meta.isComplete || meta.fromCache ? readyLabel : `${readyLabel}...`, meta.isComplete || meta.fromCache ? 'ready' : 'working');
+      }
+
+      if (this.currentTrackKey === key) {
+        this.currentLyrics = cleanLines.map(l => ({ ...l, elasticOffsetSec: 0 }));
+        this.activeLineIndex = -1;
+        this.renderLinesToDom({ skipSingStarNotify: true });
+        const curSec = (typeof dualStreamEngine !== 'undefined' && dualStreamEngine)
+          ? dualStreamEngine.getCurrentSongTimeSec()
+          : (this._lastSyncAudioSec || 0);
+        const canAutoScroll = !this._isUserManualScrolling && Date.now() >= Math.max(this._userScrollingUntil || 0, this._userManualScrollUntil || 0);
+        this.syncTime(curSec, { forceScroll: canAutoScroll });
+        if (this.showTranslation && track) {
+          this.ensureTranslationsForCurrent(track).then(() => {
+            if (this.currentTrackKey === key) this.renderLinesToDom({ skipSingStarNotify: true });
+          }).catch(() => {});
+        }
+      }
+      return true;
     }
 
     calibrateToHeldLine(lineIdx, currentSec = null) {
@@ -1895,6 +2019,19 @@
           compatBadge.textContent = `Sincro ${off > 0 ? '+' : ''}${off.toFixed(1)}s`;
           compatBadge.classList.add('adjusted');
         }
+      }
+      const aiSt = this.currentTrackKey ? this._aiSyncStatusMap.get(this.currentTrackKey) : null;
+      if (aiSt && aiSt.label) {
+        this._renderAiSyncChip(aiSt.label, aiSt.state);
+      } else if (this.currentTrackKey && this.whisperAlignedMeta.has(this.currentTrackKey)) {
+        const meta = this.whisperAlignedMeta.get(this.currentTrackKey);
+        const absS = Math.abs(Number(meta?.shiftSec) || 0);
+        const lbl = absS >= 0.65
+          ? `Sincro IA · ${meta.shiftSec > 0 ? '+' : ''}${meta.shiftSec.toFixed(1)}s`
+          : 'Sincro IA · 10ms';
+        this._renderAiSyncChip(lbl, 'ready');
+      } else {
+        this._renderAiSyncChip('', '');
       }
     }
 
@@ -3041,6 +3178,13 @@
       }
 
       const key = track ? this._makeKey(track) : '';
+      const verifiedCand = candidates.find(item => item && (item.isWhisperVerified || item._isWhisperAligned) && item.syncedLyrics && String(item.syncedLyrics).includes('['));
+      if (verifiedCand) {
+        const parsedVerified = this.parseLrc(verifiedCand.syncedLyrics, { track });
+        if (parsedVerified.length >= 2) {
+          return parsedVerified.map(l => ({ ...l, _isWhisperAligned: true, elasticOffsetSec: 0 }));
+        }
+      }
       const scoredPool = [];
       for (const item of candidates) {
         if (!item || !item.syncedLyrics || !String(item.syncedLyrics).includes('[')) continue;
@@ -3769,32 +3913,69 @@
       return reconstructedLines;
     }
 
-    _findBuiltInCustomSyncedLyrics(track, trackVid = '') {
+    _findBuiltInCustomSyncedLyrics(track, trackVid = '', actualDurSec = 0) {
       if (!track && !trackVid) return null;
       const vid = String(trackVid || '').trim();
       const rawT = repairSpanishBrokenAccents(String(track?.title || '')).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
       const rawA = repairSpanishBrokenAccents(String(track?.artist || '')).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
       const combined = `${rawA}${rawT}`;
-      for (const entry of CLIENT_CUSTOM_SYNCED_LYRICS_DB) {
-        if (vid && (entry.videoId === vid || (Array.isArray(entry.videoIds) && entry.videoIds.includes(vid)))) {
-          return { ...entry, _isBuiltInCustom: true };
-        }
-        if (rawT && entry.keys.some(k => rawT === k || combined === k || combined.includes(k) || (rawT.length >= 12 && rawT.includes(k)))) {
-          return { ...entry, _isBuiltInCustom: true };
-        }
-      }
+      const durNum = Number(actualDurSec) || 0;
+
+      // 1) Prioridad máxima: alineación verificada directamente sobre el audio real (v2 con chequeo de duración)
       try {
-        const rawStore = localStorage.getItem('beatstar_whisper_transcribed_lrc_v1');
-        if (rawStore) {
-          const map = JSON.parse(rawStore);
+        const rawStoreV2 = localStorage.getItem('beatstar_whisper_aligned_v2');
+        if (rawStoreV2) {
+          const map = JSON.parse(rawStoreV2);
           const k = this._makeKey(track);
-          const hit = (vid && map[`vid:${vid}`]) || (k && map[k]) || (rawT && map[`title:${rawT}`]);
+          const hit = (vid && map[`vid:${vid}`]) || (k && map[k]) || (rawT && rawT.length >= 5 && map[`title:${rawT}`]);
           if (hit && hit.syncedLyrics && String(hit.syncedLyrics).includes('[')) {
-            return { ...hit, _isBuiltInCustom: true, _isWhisperTranscribed: true };
+            const hitDur = Number(hit.audioDurSec || hit.duration || 0);
+            const durCompatible = !(durNum >= 35 && hitDur >= 35 && Math.abs(hitDur - durNum) > 3.5);
+            if (durCompatible) {
+              return {
+                ...hit,
+                _isBuiltInCustom: true,
+                _isWhisperTranscribed: true,
+                _isWhisperAligned: true,
+                isWhisperVerified: true
+              };
+            }
           }
         }
       } catch (_) {}
+
+      // 2) Base de letras curadas integradas (no marcadas como isWhisperVerified para permitir re-anclaje si cambia el videoclip)
+      for (const entry of CLIENT_CUSTOM_SYNCED_LYRICS_DB) {
+        if (vid && (entry.videoId === vid || (Array.isArray(entry.videoIds) && entry.videoIds.includes(vid)))) {
+          return { ...entry, _isBuiltInCustom: true, isWhisperVerified: false };
+        }
+        if (rawT && entry.keys.some(k => rawT === k || combined === k || combined.includes(k) || (rawT.length >= 12 && rawT.includes(k)))) {
+          return { ...entry, _isBuiltInCustom: true, isWhisperVerified: false };
+        }
+      }
       return null;
+    }
+
+    removeWhisperAlignedCacheEntry(track) {
+      if (!track) return;
+      const key = this._makeKey(track);
+      const rawVid = String(track.videoId || track.id || '').replace(/^magic_yt_|^yt_/, '').trim();
+      const vid = /^[A-Za-z0-9_-]{11}$/.test(rawVid) ? rawVid : '';
+      const rawT = repairSpanishBrokenAccents(String(track?.title || '')).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+      this.whisperAlignedMeta.delete(key);
+      this._manualOffsetAfterAiKeys.delete(key);
+      this._aiSyncStatusMap.delete(key);
+      this._whisperLaunchGuard.delete(key);
+      try {
+        const rawStore = localStorage.getItem('beatstar_whisper_aligned_v2');
+        if (rawStore) {
+          const map = JSON.parse(rawStore);
+          if (key) delete map[key];
+          if (vid) delete map[`vid:${vid}`];
+          if (rawT && rawT.length >= 5) delete map[`title:${rawT}`];
+          localStorage.setItem('beatstar_whisper_aligned_v2', JSON.stringify(map));
+        }
+      } catch (_) {}
     }
 
     saveTranscribedLyricsToPersistentStore(track, lines, durationSec = 195, options = {}) {
@@ -3832,24 +4013,41 @@
       const rawVid = String(track.videoId || track.id || '').replace(/^magic_yt_|^yt_/, '').trim();
       const vid = /^[A-Za-z0-9_-]{11}$/.test(rawVid) ? rawVid : '';
       const rawT = repairSpanishBrokenAccents(String(track?.title || '')).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+      const cleanDur = +(Number(durationSec) || 195).toFixed(2);
 
       const entry = {
         videoId: vid,
         trackName: track.title || 'Canción',
         artistName: track.artist || 'Artista',
-        duration: Math.round(Number(durationSec) || 195),
+        duration: Math.round(cleanDur),
+        audioDurSec: cleanDur,
+        shiftSec: Number.isFinite(Number(options?.shiftSec)) ? +Number(options.shiftSec).toFixed(2) : 0,
+        slope: Number.isFinite(Number(options?.slope)) ? +Number(options.slope).toFixed(4) : 1.0,
+        matchedWords: Number(options?.matchedWords) || 0,
+        anchoredLines: Number(options?.anchoredLines) || 0,
         syncedLyrics: lrcStr,
+        updatedAt: Date.now(),
         _isBuiltInCustom: true,
-        _isWhisperTranscribed: true
+        _isWhisperTranscribed: true,
+        _isWhisperAligned: true,
+        isWhisperVerified: true
       };
 
       try {
-        const rawStore = localStorage.getItem('beatstar_whisper_transcribed_lrc_v1');
+        const rawStore = localStorage.getItem('beatstar_whisper_aligned_v2');
         const map = rawStore ? JSON.parse(rawStore) : {};
         if (key) map[key] = entry;
         if (vid) map[`vid:${vid}`] = entry;
         if (rawT && rawT.length >= 5) map[`title:${rawT}`] = entry;
-        localStorage.setItem('beatstar_whisper_transcribed_lrc_v1', JSON.stringify(map));
+        // Limitar el almacén local a las ~60 claves más recientes para no superar la cuota de localStorage
+        const keys = Object.keys(map);
+        if (keys.length > 72) {
+          keys.sort((a, b) => (Number(map[b]?.updatedAt) || 0) - (Number(map[a]?.updatedAt) || 0));
+          for (const dropK of keys.slice(60)) {
+            delete map[dropK];
+          }
+        }
+        localStorage.setItem('beatstar_whisper_aligned_v2', JSON.stringify(map));
       } catch (_) {}
 
       const parsed = this.parseLrc(lrcStr, { track });
@@ -3858,15 +4056,15 @@
         st.isFallbackOnly = false;
         st.candidates = [entry];
         this.candidatesCache.set(key, [entry]);
-        this.cache.set(key, parsed);
-        if (this.currentTrackKey === key) {
-          this.currentLyrics = parsed.map(l => ({ ...l }));
-          this.activeLineIndex = -1;
-          this.renderLinesToDom({ skipSingStarNotify: Boolean(options?.skipSingStarNotify) });
-          const curSec = (typeof dualStreamEngine !== 'undefined' && dualStreamEngine)
-            ? dualStreamEngine.getCurrentSongTimeSec()
-            : (this._lastSyncAudioSec || 0);
-          this.syncTime(curSec, { forceScroll: false });
+        if (!options?.skipApplyCache) {
+          this.applyWhisperVerifiedLines(track, key, parsed, {
+            audioDurSec: cleanDur,
+            shiftSec: entry.shiftSec,
+            slope: entry.slope,
+            matchedWords: entry.matchedWords,
+            anchoredLines: entry.anchoredLines,
+            isComplete: Boolean(options?.isComplete ?? true)
+          });
         }
       }
       return entry;
@@ -4050,10 +4248,36 @@
           }
         }
 
-        // Si existe letra curada integrada, añadirla como candidata prioritaria (no como nativeLyrics rígido)
-        // para que el motor DSP pueda re-desplazarla automáticamente si el audio proviene de un videoclip o versión alterna.
-        const builtIn = this._findBuiltInCustomSyncedLyrics(track, trackVid);
+        // Si esta pista ya fue verificada con Whisper sobre el audio real, devolver directamente la versión verificada
+        if (this.isWhisperVerifiedFor(key, st.actualDur || totalDurationSec || 0) && this.cache.has(key)) {
+          return this.cache.get(key).map(l => ({ ...l }));
+        }
+
+        // Si existe letra curada integrada o alineada previamente con Whisper v2 (verificada por duración), usarla
+        const builtIn = this._findBuiltInCustomSyncedLyrics(track, trackVid, st.actualDur || totalDurationSec || st.expectedDur || 0);
         if (builtIn && builtIn.syncedLyrics) {
+          if (builtIn.isWhisperVerified) {
+            const parsedV2 = this.parseLrc(builtIn.syncedLyrics, { track });
+            if (parsedV2.length >= 2) {
+              const verifiedDur = Number(builtIn.audioDurSec || builtIn.duration || st.actualDur || totalDurationSec || 0);
+              this.whisperAlignedMeta.set(key, {
+                verified: true,
+                audioDurSec: verifiedDur,
+                shiftSec: Number(builtIn.shiftSec) || 0,
+                slope: Number(builtIn.slope) || 1.0,
+                matchedWords: Number(builtIn.matchedWords) || 0,
+                anchoredLines: Number(builtIn.anchoredLines) || parsedV2.length,
+                isComplete: true,
+                updatedAt: Date.now()
+              });
+              st.isFallbackOnly = false;
+              st.candidates = [builtIn];
+              this.candidatesCache.set(key, [builtIn]);
+              const marked = parsedV2.map(l => ({ ...l, _isWhisperAligned: true }));
+              this.cache.set(key, marked);
+              return marked.map(l => ({ ...l }));
+            }
+          }
           const baseList = Array.isArray(st.candidates) ? st.candidates : [];
           if (!baseList.some(c => c && c._isBuiltInCustom)) {
             st.candidates = [builtIn, ...baseList];
@@ -4147,6 +4371,11 @@
     _refreshCurrentLyrics(track, key, durationSec = 0) {
       if (this.currentTrackKey !== key) return;
       const st = this.trackCalibrationState.get(key);
+      const durCheck = durationSec || (st && st.actualDur) || this.knownAudioDurations.get(key) || 0;
+      // NUNCA sobreescribir una letra ya verificada con Whisper sobre el audio real
+      if (this.isWhisperVerifiedFor(key, durCheck) && this.cache.has(key)) {
+        return;
+      }
       const cands = (st && Array.isArray(st.candidates) && st.candidates.length > 0)
         ? st.candidates
         : this.candidatesCache.get(key);
@@ -4171,11 +4400,71 @@
       }
     }
 
+    _launchKaraokeWhisperAlignmentIfNeeded(track, key, initialLines = [], audioBlob = null, effDur = 0) {
+      if (!track || !key) return;
+      if (this.isWhisperVerifiedFor(key, effDur)) return;
+      const ss = window.SingStarVocalEngine;
+      if (!ss || typeof ss.alignOrTranscribeForKaraoke !== 'function') return;
+
+      // Si SingStar ya está ejecutando Whisper sobre esta misma canción, no duplicar ni reiniciar
+      if (typeof ss.isActiveWhisperFor === 'function' && ss.isActiveWhisperFor(key)) {
+        return;
+      }
+
+      const cleanInit = Array.isArray(initialLines)
+        ? initialLines.filter(l => l && !l._isFallbackPlaceholder && !l._isAcousticVocalIsland && String(l.text || '').trim().length > 0)
+        : [];
+
+      if (audioBlob instanceof Blob && audioBlob.size >= 40000) {
+        const pendingTimer = this._serverFallbackTimers.get(key);
+        if (pendingTimer) {
+          clearTimeout(pendingTimer);
+          this._serverFallbackTimers.delete(key);
+        }
+        const guardSig = `${Math.round(effDur || 0)}_${audioBlob.size}_${cleanInit.length}`;
+        if (this._whisperLaunchGuard.get(key) === guardSig) return;
+        this._whisperLaunchGuard.set(key, guardSig);
+        this.setKaraokeAiSyncStatus(key, 'Sincro IA...', 'working');
+        ss.alignOrTranscribeForKaraoke(track, key, audioBlob, cleanInit, effDur).catch(() => {});
+        return;
+      }
+
+      // Sin blob local aún (p. ej. reproducción vía yt_bridge): esperar 4.5s por si llega el blob;
+      // si sigue sin blob y hay videoId de YouTube, alinear mediante respaldo Whisper del servidor.
+      const rawVid = String(track.videoId || track.id || '').replace(/^magic_yt_|^yt_/, '').trim();
+      const hasVid = /^[A-Za-z0-9_-]{11}$/.test(rawVid);
+      if (hasVid && !this._serverFallbackTimers.has(key)) {
+        const tid = setTimeout(() => {
+          this._serverFallbackTimers.delete(key);
+          const stNow = this.trackCalibrationState.get(key);
+          if (this.currentTrackKey !== key) return;
+          if (this.isWhisperVerifiedFor(key, (stNow && stNow.actualDur) || effDur)) return;
+          if (stNow && stNow.audioBlob instanceof Blob && stNow.audioBlob.size >= 40000) return;
+          if (window.SingStarVocalEngine && typeof window.SingStarVocalEngine.isActiveWhisperFor === 'function' && window.SingStarVocalEngine.isActiveWhisperFor(key)) return;
+          const latestLines = this.cache.has(key) ? this.cache.get(key) : cleanInit;
+          this.setKaraokeAiSyncStatus(key, 'Sincro IA...', 'working');
+          window.SingStarVocalEngine.alignOrTranscribeForKaraoke(track, key, null, latestLines, (stNow && stNow.actualDur) || effDur).catch(() => {});
+        }, 4500);
+        this._serverFallbackTimers.set(key, tid);
+      }
+    }
+
     async recalibrateForActualAudio(track, actualDurationSec = 0, audioBlob = null) {
       if (!track) return null;
       const key = this._makeKey(track);
       const st = this._getOrInitTrackState(track);
-      if (Number.isFinite(actualDurationSec) && actualDurationSec >= 35) {
+      const hasNewDifferentBlob = (
+        audioBlob instanceof Blob &&
+        audioBlob.size >= 40000 &&
+        (!st.audioBlob || audioBlob.size !== st.audioBlob.size)
+      );
+      // PROTECCIÓN CRÍTICA INMEDIATA: Si Whisper IA ya verificó esta pista y NO llegó un nuevo blob distinto
+      // (p.ej. eventos tardíos loadedmetadata/durationchange con duración aproximada de MP3 VBR o YouTube),
+      // JAMÁS invalidar ni sobreescribir el bloqueo Whisper ni degradar st.actualDur real.
+      if (this.isWhisperVerifiedFor(key, 0) && this.cache.has(key) && !hasNewDifferentBlob) {
+        return this.cache.get(key).map(l => ({ ...l }));
+      }
+      if (Number.isFinite(actualDurationSec) && actualDurationSec >= 35 && (!this.isWhisperVerifiedFor(key, 0) || hasNewDifferentBlob)) {
         st.actualDur = actualDurationSec;
         this.knownAudioDurations.set(key, actualDurationSec);
       }
@@ -4191,7 +4480,7 @@
           window.SingStarVocalEngine.isActive &&
           window.SingStarVocalEngine.currentTrackKey === key
         );
-        if (!singstarOwnsDecode) {
+        if (!singstarOwnsDecode && !this.isWhisperVerifiedFor(key, st.actualDur || actualDurationSec || 0)) {
           const existingProfile = this.audioWaveformProfiles.get(key);
           const needWaveProfile = !existingProfile || !existingProfile.isFullPass || (existingProfile.hopSec && existingProfile.hopSec > 0.03);
           if (!st.dspEnvelope) {
@@ -4215,6 +4504,34 @@
 
       if (this.inflight.has(key)) {
         try { await this.inflight.get(key); } catch (_) {}
+      }
+
+      const effDur = st.actualDur || actualDurationSec || this.knownAudioDurations.get(key) || st.expectedDur || 0;
+
+      // PROTECCIÓN CRÍTICA: Si Whisper IA ya verificó y alineó esta pista para esta duración de audio,
+      // JAMÁS sobreescribir de vuelta con LRCLIB crudo ni con correlación de envolvente ciega.
+      if (this.isWhisperVerifiedFor(key, effDur) && this.cache.has(key)) {
+        return this.cache.get(key).map(l => ({ ...l }));
+      }
+
+      // Comprobar caché persistente v2 validado por duración de audio antes de recalibrar
+      const rawVidRecal = String(track.videoId || track.id || '').replace(/^magic_yt_|^yt_/, '').trim();
+      const vidRecal = /^[A-Za-z0-9_-]{11}$/.test(rawVidRecal) ? rawVidRecal : '';
+      const cachedV2 = this._findBuiltInCustomSyncedLyrics(track, vidRecal, effDur);
+      if (cachedV2 && cachedV2.isWhisperVerified && cachedV2.syncedLyrics) {
+        const parsedV2 = this.parseLrc(cachedV2.syncedLyrics, { track });
+        if (parsedV2.length >= 2) {
+          this.applyWhisperVerifiedLines(track, key, parsedV2, {
+            audioDurSec: Number(cachedV2.audioDurSec || cachedV2.duration) || effDur,
+            shiftSec: Number(cachedV2.shiftSec) || 0,
+            slope: Number(cachedV2.slope) || 1.0,
+            matchedWords: Number(cachedV2.matchedWords) || 0,
+            anchoredLines: Number(cachedV2.anchoredLines) || parsedV2.length,
+            fromCache: true,
+            isComplete: true
+          });
+          return this.cache.get(key).map(l => ({ ...l }));
+        }
       }
 
       if (!st.nativeChecked) {
@@ -4245,6 +4562,8 @@
             : (this._lastSyncAudioSec || 0);
           this.syncTime(curSec, { forceScroll: !this._isUserManualScrolling && Date.now() >= Math.max(this._userScrollingUntil || 0, this._userManualScrollUntil || 0) });
         }
+        // Lanzar verificación/anclaje real Whisper también sobre letras nativas para absorber intros o versiones alternas
+        this._launchKaraokeWhisperAlignmentIfNeeded(track, key, verifiedNative, st.audioBlob, effDur);
         return verifiedNative;
       }
 
@@ -4252,31 +4571,33 @@
         if (st.candidatesPromise) {
           await st.candidatesPromise;
         } else {
-          await this.fetchLyricsForTrack(track, st.actualDur || st.expectedDur || 195);
+          await this.fetchLyricsForTrack(track, effDur || 195);
         }
+      }
+
+      // Re-comprobar tras el await por si Whisper terminó mientras esperábamos candidatos
+      if (this.isWhisperVerifiedFor(key, effDur) && this.cache.has(key)) {
+        return this.cache.get(key).map(l => ({ ...l }));
       }
 
       const cands = st.candidates || this.candidatesCache.get(key);
       if (!Array.isArray(cands) || cands.length === 0 || st.isFallbackOnly) {
-        if (st.audioBlob && window.SingStarVocalEngine && typeof window.SingStarVocalEngine.transcribeBlobForKaraokeIfNeeded === 'function') {
-          window.SingStarVocalEngine.transcribeBlobForKaraokeIfNeeded(track, key, st.audioBlob).catch(() => {});
-        }
+        this._launchKaraokeWhisperAlignmentIfNeeded(track, key, [], st.audioBlob, effDur);
         if (!Array.isArray(cands) || cands.length === 0) return null;
       }
 
       const recalibrated = this._pickBestCandidateLines(
         cands,
-        st.actualDur || st.expectedDur || 195,
+        effDur || 195,
         track,
         st.dspEnvelope
       );
-      if (st.audioBlob && Array.isArray(recalibrated) && recalibrated.length > 0 && recalibrated[0]._isUnalignedPlainLyrics) {
-        if (window.SingStarVocalEngine && typeof window.SingStarVocalEngine.transcribeBlobForKaraokeIfNeeded === 'function') {
-          window.SingStarVocalEngine.transcribeBlobForKaraokeIfNeeded(track, key, st.audioBlob, recalibrated).catch(() => {});
-        }
-      }
       this.cache.set(key, recalibrated);
-      this._refreshCurrentLyrics(track, key, st.actualDur || actualDurationSec);
+      this._refreshCurrentLyrics(track, key, effDur);
+
+      // MOTOR UNIFICADO: Lanzar alineación forzada Whisper sobre el audio REAL para TODAS las canciones
+      // (tengan LRC sincronizado de LRCLIB/Musixmatch/Netease, texto plano o sin letra)
+      this._launchKaraokeWhisperAlignmentIfNeeded(track, key, recalibrated, st.audioBlob, effDur);
       return recalibrated;
     }
 
@@ -4304,8 +4625,11 @@
       }
 
       let finalLines = Array.isArray(lines) ? lines : [];
-      if ((!st.nativeLyrics || st.nativeLyrics.length < 4) && Array.isArray(st.candidates) && st.candidates.length > 0 && st.dspEnvelope) {
-        finalLines = this._pickBestCandidateLines(st.candidates, st.actualDur || expectedDurSec, track, st.dspEnvelope);
+      const effDurBlob = st.actualDur || expectedDurSec;
+      if (this.isWhisperVerifiedFor(key, effDurBlob) && this.cache.has(key)) {
+        finalLines = this.cache.get(key);
+      } else if ((!st.nativeLyrics || st.nativeLyrics.length < 4) && Array.isArray(st.candidates) && st.candidates.length > 0 && st.dspEnvelope) {
+        finalLines = this._pickBestCandidateLines(st.candidates, effDurBlob, track, st.dspEnvelope);
         this.cache.set(key, finalLines);
       }
 
@@ -4337,6 +4661,7 @@
       if (!track) return;
       const key = this._makeKey(track);
       const isNewTrack = this.currentTrackKey !== key;
+      const prevKey = this.currentTrackKey;
       this.currentTrack = track;
       this.currentTrackKey = key;
       this.timeOffsetSec = this.getUserOffsetSec(key);
@@ -4345,6 +4670,14 @@
         this._userManualScrollUntil = 0;
         this._userScrollingUntil = 0;
         this._lastRenderedTrackKey = '';
+        if (prevKey && this._serverFallbackTimers.has(prevKey)) {
+          clearTimeout(this._serverFallbackTimers.get(prevKey));
+          this._serverFallbackTimers.delete(prevKey);
+        }
+        // Si cambiamos a otra canción mientras Whisper estaba alineando la pista anterior, cancelar la tarea obsoleta
+        if (window.SingStarVocalEngine && window.SingStarVocalEngine._activeWhisperTrackKey && window.SingStarVocalEngine._activeWhisperTrackKey !== key && window.SingStarVocalEngine.isTranscribingWhisper) {
+          window.SingStarVocalEngine._cancelWhisperWorkerTasks();
+        }
       }
       this.autoLeadingSilenceSec = 0;
       this.activeLineIndex = -1;
@@ -4365,14 +4698,28 @@
       if (this.currentTrackKey !== key) return;
       this.currentLyrics = lines.map(l => ({ ...l, elasticOffsetSec: 0 }));
       this.renderLinesToDom();
+      this._syncToolbarUI();
       const curSec = (typeof dualStreamEngine !== 'undefined' && dualStreamEngine)
         ? dualStreamEngine.getCurrentSongTimeSec()
         : (this._lastSyncAudioSec || 0);
       this.syncTime(curSec, { forceScroll: isNewTrack });
       if (this.showTranslation) {
         this.ensureTranslationsForCurrent(track).then(() => {
-          if (this.currentTrackKey === key) this.renderLinesToDom();
+          if (this.currentTrackKey === key) this.renderLinesToDom({ skipSingStarNotify: true });
         }).catch(() => {});
+      }
+
+      const stAfter = this.trackCalibrationState.get(key);
+      const effDurNow = (stAfter && stAfter.actualDur) || totalDurationSec || 0;
+      if (!this.isWhisperVerifiedFor(key, effDurNow)) {
+        const blobReady = (stAfter && stAfter.audioBlob instanceof Blob && stAfter.audioBlob.size >= 40000)
+          ? stAfter.audioBlob
+          : ((typeof dualStreamEngine !== 'undefined' && dualStreamEngine && dualStreamEngine.currentTrack && this._makeKey(dualStreamEngine.currentTrack) === key && dualStreamEngine.fullTrackBlob && dualStreamEngine.fullTrackBlob.size >= 40000)
+              ? dualStreamEngine.fullTrackBlob
+              : null);
+        if (blobReady) {
+          this._launchKaraokeWhisperAlignmentIfNeeded(track, key, lines, blobReady, effDurNow);
+        }
       }
     }
 
@@ -4696,15 +5043,21 @@
         }
       } catch (_) {}
 
-      // Worker neuronal Whisper ONNX y cola de tareas cancelables
+      // Worker neuronal Whisper ONNX y cola de tareas cancelables (compartido Karaoke + SingStar)
       this._whisperWorker = null;
       this._whisperWorkerCallbacks = new Map();
       this._whisperWorkerSeq = 0;
       this._whisperStatusListener = null;
       this._whisperWorkerFailed = false;
       this._activeWhisperTrackKey = '';
+      this._activeWhisperPromise = null;
+      this._whisperJobToken = 0;
       this.isTranscribingWhisper = false;
       this._inOnLyricsUpdated = false;
+      this._activeDecodedTrackKey = '';
+      this._activeDecodedBundle = null;
+      this._decodeInflightKey = '';
+      this._decodeInflightPromise = null;
 
       // Sintetizador de Tono Guía Audible (para escuchar la nota exacta de cada sílaba)
       this._guideSynthCtx = null;
@@ -4842,9 +5195,22 @@
       });
     }
 
+    isActiveWhisperFor(key) {
+      return Boolean(
+        key && (
+          (this.isTranscribingWhisper && this._activeWhisperTrackKey === key) ||
+          this._pendingKaraokeWhisperKey === key
+        )
+      );
+    }
+
     _cancelWhisperWorkerTasks() {
+      this._whisperJobToken++;
       this.isTranscribingWhisper = false;
       this._activeWhisperTrackKey = '';
+      this._activeWhisperPromise = null;
+      this._pendingKaraokeWhisperKey = '';
+      this._pendingKaraokeWhisperPromise = null;
       if (this._whisperWorkerCallbacks && this._whisperWorkerCallbacks.size > 0) {
         for (const [, cb] of this._whisperWorkerCallbacks.entries()) {
           try {
@@ -5200,7 +5566,11 @@
       this._lastRawWebMicFreq = 0;
       this._webMicRecalibFrames = 0;
       this._setSyncStatusChip('', '');
-      this._cancelWhisperWorkerTasks();
+      const karaokeActiveKey = this.karaokeService ? this.karaokeService.currentTrackKey : '';
+      const keepWhisperForKaraoke = Boolean(karaokeActiveKey && this.isActiveWhisperFor(karaokeActiveKey));
+      if (!keepWhisperForKaraoke) {
+        this._cancelWhisperWorkerTasks();
+      }
       this._stopRenderLoop();
       this._stopMicrophone();
       this._stopAudibleToneGuideNote();
@@ -5263,6 +5633,10 @@
       if (!tr) return;
       const key = this.karaokeService ? this.karaokeService._makeKey(tr) : String(tr.id || tr.title || '');
       this.studioAnalysisCache.delete(key);
+      if (this.karaokeService && typeof this.karaokeService.removeWhisperAlignedCacheEntry === 'function') {
+        this.karaokeService.removeWhisperAlignedCacheEntry(tr);
+      }
+      this._cancelWhisperWorkerTasks();
       await this._prepareTrackInStudio(tr, true);
     }
 
@@ -5891,77 +6265,96 @@
      */
     async _decodeAudioBlobSinglePass(track, key, audioBlob, token, onProgress = null) {
       if (!audioBlob || audioBlob.size < 40000) return null;
-      let arrayBuf = null;
-      let decodedBuffer = null;
-      try {
-        arrayBuf = await audioBlob.slice(0).arrayBuffer();
-        if (token !== undefined && token !== this._prepToken) return null;
+      const blobSize = audioBlob.size;
 
-        const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (OfflineCtx) {
-          const offCtx = new OfflineCtx(1, 44100 * 2, 44100);
-          decodedBuffer = await Promise.race([
-            offCtx.decodeAudioData(arrayBuf.slice(0)),
-            new Promise(r => setTimeout(() => r(null), 16000))
-          ]);
-        } else if (AudioCtx) {
-          if (!window._lyricsAnalysisAudioCtx) window._lyricsAnalysisAudioCtx = new AudioCtx();
-          decodedBuffer = await Promise.race([
-            window._lyricsAnalysisAudioCtx.decodeAudioData(arrayBuf.slice(0)),
-            new Promise(r => setTimeout(() => r(null), 16000))
-          ]);
-        }
-      } catch (_) {
-        decodedBuffer = null;
-      } finally {
-        arrayBuf = null;
+      // Reutilizar decodificación ya completada para esta misma pista y blob (0 ms al pasar de Karaoke a SingStar)
+      if (this._activeDecodedTrackKey === key && this._activeDecodedBundle && this._activeDecodedBundle.blobSize === blobSize) {
+        return this._activeDecodedBundle;
+      }
+      // Si Karaoke o SingStar ya están decodificando este mismo blob ahora mismo, compartir la misma promesa
+      if (this._decodeInflightKey === `${key}_${blobSize}` && this._decodeInflightPromise) {
+        return await this._decodeInflightPromise;
       }
 
-      if (!decodedBuffer) return null;
-      if (token !== undefined && token !== this._prepToken) {
-        decodedBuffer = null;
-        return null;
-      }
-
-      const actualDurSec = decodedBuffer.duration || 0;
-      let karaokeDspEnvelope = null;
-      if (this.karaokeService && typeof this.karaokeService._computeEnvelopeFromAudioBuffer === 'function') {
+      const decodeTask = (async () => {
+        let arrayBuf = null;
+        let decodedBuffer = null;
         try {
-          karaokeDspEnvelope = this.karaokeService._computeEnvelopeFromAudioBuffer(decodedBuffer);
-          if (karaokeDspEnvelope) {
+          arrayBuf = await audioBlob.slice(0).arrayBuffer();
+
+          const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (OfflineCtx) {
+            const offCtx = new OfflineCtx(1, 44100 * 2, 44100);
+            decodedBuffer = await Promise.race([
+              offCtx.decodeAudioData(arrayBuf.slice(0)),
+              new Promise(r => setTimeout(() => r(null), 16000))
+            ]);
+          } else if (AudioCtx) {
+            if (!window._lyricsAnalysisAudioCtx) window._lyricsAnalysisAudioCtx = new AudioCtx();
+            decodedBuffer = await Promise.race([
+              window._lyricsAnalysisAudioCtx.decodeAudioData(arrayBuf.slice(0)),
+              new Promise(r => setTimeout(() => r(null), 16000))
+            ]);
+          }
+        } catch (_) {
+          decodedBuffer = null;
+        } finally {
+          arrayBuf = null;
+        }
+
+        if (!decodedBuffer) return null;
+
+        const actualDurSec = decodedBuffer.duration || 0;
+        let karaokeDspEnvelope = null;
+        if (this.karaokeService && typeof this.karaokeService._computeEnvelopeFromAudioBuffer === 'function') {
+          try {
             const st = this.karaokeService._getOrInitTrackState(track);
-            st.dspEnvelope = karaokeDspEnvelope;
-            if (karaokeDspEnvelope.actualDur > 35) {
-              st.actualDur = karaokeDspEnvelope.actualDur;
+            if (st && st.dspEnvelope) {
+              karaokeDspEnvelope = st.dspEnvelope;
+            } else {
+              karaokeDspEnvelope = this.karaokeService._computeEnvelopeFromAudioBuffer(decodedBuffer);
+              if (karaokeDspEnvelope && st) {
+                st.dspEnvelope = karaokeDspEnvelope;
+              }
+            }
+            if (karaokeDspEnvelope && karaokeDspEnvelope.actualDur > 35) {
+              if (st) st.actualDur = karaokeDspEnvelope.actualDur;
               this.karaokeService.knownAudioDurations.set(key, karaokeDspEnvelope.actualDur);
             }
+          } catch (_) {}
+        }
+
+        if (this.audioEngine && typeof this.audioEngine._decodeAndStoreWaveformProfile === 'function') {
+          const existingWp = this.karaokeService?.audioWaveformProfiles?.get(key);
+          if (!existingWp || !existingWp.isFullPass) {
+            try {
+              await this.audioEngine._decodeAndStoreWaveformProfile(track, key, decodedBuffer, 300, true, true);
+            } catch (_) {}
           }
-        } catch (_) {}
-      }
+        }
 
-      if (this.audioEngine && typeof this.audioEngine._decodeAndStoreWaveformProfile === 'function') {
-        try {
-          await this.audioEngine._decodeAndStoreWaveformProfile(track, key, decodedBuffer, 300, true, true);
-        } catch (_) {}
-      }
-      if (token !== undefined && token !== this._prepToken) {
+        const vocalDspProfile = await this._extractHighResVocalEnvelopeAndPitch(decodedBuffer, null, onProgress);
+        const mono16k = await this._extract16kHzVocalBandpassMono(decodedBuffer, null);
+        // Liberar el AudioBuffer estéreo 44.1/48 kHz (~80-120 MB) antes de ejecutar Whisper ONNX
         decodedBuffer = null;
-        return null;
+
+        const bundle = { actualDurSec, vocalDspProfile, mono16k, karaokeDspEnvelope, blobSize };
+        this._activeDecodedTrackKey = key;
+        this._activeDecodedBundle = bundle;
+        return bundle;
+      })();
+
+      this._decodeInflightKey = `${key}_${blobSize}`;
+      this._decodeInflightPromise = decodeTask;
+      try {
+        return await decodeTask;
+      } finally {
+        if (this._decodeInflightPromise === decodeTask) {
+          this._decodeInflightPromise = null;
+          this._decodeInflightKey = '';
+        }
       }
-
-      const vocalDspProfile = await this._extractHighResVocalEnvelopeAndPitch(decodedBuffer, token, onProgress);
-      if (token !== undefined && token !== this._prepToken) {
-        decodedBuffer = null;
-        return null;
-      }
-
-      const mono16k = await this._extract16kHzVocalBandpassMono(decodedBuffer, token);
-      // Liberar el AudioBuffer estéreo 44.1/48 kHz (~80-120 MB) antes de ejecutar Whisper ONNX
-      decodedBuffer = null;
-
-      if (token !== undefined && token !== this._prepToken) return null;
-      return { actualDurSec, vocalDspProfile, mono16k, karaokeDspEnvelope };
     }
 
     /**
@@ -5972,10 +6365,10 @@
       if (!this.isActive || !track || !(audioBlob instanceof Blob) || audioBlob.size < 40000) return;
       const key = this.karaokeService ? this.karaokeService._makeKey(track) : String(track.id || track.title || '');
       if (!key || key !== this.currentTrackKey) return;
-      if (this.isPreparingSong || this.isTranscribingWhisper) return;
+      if (this.isPreparingSong || this.isActiveWhisperFor(key)) return;
 
       const cached = this.studioAnalysisCache.get(key);
-      const needsAnalysis = !cached || !cached.hasDspMelody || cached.hasPlaceholderLyrics || cached.hasUnalignedPlainLyrics || !cached.isAudioTranscribed;
+      const needsAnalysis = !cached || !cached.hasDspMelody || cached.hasPlaceholderLyrics || cached.hasUnalignedPlainLyrics || !cached.isWhisperVerified;
       if (needsAnalysis) {
         this._prepareTrackInStudio(track, false).catch(() => {});
       }
@@ -6025,8 +6418,8 @@
       const actualDurSec = this.audioEngine ? (this.audioEngine.getRealDurationSec(track) || 195) : 195;
       let existingLines = [];
       if (this.karaokeService) {
-        const builtIn = this.karaokeService._findBuiltInCustomSyncedLyrics(track, String(track.videoId || track.id || '').replace(/^magic_yt_|^yt_/, '').trim());
-        if (builtIn && builtIn.syncedLyrics) {
+        const builtIn = this.karaokeService._findBuiltInCustomSyncedLyrics(track, String(track.videoId || track.id || '').replace(/^magic_yt_|^yt_/, '').trim(), actualDurSec);
+        if (builtIn && builtIn.syncedLyrics && builtIn.isWhisperVerified) {
           existingLines = this.karaokeService.parseLrc(builtIn.syncedLyrics, { track });
         } else if (Array.isArray(this.karaokeService.currentLyrics) && this.karaokeService.currentLyrics.length >= 2 && this.karaokeService.currentTrackKey === key && !this._isPlaceholderLyrics(this.karaokeService.currentLyrics)) {
           existingLines = this.karaokeService.currentLyrics;
@@ -6035,11 +6428,15 @@
           if (!this._isPlaceholderLyrics(cachedKar)) {
             existingLines = cachedKar;
           }
+        } else if (builtIn && builtIn.syncedLyrics) {
+          existingLines = this.karaokeService.parseLrc(builtIn.syncedLyrics, { track });
         }
       }
 
       if (!this._isPlaceholderLyrics(existingLines) && !this._isUnalignedPlainLyrics(existingLines)) {
-        const initialAligned = this._alignSyllablesWithVocalProfile(key, existingLines, null, actualDurSec);
+        const initialAligned = (existingLines[0]?.singstarSyllables && existingLines[0]?._isWhisperAligned)
+          ? existingLines
+          : this._alignSyllablesWithVocalProfile(key, existingLines, null, actualDurSec);
         this._applyStudioAnalysisToStage({
           track,
           key,
@@ -6063,13 +6460,13 @@
     }
 
     /**
-     * Pipeline de estudio no bloqueante al abrir una canción en Modo SingStar:
-     * 1) Decodifica el audio en UNA SOLA PASADA de memoria controlada y extrae envolvente DSP global,
-     *    perfil vocal 100 Hz (YIN F0 + vowelFlux 10 ms) y flujo vocal 16 kHz.
-     * 2) Si existe letra sincronizada (LRC), calcula el desplazamiento constante global sobre toda
-     *    la canción mediante correlación cruzada DSP (sin deriva de intro) y ancla cada sílaba con Viterbi-DTW 10 ms.
-     * 3) Si NO hay letra externa o solo existe texto plano sin tiempos, lanza Whisper ONNX local
-     *    (con respaldo automático Server PCM / videoId) y alinea cada palabra y sílaba al audio real.
+     * Pipeline de estudio unificado no bloqueante (Karaoke + SingStar):
+     * 1) Si Karaoke ya está alineando esta misma canción con Whisper, se acopla sin cancelar ni duplicar.
+     * 2) Decodifica el audio en UNA SOLA PASADA compartida (DSP 100 Hz YIN + vowelFlux + mono 16 kHz).
+     * 3) Verifica caché Whisper v2 (con validación de duración de audio). Si NO está verificado con Whisper,
+     *    lanza SIEMPRE alineación forzada Whisper (2 etapas: Hough global/slope + LCS DP palabra a palabra
+     *    + sílabas 10 ms) sobre CUALQUIER pista (LRC externo, texto plano o sin letra) y actualiza tanto
+     *    Karaoke como SingStar en vivo.
      */
     async _prepareTrackInStudio(track, forceReanalyze = false) {
       if (!track) return;
@@ -6078,40 +6475,77 @@
 
       this._seedImmediateStageForTrack(track);
 
-      if (!forceReanalyze && this.studioAnalysisCache.has(key)) {
-        const cached = this.studioAnalysisCache.get(key);
-        if (cached && !cached.hasPlaceholderLyrics && !cached.hasUnalignedPlainLyrics && cached.isAudioTranscribed && cached.hasDspMelody) {
-          this._applyStudioAnalysisToStage(cached, userOff, false);
-          this._setSyncStatusChip('Sincronizado sílaba a sílaba', 'ready');
-          const loadView = document.getElementById('singstarLoadingStudioView');
-          if (loadView) loadView.classList.add('hidden');
-          return;
-        }
-      }
-
-      const token = ++this._prepToken;
-      this._activePrepKey = key;
-      this.isPreparingSong = true;
-
       const loadView = document.getElementById('singstarLoadingStudioView');
       const packView = document.getElementById('singstarPackInstallerView');
       const sumView = document.getElementById('singstarFsSummaryView');
       if (packView) packView.classList.add('hidden');
       if (sumView) sumView.classList.add('hidden');
 
+      if (!forceReanalyze && this.studioAnalysisCache.has(key)) {
+        const cached = this.studioAnalysisCache.get(key);
+        if (cached && !cached.hasPlaceholderLyrics && !cached.hasUnalignedPlainLyrics && cached.isWhisperVerified && cached.hasDspMelody) {
+          this._applyStudioAnalysisToStage(cached, userOff, false);
+          this._setSyncStatusChip('Sincro IA · 10ms', 'ready');
+          if (loadView) loadView.classList.add('hidden');
+          return;
+        }
+      }
+
+      // ACOPLAMIENTO SIN REINICIO: Si Karaoke ya lanzó Whisper para esta misma canción, acoplarse en vivo
+      if (!forceReanalyze && this.isActiveWhisperFor(key)) {
+        if (loadView) loadView.classList.add('hidden');
+        if (this.studioAnalysisCache.has(key)) {
+          this._applyStudioAnalysisToStage(this.studioAnalysisCache.get(key), userOff, false);
+        } else if (this._activeDecodedTrackKey === key && this._activeDecodedBundle?.vocalDspProfile) {
+          const karLines = this.karaokeService?.cache?.get(key) || this.karaokeService?.currentLyrics || [];
+          if (!this._isPlaceholderLyrics(karLines) && !this._isUnalignedPlainLyrics(karLines)) {
+            const aligned = this._alignSyllablesWithVocalProfile(key, karLines, this._activeDecodedBundle.vocalDspProfile, this._activeDecodedBundle.actualDurSec || 195);
+            const sData = {
+              track,
+              key,
+              actualDurSec: this._activeDecodedBundle.actualDurSec || 195,
+              dspContour: this._activeDecodedBundle.vocalDspProfile,
+              acousticLines: aligned,
+              hasDspMelody: Boolean(this._activeDecodedBundle.vocalDspProfile.voicedCount >= 10),
+              hasAcousticSyllables: true,
+              hasPlaceholderLyrics: false,
+              hasUnalignedPlainLyrics: false,
+              isAudioTranscribed: false,
+              isWhisperVerified: false
+            };
+            this._putStudioAnalysisCache(key, sData);
+            this._applyStudioAnalysisToStage(sData, userOff, false);
+          }
+        }
+        this._setSyncStatusChip('Sincro IA en curso...', 'working');
+        return;
+      }
+
+      const token = ++this._prepToken;
+      this._activePrepKey = key;
+      this.isPreparingSong = true;
+
       try {
         const actualDurSecHint = this.audioEngine ? (this.audioEngine.getRealDurationSec(track) || 195) : 195;
+        const rawVidTrack = String(track.videoId || track.id || '').replace(/^magic_yt_|^yt_/, '').trim();
+        const vidTrack = /^[A-Za-z0-9_-]{11}$/.test(rawVidTrack) ? rawVidTrack : '';
 
-        // PASO 1: Comprobar si existe letra curada/LRC o texto plano mientras llega el audio maestro
+        // PASO 1: Comprobar si existe letra verificada v2, LRC externo o texto plano
         let baseLines = [];
-        let hasBuiltInVerified = false;
+        let builtInEntry = null;
+        let hasWhisperVerifiedCache = false;
         if (this.karaokeService) {
-          const builtIn = this.karaokeService._findBuiltInCustomSyncedLyrics(track, String(track.videoId || track.id || '').replace(/^magic_yt_|^yt_/, '').trim());
-          if (builtIn && builtIn.syncedLyrics) {
-            baseLines = this.karaokeService.parseLrc(builtIn.syncedLyrics, { track });
-            hasBuiltInVerified = baseLines.length >= 2;
+          if (!forceReanalyze) {
+            builtInEntry = this.karaokeService._findBuiltInCustomSyncedLyrics(track, vidTrack, actualDurSecHint);
+          }
+          if (!forceReanalyze && builtInEntry && builtInEntry.syncedLyrics && builtInEntry.isWhisperVerified) {
+            baseLines = this.karaokeService.parseLrc(builtInEntry.syncedLyrics, { track }).map(l => ({ ...l, _isWhisperAligned: true }));
+            hasWhisperVerifiedCache = baseLines.length >= 2;
           } else if (Array.isArray(this.karaokeService.currentLyrics) && this.karaokeService.currentLyrics.length >= 2 && this.karaokeService.currentTrackKey === key && !this._isPlaceholderLyrics(this.karaokeService.currentLyrics)) {
             baseLines = this.karaokeService.currentLyrics.map(l => ({ ...l }));
+            hasWhisperVerifiedCache = !forceReanalyze && this.karaokeService.isWhisperVerifiedFor(key, actualDurSecHint);
+          } else if (builtInEntry && builtInEntry.syncedLyrics) {
+            baseLines = this.karaokeService.parseLrc(builtInEntry.syncedLyrics, { track });
           } else {
             if (loadView) loadView.classList.remove('hidden');
             this._setStudioLoadingProgress(1, 12, 'Buscando letra y sincronización de la canción...');
@@ -6122,6 +6556,7 @@
             ]);
             if (Array.isArray(fetched) && !this._isPlaceholderLyrics(fetched)) {
               baseLines = fetched.map(l => ({ ...l }));
+              hasWhisperVerifiedCache = !forceReanalyze && this.karaokeService.isWhisperVerifiedFor(key, actualDurSecHint);
             }
           }
         }
@@ -6131,7 +6566,9 @@
         const isPlainUnaligned = hasRealLyrics && this._isUnalignedPlainLyrics(baseLines);
 
         if (hasRealLyrics && !isPlainUnaligned) {
-          const quickAligned = this._alignSyllablesWithVocalProfile(key, baseLines, null, actualDurSecHint);
+          const quickAligned = (hasWhisperVerifiedCache && baseLines[0]?.singstarSyllables)
+            ? baseLines
+            : this._alignSyllablesWithVocalProfile(key, baseLines, null, actualDurSecHint);
           this._applyStudioAnalysisToStage({
             track,
             key,
@@ -6140,7 +6577,8 @@
             hasDspMelody: false,
             hasAcousticSyllables: true,
             hasPlaceholderLyrics: false,
-            hasUnalignedPlainLyrics: false
+            hasUnalignedPlainLyrics: false,
+            isWhisperVerified: hasWhisperVerifiedCache
           }, Number(this.karaokeService?.timeOffsetSec || 0), false);
           if (loadView && !forceReanalyze) {
             loadView.classList.add('hidden');
@@ -6173,7 +6611,7 @@
         }
         if (token !== this._prepToken) return;
 
-        // PASO 3: Decodificación única + DSP 100 Hz (YIN F0 + vowelFlux) + mono 16 kHz + envolvente global
+        // PASO 3: Decodificación única compartida + DSP 100 Hz (YIN F0 + vowelFlux) + mono 16 kHz
         let actualDurSec = actualDurSecHint;
         let vocalDspProfile = null;
         let mono16k = null;
@@ -6182,8 +6620,10 @@
         if (audioBlob && audioBlob.size >= 40000) {
           this._setStudioLoadingProgress(2, 42, 'Extrayendo curva vocal YIN (10 ms) y flujo 16 kHz...');
           this._setSyncStatusChip('Analizando voz 10ms...', 'working');
-          const decoded = await this._decodeAudioBlobSinglePass(track, key, audioBlob, token, (pct, msg) => {
-            this._setStudioLoadingProgress(pct < 75 ? 3 : 4, pct, msg);
+          const decoded = await this._decodeAudioBlobSinglePass(track, key, audioBlob, null, (pct, msg) => {
+            if (token === this._prepToken) {
+              this._setStudioLoadingProgress(pct < 75 ? 3 : 4, pct, msg);
+            }
           });
           if (token !== this._prepToken) return;
           if (decoded) {
@@ -6194,34 +6634,27 @@
           }
         }
 
-        // PASO 4: Si la letra externa tiene timestamps LRC (no built-in ni texto plano), calcular el
-        // desplazamiento global CONSTANTE mediante correlación cruzada DSP sobre toda la canción.
-        let globalSyncedBaseLines = baseLines;
-        if (hasRealLyrics && !isPlainUnaligned && !hasBuiltInVerified && karaokeDspEnvelope && this.karaokeService && typeof this.karaokeService._computeDspAlignment === 'function') {
-          try {
-            const declaredDur = Number(track.durationSec || track.duration || actualDurSec) || actualDurSec;
-            const dspAlign = this.karaokeService._computeDspAlignment(baseLines, declaredDur, karaokeDspEnvelope);
-            if (dspAlign && Array.isArray(dspAlign.lines) && dspAlign.lines.length >= 2) {
-              globalSyncedBaseLines = dspAlign.lines.map((l, idx) => ({
-                ...baseLines[idx],
-                ...l,
-                _origTimeSec: l.timeSec,
-                _dspGlobalAligned: true
-              }));
-            }
-          } catch (_) {}
+        // Revalidar compatibilidad de duración de cualquier caché v2 ahora que conocemos actualDurSec exacto
+        if (hasWhisperVerifiedCache && builtInEntry && builtInEntry.isWhisperVerified) {
+          const hitDur = Number(builtInEntry.audioDurSec || builtInEntry.duration || 0);
+          if (actualDurSec >= 35 && hitDur >= 35 && Math.abs(hitDur - actualDurSec) > 3.5) {
+            hasWhisperVerifiedCache = false;
+          }
+        }
+        if (hasWhisperVerifiedCache && this.karaokeService && !this.karaokeService.isWhisperVerifiedFor(key, actualDurSec) && !(builtInEntry && builtInEntry.isWhisperVerified)) {
+          hasWhisperVerifiedCache = false;
         }
 
+        // PASO 4: Preparar vista provisional inmediata mientras Whisper alinea el audio real
         const initialLines = (hasRealLyrics && !isPlainUnaligned)
-          ? globalSyncedBaseLines
+          ? baseLines
           : this._buildAcousticVocalIslandsLines(vocalDspProfile, actualDurSec);
 
-        // PASO 5: Alinear cada sílaba con Viterbi-DTW a 100 Hz (10 ms) sin deriva de intro
+        // PASO 5: Construir sílabas iniciales para que el pentagrama y melodía YIN respondan al instante (0 bloqueo)
         this._setStudioLoadingProgress(4, 92, 'Anclando sílabas y afinación YIN al audio real...');
-        const alignedLines = this._alignSyllablesWithVocalProfile(key, initialLines, vocalDspProfile, actualDurSec);
-        if (hasRealLyrics && !isPlainUnaligned && alignedLines.length >= 2) {
-          this._commitAlignedLinesToKaraoke(key, alignedLines);
-        }
+        const alignedLines = (hasWhisperVerifiedCache && initialLines[0]?.singstarSyllables)
+          ? initialLines
+          : this._alignSyllablesWithVocalProfile(key, initialLines, vocalDspProfile, actualDurSec);
 
         const studioData = {
           track,
@@ -6233,7 +6666,8 @@
           hasAcousticSyllables: true,
           hasPlaceholderLyrics: !hasRealLyrics,
           hasUnalignedPlainLyrics: isPlainUnaligned,
-          isAudioTranscribed: hasBuiltInVerified || (hasRealLyrics && !isPlainUnaligned)
+          isAudioTranscribed: hasWhisperVerifiedCache,
+          isWhisperVerified: hasWhisperVerifiedCache
         };
         this._putStudioAnalysisCache(key, studioData);
         this._applyStudioAnalysisToStage(studioData, Number(this.karaokeService?.timeOffsetSec || 0), false);
@@ -6241,33 +6675,43 @@
         this._setStudioLoadingProgress(4, 100, 'Análisis acústico completado');
         if (loadView) loadView.classList.add('hidden');
 
-        // PASO 6: Ejecutar Transcriptor Neuronal Whisper IA cuando:
-        //  - No hay letra sincronizada externa (!hasRealLyrics),
-        //  - La letra externa es texto plano sin timestamps (isPlainUnaligned), o
-        //  - El usuario solicitó reanalizar manualmente (forceReanalyze).
-        const needsWhisper = (!hasRealLyrics || isPlainUnaligned || forceReanalyze);
-        if (needsWhisper && (mono16k || !hasRealLyrics)) {
-          this._setSyncStatusChip(isPlainUnaligned ? 'Alineando letra IA...' : 'Transcribiendo IA...', 'working');
-          this._spawnPopup(
-            isPlainUnaligned ? 'ALINEANDO LETRA CON IA' : 'WHISPER IA · SÍLABAS 10MS',
-            isPlainUnaligned ? 'Anclando cada verso y sílaba a la voz real...' : 'Transcribiendo letra real directamente del audio...',
-            '#38bdf8',
-            1800
-          );
-          this._transcribeTrackAudioWithWhisper(
-            track,
-            key,
-            mono16k,
-            vocalDspProfile,
-            token,
-            hasRealLyrics ? (isPlainUnaligned ? baseLines : alignedLines) : [],
-            { actualDurSec, isPlainUnaligned, allowBackground: false }
-          ).catch(() => {});
-        } else if (studioData.hasDspMelody) {
-          this._setSyncStatusChip('Sincronizado sílaba a sílaba', 'ready');
-          this._spawnPopup('SÍLABAS DTW + TONO YIN', 'Letra y melodía sincronizadas al milímetro', '#fde047', 1400);
-        } else if (hasRealLyrics && !isPlainUnaligned) {
-          this._setSyncStatusChip('Esperando audio HD...', 'working');
+        // PASO 6 (MOTOR UNIFICADO): Ejecutar Alineación Forzada Whisper sobre el audio REAL para TODAS
+        // las pistas aún no verificadas por Whisper (con LRC externo, texto plano o sin letra),
+        // o acoplarse si Karaoke ya lo tiene corriendo en segundo plano.
+        const needsWhisper = forceReanalyze || !hasWhisperVerifiedCache;
+        if (needsWhisper) {
+          if (!forceReanalyze && this.isActiveWhisperFor(key)) {
+            this._setSyncStatusChip('Sincro IA en curso...', 'working');
+          } else if (mono16k || vidTrack) {
+            const modeLabel = !hasRealLyrics
+              ? 'Transcribiendo IA...'
+              : (isPlainUnaligned ? 'Alineando texto IA...' : 'Sincronizando IA...');
+            this._setSyncStatusChip(modeLabel, 'working');
+            this._spawnPopup(
+              !hasRealLyrics ? 'WHISPER IA · SÍLABAS 10MS' : 'SINCRONIZACIÓN REAL CON IA',
+              !hasRealLyrics ? 'Transcribiendo letra real directamente del audio...' : 'Ajustando Karaoke y SingStar a la voz real...',
+              '#38bdf8',
+              1700
+            );
+            this._transcribeTrackAudioWithWhisper(
+              track,
+              key,
+              mono16k,
+              vocalDspProfile,
+              null,
+              hasRealLyrics ? baseLines : [],
+              { actualDurSec, isPlainUnaligned, allowBackground: true, forceReanalyze }
+            ).catch(() => {});
+          } else if (studioData.hasDspMelody) {
+            this._setSyncStatusChip('Sincronizado DTW 10ms', 'ready');
+          } else if (hasRealLyrics && !isPlainUnaligned) {
+            this._setSyncStatusChip('Esperando audio HD...', 'working');
+          }
+        } else {
+          this._setSyncStatusChip('Sincro IA · 10ms', 'ready');
+          if (studioData.hasDspMelody) {
+            this._spawnPopup('SINCRO IA VERIFICADA', 'Letra, sílabas y melodía YIN bloqueadas al audio real', '#34d399', 1350);
+          }
         }
       } catch (_) {
       } finally {
@@ -6287,7 +6731,7 @@
         return this._whisperWorker;
       }
       try {
-        const worker = new Worker('./whisper_worker.js?v=85.0', { type: 'module' });
+        const worker = new Worker('./whisper_worker.js?v=86.0', { type: 'module' });
         this._whisperWorkerCallbacks = new Map();
         this._whisperWorkerSeq = 0;
 
@@ -6435,7 +6879,7 @@
       return null;
     }
 
-    async _extract16kHzVocalBandpassMono(audioBuffer, token = this._prepToken) {
+    async _extract16kHzVocalBandpassMono(audioBuffer, token = null) {
       if (!audioBuffer) return null;
       const srcSr = audioBuffer.sampleRate || 44100;
       const targetSr = 16000;
@@ -6458,7 +6902,7 @@
 
       for (let i = 0; i < outLen; i++) {
         if (i > 0 && (i % 48000) === 0) {
-          if (token !== undefined && token !== this._prepToken) return null;
+          if (token !== undefined && token !== null && token !== this._prepToken) return null;
           await new Promise(r => setTimeout(r, 0));
         }
         const s0 = Math.min(totalSrc - 1, Math.floor(i * ratio));
@@ -6502,11 +6946,12 @@
       return 'auto';
     }
 
-    _findActiveVocalWindowsForWhisper(vocalProfile, totalDurSec, prioritySec = 0) {
-      // Ventanas de 22s (<28.5s) para inferencia de pasada única sin saltos de timestamp en whisper_worker.js
-      const winLenSec = 22.0;
-      const stepSec = 20.5;
-      const maxDur = Math.min(totalDurSec, 360);
+    _findActiveVocalWindowsForWhisper(vocalProfile, totalDurSec, prioritySec = 0, options = {}) {
+      // Ventanas de 24s (solape de 2.0s, <28.5s): el encoder de Whisper siempre procesa 30s de mel-espectrograma,
+      // así que 24s ofrece un 33% menos de pasadas y más palabras por ventana para anclaje instantáneo sin deriva.
+      const winLenSec = 24.0;
+      const stepSec = 22.0;
+      const maxDur = Math.min(totalDurSec, 380);
       const rawWindows = [];
 
       if (vocalProfile && vocalProfile.vocEnergyDb) {
@@ -6516,7 +6961,7 @@
         const firstVocalSec = Number.isFinite(vocalProfile.firstVocalSec) ? Math.max(0, vocalProfile.firstVocalSec - 0.5) : 0;
 
         let curSec = firstVocalSec;
-        while (curSec < maxDur - 1.2 && rawWindows.length < 18) {
+        while (curSec < maxDur - 1.2 && rawWindows.length < 24) {
           const endSec = Math.min(maxDur, curSec + winLenSec);
           const f0 = Math.max(0, Math.floor(curSec * fps));
           const f1 = Math.min(nFrames - 1, Math.ceil(endSec * fps));
@@ -6526,7 +6971,7 @@
               voicedFrames++;
             }
           }
-          if (voicedFrames >= Math.round(0.35 * fps)) {
+          if (voicedFrames >= Math.round(0.30 * fps)) {
             rawWindows.push({ startSec: +curSec.toFixed(2), endSec: +endSec.toFixed(2) });
           }
           curSec += stepSec;
@@ -6535,20 +6980,47 @@
 
       // Respaldo: si el detector de islas fue demasiado estricto (voces muy suaves/acústicas), cubrir toda la pista
       if (rawWindows.length === 0) {
-        for (let t = 0; t < maxDur - 1.0 && rawWindows.length < 16; t += stepSec) {
+        for (let t = 0; t < maxDur - 1.0 && rawWindows.length < 22; t += stepSec) {
           rawWindows.push({ startSec: +t.toFixed(2), endSec: +Math.min(maxDur, t + winLenSec).toFixed(2) });
         }
       }
 
-      // Priorizar primero la ventana donde está reproduciendo actualmente el usuario para mostrar letra al instante
-      if (prioritySec > 4 && rawWindows.length > 1) {
-        const prioIdx = rawWindows.findIndex(w => prioritySec >= w.startSec - 2.0 && prioritySec <= w.endSec + 2.0);
-        if (prioIdx > 0) {
-          const ordered = [];
-          for (let i = prioIdx; i < rawWindows.length; i++) ordered.push(rawWindows[i]);
-          for (let i = 0; i < prioIdx; i++) ordered.push(rawWindows[i]);
-          return ordered;
-        }
+      if (rawWindows.length <= 1) return rawWindows;
+
+      let prioIdx = 0;
+      if (prioritySec > 3) {
+        const found = rawWindows.findIndex(w => prioritySec >= w.startSec - 2.0 && prioritySec <= w.endSec + 2.0);
+        if (found >= 0) prioIdx = found;
+      }
+
+      // En modo alineación forzada (cuando ya existe letra LRC/texto), priorizar:
+      //  1) Ventana actual + siguiente (bloqueo instantáneo incluso si la 1ª es intro instrumental)
+      //  2) Sondas media (~42%) y tardía (~72%) para detectar deriva de tempo o solos instrumentales al instante
+      //  3) Resto de ventanas en orden natural desde la posición actual
+      if (options && options.forAlignment && rawWindows.length >= 4) {
+        const picked = new Set();
+        const ordered = [];
+        const addIdx = (idx) => {
+          if (idx >= 0 && idx < rawWindows.length && !picked.has(idx)) {
+            picked.add(idx);
+            ordered.push(rawWindows[idx]);
+          }
+        };
+        addIdx(prioIdx);
+        addIdx(prioIdx + 1 < rawWindows.length ? prioIdx + 1 : prioIdx - 1);
+        addIdx(Math.floor(rawWindows.length * 0.42));
+        addIdx(Math.floor(rawWindows.length * 0.72));
+        for (let i = prioIdx; i < rawWindows.length; i++) addIdx(i);
+        for (let i = 0; i < prioIdx; i++) addIdx(i);
+        return ordered;
+      }
+
+      // En modo transcripción pura (sin letra previa), seguir orden lineal desde la posición actual
+      if (prioIdx > 0) {
+        const ordered = [];
+        for (let i = prioIdx; i < rawWindows.length; i++) ordered.push(rawWindows[i]);
+        for (let i = 0; i < prioIdx; i++) ordered.push(rawWindows[i]);
+        return ordered;
       }
       return rawWindows;
     }
@@ -6717,70 +7189,861 @@
     }
 
     /**
-     * Cuando una canción YA dispone de letra sincronizada completa (refLines), refina las marcas
-     * de tiempo internas de las palabras/sílabas usando los timestamps acústicos detectados por Whisper
-     * SIN destruir ni recortar jamás el resto de versos de la canción.
+     * ALINEADOR FORZADO DE AUDIO REAL EN 2 ETAPAS (UNIFICADO KARAOKE + SINGSTAR):
+     * - Etapa 1 (Hough ponderado por palabras + bigramas 5x + trigramas 9x + ajuste lineal RANSAC/Theil-Sen):
+     *   Corrige CUALQUIER desfase global desde -45s hasta +95s (intros de YouTube, videoclips, másters distintos)
+     *   y CUALQUIER deriva de velocidad/tempo [0.92, 1.08] ya desde la primera ventana de Whisper (~4-8s).
+     * - Etapa 2 (Programación dinámica LCS monotónica palabra a palabra + anclaje a ataques vocales 100 Hz
+     *   + interpolación suave por tramos entre versos anclados + división fonética en sílabas 10 ms):
+     *   Fija palabras y sílabas exactas a la voz real, absorbiendo solos instrumentales, rubatos y errores locales del LRC.
      */
-    _refineReferenceLinesWithWhisperWords(key, refLines, whisperWords, vocalProfile, actualDurSec = 195) {
-      if (!Array.isArray(refLines) || refLines.length === 0) return [];
-      if (!Array.isArray(whisperWords) || whisperWords.length === 0) {
-        return this._alignSyllablesWithVocalProfile(key, refLines, vocalProfile, actualDurSec);
+    _alignReferenceLyricsToWhisperRealAudio(key, refLines, whisperWords, vocalProfile, actualDurSec = 195) {
+      if (!Array.isArray(refLines) || refLines.length === 0) {
+        return { lines: null, shiftSec: 0, slope: 1.0, anchoredLines: 0, matchedWords: 0, hasGlobalLock: false };
+      }
+      if (!Array.isArray(whisperWords) || whisperWords.length < 2) {
+        return { lines: null, shiftSec: 0, slope: 1.0, anchoredLines: 0, matchedWords: 0, hasGlobalLock: false };
       }
 
       const norm = (s) => String(s || '')
         .toLowerCase()
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9ñ]/g, '');
+        .replace(/[^a-z0-9]/g, '');
 
-      const refinedLines = refLines.map((line, li) => {
-        if (!line || !line.text) return line;
-        const lineStart = Number.isFinite(Number(line._origTimeSec)) ? Number(line._origTimeSec) : (Number(line.timeSec) || 0);
-        const nextLineStart = (li + 1 < refLines.length && Number.isFinite(Number(refLines[li + 1]?.timeSec)))
-          ? Number(refLines[li + 1]._origTimeSec ?? refLines[li + 1].timeSec)
-          : Math.min(actualDurSec, lineStart + 4.2);
-        const lineEnd = Math.max(lineStart + 0.45, Math.min(nextLineStart - 0.04, Number(line.endTimeSec) || (lineStart + 3.4)));
+      const phonNorm = (n) => {
+        if (!n) return '';
+        return n
+          .replace(/h/g, '')
+          .replace(/v/g, 'b')
+          .replace(/z/g, 's')
+          .replace(/c(?=[ei])/g, 's')
+          .replace(/qu/g, 'k')
+          .replace(/k/g, 'c')
+          .replace(/ll/g, 'y')
+          .replace(/([a-z])\1+/g, '$1');
+      };
 
-        // Buscar palabras de Whisper que caigan cerca de esta frase (±1.25s)
-        const candWords = whisperWords.filter(w => w && w.startSec >= lineStart - 1.25 && w.startSec <= lineEnd + 1.0);
-        if (candWords.length === 0) return line;
+      const STOPWORDS = new Set([
+        'a', 'e', 'i', 'o', 'u', 'y', 'de', 'la', 'el', 'en', 'un', 'es', 'no', 'si', 'se',
+        'me', 'te', 'lo', 'le', 'al', 'su', 'mi', 'tu', 'que', 'las', 'los', 'del', 'por', 'con',
+        'the', 'and', 'you', 'for', 'are', 'but', 'not', 'all', 'can', 'was', 'its', 'my', 'to', 'in', 'of', 'on', 'it', 'is', 'me', 'be', 'so', 'we'
+      ]);
 
-        const lineTokens = String(line.text).trim().split(/\s+/).filter(Boolean);
-        if (lineTokens.length === 0) return line;
-
-        // Comprobar si la primera palabra de la frase coincide fonéticamente con alguna palabra de Whisper cercana
-        const firstNorm = norm(lineTokens[0]);
-        let matchedFirst = null;
-        if (firstNorm.length >= 2) {
-          for (const cw of candWords) {
-            const cn = norm(cw.text);
-            if (!cn) continue;
-            if (cn === firstNorm || (firstNorm.length >= 3 && cn.slice(0, 3) === firstNorm.slice(0, 3))) {
-              if (Math.abs(cw.startSec - lineStart) <= 0.85) {
-                matchedFirst = cw;
-                break;
-              }
+      const diceSim = (a, b) => {
+        if (!a || !b) return 0;
+        if (a === b) return 1.0;
+        if (a.length < 2 || b.length < 2) return 0;
+        if (Math.abs(a.length - b.length) > Math.max(3, Math.floor(Math.max(a.length, b.length) * 0.45))) return 0;
+        let shared = 0;
+        const used = new Uint8Array(b.length);
+        for (let i = 0; i < a.length - 1; i++) {
+          const bg = a.slice(i, i + 2);
+          for (let j = 0; j < b.length - 1; j++) {
+            if (!used[j] && b.slice(j, j + 2) === bg) {
+              used[j] = 1;
+              shared++;
+              break;
             }
           }
         }
+        return (2 * shared) / Math.max(2, (a.length - 1) + (b.length - 1));
+      };
 
-        if (!matchedFirst) return line;
+      const wordSim = (rTok, wTok) => {
+        if (!rTok.norm || !wTok.norm) return 0;
+        if (rTok.norm === wTok.norm) {
+          return rTok.norm.length >= 3 ? 1.0 : (rTok.norm.length === 2 ? 0.78 : 0.45);
+        }
+        if (rTok.phon && wTok.phon && rTok.phon === wTok.phon) {
+          return rTok.phon.length >= 3 ? 0.94 : 0.72;
+        }
+        // Tolerancia de plural/conjugación final (p. ej. palabras/palabra, cantar/canta)
+        const minL = Math.min(rTok.phon.length, wTok.phon.length);
+        if (minL >= 4 && Math.abs(rTok.phon.length - wTok.phon.length) <= 2) {
+          if (rTok.phon.startsWith(wTok.phon) || wTok.phon.startsWith(rTok.phon)) {
+            return 0.86;
+          }
+        }
+        if (minL >= 3) {
+          const d = Math.max(diceSim(rTok.norm, wTok.norm), diceSim(rTok.phon, wTok.phon));
+          if (d >= 0.66) return d * 0.92;
+        }
+        return 0;
+      };
 
-        // Ajustar suavemente el inicio de la frase al ataque real detectado por Whisper (acotado a ±0.45s y sin cruzar frases)
-        const prevEndBound = li > 0 ? (Number(refLines[li - 1].endTimeSec || refLines[li - 1].timeSec || 0) + 0.04) : 0;
-        const clampedStart = Math.max(prevEndBound, Math.max(lineStart - 0.35, Math.min(lineStart + 0.45, matchedFirst.startSec)));
-        const clampedEnd = Math.max(clampedStart + 0.45, Math.min(nextLineStart - 0.04, lineEnd));
+      // 1) Instantánea limpia de tiempos LRC originales (sin acumular desplazamientos entre ventanas)
+      const rawLines = [];
+      for (let li = 0; li < refLines.length; li++) {
+        const l = refLines[li];
+        const txt = repairSpanishBrokenAccents(String(l?.text || '').trim());
+        if (!txt) continue;
+        const rawStart = Number.isFinite(Number(l._rawLrcTimeSec))
+          ? Number(l._rawLrcTimeSec)
+          : (Number.isFinite(Number(l._origTimeSec)) ? Number(l._origTimeSec) : Math.max(0, Number(l.timeSec) || 0));
+        rawLines.push({
+          origRef: l,
+          text: txt,
+          rawStart,
+          rawEnd: Number.isFinite(Number(l._rawLrcEndTimeSec))
+            ? Number(l._rawLrcEndTimeSec)
+            : (Number.isFinite(Number(l.endTimeSec)) ? Number(l.endTimeSec) : (rawStart + 3.2))
+        });
+      }
+      if (rawLines.length === 0) {
+        return { lines: null, shiftSec: 0, slope: 1.0, anchoredLines: 0, matchedWords: 0, hasGlobalLock: false };
+      }
 
+      // Normalizar rawEnd de cada línea para evitar solapes en las coordenadas de referencia
+      for (let li = 0; li < rawLines.length; li++) {
+        const nextS = (li + 1 < rawLines.length) ? rawLines[li + 1].rawStart : (rawLines[li].rawStart + 4.0);
+        const maxEnd = Math.max(rawLines[li].rawStart + 0.45, Math.min(rawLines[li].rawStart + 7.5, nextS - 0.04));
+        if (!(rawLines[li].rawEnd > rawLines[li].rawStart + 0.35) || rawLines[li].rawEnd > nextS) {
+          rawLines[li].rawEnd = maxEnd;
+        }
+      }
+
+      // 2) Construir secuencia de palabras de referencia R con tiempos internos estimados y pesos IDF
+      const R = [];
+      const lineWordSpans = new Array(rawLines.length);
+      const wordFreq = new Map();
+
+      for (let li = 0; li < rawLines.length; li++) {
+        const rl = rawLines[li];
+        const tokens = rl.text.split(/\s+/).filter(Boolean);
+        const totalChars = Math.max(1, tokens.reduce((acc, t) => acc + Math.max(1, t.length), 0));
+        const spanDur = Math.max(0.45, rl.rawEnd - rl.rawStart);
+        let cumChars = 0;
+        const startIdx = R.length;
+        for (let wi = 0; wi < tokens.length; wi++) {
+          const rawWord = tokens[wi];
+          const n = norm(rawWord);
+          const p = phonNorm(n);
+          const wStart = rl.rawStart + (cumChars / totalChars) * spanDur;
+          const wEnd = rl.rawStart + ((cumChars + Math.max(1, rawWord.length)) / totalChars) * spanDur;
+          cumChars += Math.max(1, rawWord.length);
+          if (n) wordFreq.set(n, (wordFreq.get(n) || 0) + 1);
+          R.push({
+            idx: R.length,
+            lineIdx: li,
+            wordIdxInLine: wi,
+            rawText: rawWord,
+            norm: n,
+            phon: p,
+            rawStartSec: wStart,
+            rawEndSec: Math.max(wStart + 0.12, wEnd),
+            isStop: !n || n.length < 3 || STOPWORDS.has(n),
+            idfWeight: 1.0
+          });
+        }
+        lineWordSpans[li] = { startIdx, count: R.length - startIdx };
+      }
+
+      for (const r of R) {
+        if (r.isStop) {
+          r.idfWeight = 0.25;
+        } else {
+          const freq = wordFreq.get(r.norm) || 1;
+          r.idfWeight = Math.min(2.6, (1.0 + Math.min(1.2, (r.norm.length - 2) * 0.18)) / Math.sqrt(freq));
+        }
+      }
+
+      // 3) Preparar palabras detectadas por Whisper W ordenadas cronológicamente
+      const W = whisperWords
+        .map((w) => {
+          const rawText = String(w?.text || '').trim();
+          const n = norm(rawText);
+          const sSec = Number(w?.startSec);
+          const eSec = Number(w?.endSec);
+          return {
+            rawText,
+            norm: n,
+            phon: phonNorm(n),
+            startSec: Number.isFinite(sSec) ? Math.max(0, sSec) : -1,
+            endSec: Number.isFinite(eSec) ? Math.max(sSec + 0.10, eSec) : (sSec + 0.30)
+          };
+        })
+        .filter(w => w.startSec >= 0 && w.norm.length >= 1)
+        .sort((a, b) => a.startSec - b.startSec);
+
+      if (R.length < 2 || W.length < 2) {
+        return { lines: null, shiftSec: 0, slope: 1.0, anchoredLines: 0, matchedWords: 0, hasGlobalLock: false };
+      }
+
+      const refFirstSec = rawLines[0].rawStart;
+      const refLastSec = rawLines[rawLines.length - 1].rawEnd;
+      const minDeltaAllowed = Math.max(-45.0, -refFirstSec - 3.5);
+      const maxDeltaAllowed = Math.min(95.0, Math.max(30.0, actualDurSec - refFirstSec + 8.0));
+      const firstVocalHint = (vocalProfile && Number.isFinite(vocalProfile.firstVocalSec)) ? vocalProfile.firstVocalSec : null;
+
+      // 4) ETAPA 1: Votación Hough ponderada (palabras + bigramas 5x + trigramas 9x) en cubetas de ~22s
+      //    Permite encontrar cualquier desfase [-45s, +95s] y deriva de tempo [0.92, 1.08]
+      const allVotes = [];
+      const bucketVotesMap = new Map();
+      const BUCKET_SEC = 22.0;
+
+      const pushVote = (delta, rSec, wSec, weight, isPhraseHit) => {
+        if (!Number.isFinite(delta) || delta < minDeltaAllowed || delta > maxDeltaAllowed) return;
+        // Evitar que toda la letra quede fuera de la duración real del audio
+        if (refFirstSec + delta < -4.0) return;
+        if (actualDurSec >= 35 && refLastSec + delta > actualDurSec + 22.0 && refFirstSec + delta > actualDurSec - 5.0) return;
+        const bId = Math.floor(wSec / BUCKET_SEC);
+        const v = { delta, rSec, wSec, weight, isPhraseHit, bId };
+        allVotes.push(v);
+        let arr = bucketVotesMap.get(bId);
+        if (!arr) {
+          arr = [];
+          bucketVotesMap.set(bId, arr);
+        }
+        arr.push(v);
+      };
+
+      const maxRForHough = Math.min(R.length, 750);
+      const maxWForHough = Math.min(W.length, 750);
+
+      for (let j = 0; j < maxWForHough; j++) {
+        const w1 = W[j];
+        if (!w1.norm) continue;
+        for (let i = 0; i < maxRForHough; i++) {
+          const r1 = R[i];
+          if (!r1.norm) continue;
+          const d1 = w1.startSec - r1.rawStartSec;
+          if (d1 < minDeltaAllowed || d1 > maxDeltaAllowed) continue;
+
+          const sim1 = wordSim(r1, w1);
+          if (sim1 < 0.62) continue;
+
+          // Voto unigrama solo para palabras de contenido reales (>= 3 letras, no stopwords)
+          if (!r1.isStop && sim1 >= 0.72) {
+            pushVote(d1, r1.rawStartSec, w1.startSec, sim1 * r1.idfWeight, false);
+          }
+
+          // Voto bigrama (5x) y trigrama (9x): incluso stopwords son oro en secuencias consecutivas ("que no", "las que")
+          if (i + 1 < maxRForHough) {
+            const r2 = R[i + 1];
+            const rGap12 = r2.rawStartSec - r1.rawStartSec;
+            for (let step = 1; step <= 2 && j + step < maxWForHough; step++) {
+              const w2 = W[j + step];
+              const wGap12 = w2.startSec - w1.startSec;
+              if (wGap12 < -0.05 || wGap12 > 4.2) continue;
+              if (Math.abs(wGap12 - rGap12) > 2.6) continue;
+              const sim2 = wordSim(r2, w2);
+              if (sim2 < 0.64) continue;
+
+              const dMid = 0.5 * (d1 + (w2.startSec - r2.rawStartSec));
+              const contentBoost = 0.75 + 0.35 * Math.max(r1.idfWeight, r2.idfWeight);
+              const bigramW = 5.0 * (0.5 * (sim1 + sim2)) * contentBoost * (step === 1 ? 1.0 : 0.78);
+              pushVote(dMid, 0.5 * (r1.rawStartSec + r2.rawStartSec), 0.5 * (w1.startSec + w2.startSec), bigramW, true);
+
+              // Comprobar trigrama consecutivo (bono adicional +4.5x)
+              if (i + 2 < maxRForHough) {
+                const r3 = R[i + 2];
+                for (let step3 = step + 1; step3 <= step + 2 && j + step3 < maxWForHough; step3++) {
+                  const w3 = W[j + step3];
+                  const wGap23 = w3.startSec - w2.startSec;
+                  if (wGap23 < -0.05 || wGap23 > 4.2) continue;
+                  const sim3 = wordSim(r3, w3);
+                  if (sim3 >= 0.64) {
+                    const dTri = (d1 + (w2.startSec - r2.rawStartSec) + (w3.startSec - r3.rawStartSec)) / 3;
+                    pushVote(dTri, r2.rawStartSec, w2.startSec, 4.5 * ((sim1 + sim2 + sim3) / 3) * contentBoost, true);
+                    break;
+                  }
+                }
+              }
+              break;
+            }
+          }
+        }
+      }
+
+      if (allVotes.length === 0) {
+        return { lines: null, shiftSec: 0, slope: 1.0, anchoredLines: 0, matchedWords: 0, hasGlobalLock: false };
+      }
+
+      // Buscar picos de consenso (con radio ±1.05s) en una lista de votos
+      const findBestConsensusInVotes = (votes, radiusSec = 1.05) => {
+        if (!Array.isArray(votes) || votes.length === 0) return null;
+        const sorted = votes.slice().sort((a, b) => a.delta - b.delta);
+        let left = 0;
+        let winWeight = 0;
+        let bestAdjScore = -1;
+        let bestRawWeight = 0;
+        let bestRange = null;
+
+        for (let right = 0; right < sorted.length; right++) {
+          winWeight += sorted[right].weight;
+          while (sorted[right].delta - sorted[left].delta > radiusSec * 2) {
+            winWeight -= sorted[left].weight;
+            left++;
+          }
+          const centerDelta = 0.5 * (sorted[left].delta + sorted[right].delta);
+          // Prior suave anti-estribillo-repetido: en empate entre dos estribillos iguales, preferir menor |delta|
+          const distPrior = 1.0 / (1.0 + Math.abs(centerDelta) / 95.0);
+          let vocalBonus = 1.0;
+          if (firstVocalHint !== null) {
+            const predFirst = refFirstSec + centerDelta;
+            if (predFirst >= firstVocalHint - 4.0 && predFirst <= firstVocalHint + 12.0) {
+              vocalBonus = 1.12;
+            }
+          }
+          const adj = winWeight * distPrior * vocalBonus;
+          if (adj > bestAdjScore) {
+            bestAdjScore = adj;
+            bestRawWeight = winWeight;
+            bestRange = [left, right];
+          }
+        }
+
+        if (!bestRange) return null;
+        const inliers = sorted.slice(bestRange[0], bestRange[1] + 1);
+        const totalW = inliers.reduce((s, v) => s + v.weight, 0) || 1;
+        // Mediana ponderada robusta de delta y centroide (rSec, wSec)
+        let accW = 0;
+        let medDelta = inliers[0].delta;
+        for (const v of inliers) {
+          accW += v.weight;
+          if (accW >= totalW * 0.5) {
+            medDelta = v.delta;
+            break;
+          }
+        }
+        let sumR = 0;
+        let sumW = 0;
+        let phraseHits = 0;
+        for (const v of inliers) {
+          sumR += v.rSec * v.weight;
+          sumW += v.wSec * v.weight;
+          if (v.isPhraseHit) phraseHits++;
+        }
         return {
-          ...line,
-          _origTimeSec: lineStart,
-          _whisperRefined: true,
-          timeSec: +clampedStart.toFixed(3),
-          endTimeSec: +clampedEnd.toFixed(3)
+          delta: medDelta,
+          rSec: sumR / totalW,
+          wSec: sumW / totalW,
+          rawWeight: bestRawWeight,
+          adjScore: bestAdjScore,
+          count: inliers.length,
+          phraseHits
         };
-      });
+      };
 
-      return this._alignSyllablesWithVocalProfile(key, refinedLines, vocalProfile, actualDurSec);
+      // Calcular anclas locales fuertes por cada cubeta de 22s de Whisper
+      const bucketAnchors = [];
+      for (const [, bVotes] of bucketVotesMap.entries()) {
+        const peak = findBestConsensusInVotes(bVotes, 1.05);
+        if (peak && (peak.rawWeight >= 5.2 || (peak.phraseHits >= 1 && peak.rawWeight >= 4.2))) {
+          bucketAnchors.push(peak);
+        }
+      }
+      bucketAnchors.sort((a, b) => a.wSec - b.wSec);
+
+      const globalPeak = findBestConsensusInVotes(allVotes, 1.15);
+
+      // Evaluar modelos candidatos (slope, intercept):
+      //  - Modelo constante (slope = 1.0) desde globalPeak y desde cada ancla de cubeta
+      //  - Modelos con deriva de tempo [0.92, 1.08] generados por pares de anclas separadas >= 22s
+      const candidateModels = [];
+      if (globalPeak) {
+        candidateModels.push({ slope: 1.0, intercept: globalPeak.delta, isConst: true });
+      }
+      for (const ba of bucketAnchors) {
+        candidateModels.push({ slope: 1.0, intercept: ba.delta, isConst: true });
+      }
+      for (let a = 0; a < bucketAnchors.length; a++) {
+        for (let b = a + 1; b < bucketAnchors.length; b++) {
+          const dr = bucketAnchors[b].rSec - bucketAnchors[a].rSec;
+          const dw = bucketAnchors[b].wSec - bucketAnchors[a].wSec;
+          if (dr < 22.0 || dw < 20.0) continue;
+          const sl = dw / dr;
+          if (sl >= 0.92 && sl <= 1.08) {
+            const ic = bucketAnchors[a].wSec - sl * bucketAnchors[a].rSec;
+            if (ic >= minDeltaAllowed - 10 && ic <= maxDeltaAllowed + 10) {
+              candidateModels.push({ slope: sl, intercept: ic, isConst: Math.abs(sl - 1.0) < 0.004 });
+            }
+          }
+        }
+      }
+
+      let bestModel = null;
+      let bestModelScore = -1;
+      for (const cand of candidateModels) {
+        let inlierScore = 0;
+        let phraseHits = 0;
+        for (const v of allVotes) {
+          const predW = cand.slope * v.rSec + cand.intercept;
+          const err = Math.abs(v.wSec - predW);
+          if (err <= 1.35) {
+            inlierScore += v.weight * (1.0 - 0.25 * (err / 1.35));
+            if (v.isPhraseHit) phraseHits++;
+          }
+        }
+        const midDelta = cand.intercept + (cand.slope - 1.0) * (0.5 * (refFirstSec + refLastSec));
+        const distPrior = 1.0 / (1.0 + Math.abs(midDelta) / 95.0);
+        // Preferencia suave de parsimonia por slope = 1.0 si no hay ganancia clara por deriva de tempo
+        const parsimony = cand.isConst ? 1.08 : 1.0;
+        const totalScore = inlierScore * distPrior * parsimony;
+        if (totalScore > bestModelScore) {
+          bestModelScore = totalScore;
+          bestModel = { ...cand, rawInlierScore: inlierScore, phraseHits };
+        }
+      }
+
+      // Comprobar confianza mínima para declarar bloqueo global real (evita falsos positivos con 1 palabra suelta)
+      const hasGlobalLock = Boolean(
+        bestModel && (bestModel.rawInlierScore >= 6.0 || (bestModel.phraseHits >= 1 && bestModel.rawInlierScore >= 4.5))
+      );
+      if (!hasGlobalLock) {
+        return { lines: null, shiftSec: 0, slope: 1.0, anchoredLines: 0, matchedWords: 0, hasGlobalLock: false };
+      }
+
+      // Refinar (slope, intercept) por regresión lineal ponderada sobre todos sus inliers (±1.4s)
+      const modelInliers = allVotes.filter(v => Math.abs(v.wSec - (bestModel.slope * v.rSec + bestModel.intercept)) <= 1.45);
+      let finalSlope = bestModel.slope;
+      let finalIntercept = bestModel.intercept;
+
+      if (modelInliers.length >= 2) {
+        let sW = 0, sR = 0, sY = 0;
+        let minR = Infinity, maxR = -Infinity;
+        for (const v of modelInliers) {
+          sW += v.weight;
+          sR += v.weight * v.rSec;
+          sY += v.weight * v.wSec;
+          if (v.rSec < minR) minR = v.rSec;
+          if (v.rSec > maxR) maxR = v.rSec;
+        }
+        const meanR = sR / Math.max(1e-6, sW);
+        const meanY = sY / Math.max(1e-6, sW);
+
+        if (!bestModel.isConst && (maxR - minR) >= 24.0) {
+          let num = 0, den = 0;
+          for (const v of modelInliers) {
+            const dr = v.rSec - meanR;
+            num += v.weight * dr * (v.wSec - meanY);
+            den += v.weight * dr * dr;
+          }
+          if (den > 10.0) {
+            const estSlope = Math.max(0.92, Math.min(1.08, num / den));
+            finalSlope = Math.abs(estSlope - 1.0) < 0.005 ? 1.0 : estSlope;
+            finalIntercept = meanY - finalSlope * meanR;
+          }
+        } else {
+          // Mediana ponderada robusta de (wSec - rSec) para desplazamiento constante
+          const deltas = modelInliers.map(v => ({ d: v.wSec - v.rSec, w: v.weight })).sort((a, b) => a.d - b.d);
+          let acc = 0;
+          finalSlope = 1.0;
+          for (const item of deltas) {
+            acc += item.w;
+            if (acc >= sW * 0.5) {
+              finalIntercept = item.d;
+              break;
+            }
+          }
+        }
+      }
+
+      // Construir proyección priorTime(rawSec): usa (finalSlope, finalIntercept) y, si hay anclas de cubetas
+      // fuertemente monotónicas con salto no lineal (p. ej. solo de guitarra añadido a mitad de canción),
+      // aplica interpolación suave por tramos sobre esas cubetas.
+      const linearProj = (rSec) => Math.max(0, finalSlope * rSec + finalIntercept);
+      const validPiecewiseAnchors = [];
+      for (const ba of bucketAnchors) {
+        if (ba.rawWeight >= 8.0 && ba.phraseHits >= 1) {
+          const prev = validPiecewiseAnchors[validPiecewiseAnchors.length - 1];
+          if (!prev || (ba.rSec > prev.rSec + 10 && ba.wSec > prev.wSec + 8)) {
+            validPiecewiseAnchors.push(ba);
+          }
+        }
+      }
+      const hasNonLinearBreak = validPiecewiseAnchors.length >= 2 &&
+        validPiecewiseAnchors.some(ba => Math.abs(ba.wSec - linearProj(ba.rSec)) > 2.4);
+
+      const priorTime = (rSec) => {
+        if (!hasNonLinearBreak) return linearProj(rSec);
+        const firstA = validPiecewiseAnchors[0];
+        const lastA = validPiecewiseAnchors[validPiecewiseAnchors.length - 1];
+        if (rSec <= firstA.rSec) {
+          return Math.max(0, firstA.wSec + (rSec - firstA.rSec) * finalSlope);
+        }
+        if (rSec >= lastA.rSec) {
+          return Math.max(0, lastA.wSec + (rSec - lastA.rSec) * finalSlope);
+        }
+        for (let k = 0; k < validPiecewiseAnchors.length - 1; k++) {
+          const a = validPiecewiseAnchors[k];
+          const b = validPiecewiseAnchors[k + 1];
+          if (rSec >= a.rSec && rSec <= b.rSec) {
+            const t = (rSec - a.rSec) / Math.max(0.01, b.rSec - a.rSec);
+            return Math.max(0, a.wSec + t * (b.wSec - a.wSec));
+          }
+        }
+        return linearProj(rSec);
+      };
+
+      // 5) ETAPA 2: Alineación monotónica LCS palabra a palabra dentro de corredor ±5.5s sobre priorTime
+      //    Filtrar solo las palabras R cercanas a alguna ventana cubierta por W para ejecutar DP en < 2 ms
+      const CORRIDOR_SEC = 5.5;
+      const activeR = [];
+      for (let i = 0; i < R.length; i++) {
+        const pT = priorTime(R[i].rawStartSec);
+        // Búsqueda rápida en W ordenada
+        let lo = 0, hi = W.length - 1;
+        while (lo < hi) {
+          const mid = (lo + hi) >> 1;
+          if (W[mid].startSec < pT - CORRIDOR_SEC) lo = mid + 1;
+          else hi = mid;
+        }
+        if (lo < W.length && Math.abs(W[lo].startSec - pT) <= CORRIDOR_SEC) {
+          activeR.push({ r: R[i], priorSec: pT });
+        }
+      }
+
+      const matchedWordByRIdx = new Map();
+      if (activeR.length >= 2 && W.length >= 2) {
+        const P = Math.min(activeR.length, 620);
+        const Q = Math.min(W.length, 620);
+        const cols = Q + 1;
+        const dp = new Float32Array((P + 1) * cols);
+        const dir = new Uint8Array((P + 1) * cols); // 0 = skipR, 1 = skipW, 2 = match
+
+        for (let i = 1; i <= P; i++) {
+          const { r: rTok, priorSec } = activeR[i - 1];
+          const rowOff = i * cols;
+          const prevRowOff = (i - 1) * cols;
+          for (let j = 1; j <= Q; j++) {
+            let best = dp[prevRowOff + j];
+            let d = 0;
+            const left = dp[rowOff + j - 1];
+            if (left > best) {
+              best = left;
+              d = 1;
+            }
+            const wTok = W[j - 1];
+            const dtErr = Math.abs(wTok.startSec - priorSec);
+            if (dtErr <= CORRIDOR_SEC) {
+              const sim = wordSim(rTok, wTok);
+              if (sim >= 0.66) {
+                const gain = sim * (rTok.isStop ? 0.55 : 1.25) - dtErr * 0.035;
+                if (gain > 0.15) {
+                  const diag = dp[prevRowOff + (j - 1)] + gain;
+                  if (diag > best) {
+                    best = diag;
+                    d = 2;
+                  }
+                }
+              }
+            }
+            dp[rowOff + j] = best;
+            dir[rowOff + j] = d;
+          }
+        }
+
+        let i = P;
+        let j = Q;
+        while (i > 0 && j > 0) {
+          const d = dir[i * cols + j];
+          if (d === 2) {
+            const rTok = activeR[i - 1].r;
+            const wTok = W[j - 1];
+            matchedWordByRIdx.set(rTok.idx, {
+              w: wTok,
+              sim: wordSim(rTok, wTok)
+            });
+            i--;
+            j--;
+          } else if (d === 1) {
+            j--;
+          } else {
+            i--;
+          }
+        }
+      }
+
+      // Helper para anclar el inicio de una palabra al ataque vocálico 100 Hz (vowelFlux) dentro de ±90 ms
+      const snapWordStartTo100HzOnset = (secVal) => {
+        if (!vocalProfile || !vocalProfile.vowelFlux || !vocalProfile.vocEnergyDb) return secVal;
+        const fHz = vocalProfile.frameHz || 100;
+        const nF = vocalProfile.vowelFlux.length;
+        const centerF = Math.round(secVal * fHz);
+        const radF = Math.round(0.09 * fHz);
+        const fLo = Math.max(0, centerF - radF);
+        const fHi = Math.min(nF - 1, centerF + radF);
+        const thVoc = Number.isFinite(vocalProfile.thVoc) ? vocalProfile.thVoc : -32;
+        let bestF = centerF;
+        let bestScore = -1e9;
+        for (let f = fLo; f <= fHi; f++) {
+          if (vocalProfile.vocEnergyDb[f] < thVoc - 3.5) continue;
+          const dev = (f - centerF) / Math.max(1, radF);
+          const sc = vocalProfile.vowelFlux[f] * 1.4 - dev * dev * 0.9;
+          if (sc > bestScore) {
+            bestScore = sc;
+            bestF = f;
+          }
+        }
+        return bestScore > -1e8 ? (bestF / fHz) : secVal;
+      };
+
+      // 6) Calcular anclas por línea a partir de las palabras emparejadas por LCS
+      const lineAnchors = new Array(rawLines.length).fill(null);
+      let anchoredLineCount = 0;
+
+      for (let li = 0; li < rawLines.length; li++) {
+        const span = lineWordSpans[li];
+        const hits = [];
+        let strongContentHit = false;
+        for (let k = 0; k < span.count; k++) {
+          const rIdx = span.startIdx + k;
+          const m = matchedWordByRIdx.get(rIdx);
+          if (m) {
+            const rTok = R[rIdx];
+            if (!rTok.isStop && m.sim >= 0.72) strongContentHit = true;
+            const snappedS = snapWordStartTo100HzOnset(m.w.startSec);
+            const snappedE = Math.max(snappedS + 0.12, m.w.endSec);
+            hits.push({
+              wi: k,
+              rTok,
+              startSec: snappedS,
+              endSec: snappedE,
+              sim: m.sim
+            });
+          }
+        }
+        if (hits.length === 0) continue;
+        if (!strongContentHit && hits.length < 2) continue;
+
+        const rl = rawLines[li];
+        const expectedDur = Math.max(0.5, (rl.rawEnd - rl.rawStart) * finalSlope);
+        const firstHit = hits[0];
+        const lastHit = hits[hits.length - 1];
+
+        // Si la primera palabra coincidió, usar su ataque exacto; si coincidió una interna, retroproyectar
+        const estStart = (firstHit.wi === 0)
+          ? firstHit.startSec
+          : Math.max(0, firstHit.startSec - Math.max(0, (firstHit.rTok.rawStartSec - rl.rawStart) * finalSlope));
+        const estEnd = (lastHit.wi === span.count - 1)
+          ? lastHit.endSec
+          : Math.max(estStart + 0.55, lastHit.endSec + Math.max(0, (rl.rawEnd - lastHit.rTok.rawEndSec) * finalSlope));
+
+        const pStart = priorTime(rl.rawStart);
+        const localResid = Math.max(-4.8, Math.min(4.8, estStart - pStart));
+
+        lineAnchors[li] = {
+          startSec: Math.max(0, estStart),
+          endSec: Math.max(estStart + 0.45, Math.min(estStart + Math.max(expectedDur * 1.6, 8.0), estEnd)),
+          localResid,
+          hits
+        };
+        anchoredLineCount++;
+      }
+
+      // 7) Interpolación suave por tramos de localResid para líneas no cubiertas aún por Whisper
+      const anchoredIndices = [];
+      for (let li = 0; li < rawLines.length; li++) {
+        if (lineAnchors[li]) anchoredIndices.push(li);
+      }
+
+      const getInterpolatedResid = (li) => {
+        if (anchoredIndices.length === 0) return 0;
+        let prevIdx = -1;
+        let nextIdx = -1;
+        for (let k = 0; k < anchoredIndices.length; k++) {
+          const ai = anchoredIndices[k];
+          if (ai < li) prevIdx = ai;
+          else if (ai > li) {
+            nextIdx = ai;
+            break;
+          }
+        }
+        if (prevIdx >= 0 && nextIdx >= 0) {
+          const rPrev = rawLines[prevIdx].rawStart;
+          const rNext = rawLines[nextIdx].rawStart;
+          const t = (rawLines[li].rawStart - rPrev) / Math.max(0.05, rNext - rPrev);
+          return lineAnchors[prevIdx].localResid + t * (lineAnchors[nextIdx].localResid - lineAnchors[prevIdx].localResid);
+        }
+        if (prevIdx >= 0) {
+          // Amortiguar suavemente el residuo local hacia 0 si nos alejamos mucho del último ancla
+          const dist = Math.max(0, rawLines[li].rawStart - rawLines[prevIdx].rawStart);
+          return lineAnchors[prevIdx].localResid * Math.exp(-dist / 45.0);
+        }
+        if (nextIdx >= 0) {
+          const dist = Math.max(0, rawLines[nextIdx].rawStart - rawLines[li].rawStart);
+          return lineAnchors[nextIdx].localResid * Math.exp(-dist / 45.0);
+        }
+        return 0;
+      };
+
+      // 8) Construir líneas finales monotónicas con sílabas 10 ms sincronizadas palabra a palabra
+      const draftLines = new Array(rawLines.length);
+      for (let li = 0; li < rawLines.length; li++) {
+        const rl = rawLines[li];
+        const anchor = lineAnchors[li];
+        if (anchor) {
+          draftLines[li] = {
+            startSec: anchor.startSec,
+            endSec: anchor.endSec,
+            anchor
+          };
+        } else {
+          const resid = getInterpolatedResid(li);
+          const s = Math.max(0, priorTime(rl.rawStart) + resid);
+          const dur = Math.max(0.55, (rl.rawEnd - rl.rawStart) * finalSlope);
+          draftLines[li] = {
+            startSec: s,
+            endSec: Math.min(actualDurSec > 10 ? actualDurSec : 9999, s + dur),
+            anchor: null
+          };
+        }
+      }
+
+      // Garantizar monotonicidad estricta entre líneas sin solapamiento
+      for (let li = 1; li < draftLines.length; li++) {
+        const minStart = draftLines[li - 1].startSec + 0.25;
+        if (draftLines[li].startSec < minStart) {
+          draftLines[li].startSec = minStart;
+        }
+        if (draftLines[li - 1].endSec > draftLines[li].startSec - 0.03) {
+          draftLines[li - 1].endSec = Math.max(draftLines[li - 1].startSec + 0.22, draftLines[li].startSec - 0.03);
+        }
+        if (draftLines[li].endSec <= draftLines[li].startSec + 0.22) {
+          draftLines[li].endSec = draftLines[li].startSec + 0.45;
+        }
+      }
+
+      const finalLines = [];
+      const unanchoredIndicesToDsp = [];
+      const unanchoredDraftObjs = [];
+
+      for (let li = 0; li < rawLines.length; li++) {
+        const rl = rawLines[li];
+        const dl = draftLines[li];
+        const span = lineWordSpans[li];
+
+        if (dl.anchor && span.count > 0) {
+          // Construir tiempos exactos palabra por palabra (ancladas + interpoladas suavemente entre anclas)
+          const hitMap = new Map();
+          for (const h of dl.anchor.hits) hitMap.set(h.wi, h);
+
+          const wordTimes = new Array(span.count);
+          for (let wi = 0; wi < span.count; wi++) {
+            const h = hitMap.get(wi);
+            if (h) {
+              wordTimes[wi] = { s: Math.max(dl.startSec, h.startSec), e: Math.min(dl.endSec, h.endSec), anchored: true };
+            }
+          }
+
+          // Rellenar huecos entre palabras ancladas proporcionalmente a su longitud de caracteres
+          let wi = 0;
+          while (wi < span.count) {
+            if (wordTimes[wi]) {
+              wi++;
+              continue;
+            }
+            const segStartWi = wi;
+            while (wi < span.count && !wordTimes[wi]) wi++;
+            const segEndWi = wi - 1;
+            const tLo = segStartWi > 0 && wordTimes[segStartWi - 1]
+              ? Math.max(dl.startSec, wordTimes[segStartWi - 1].e + 0.015)
+              : dl.startSec;
+            const tHi = (segEndWi + 1 < span.count && wordTimes[segEndWi + 1])
+              ? Math.max(tLo + 0.12, wordTimes[segEndWi + 1].s - 0.015)
+              : Math.max(tLo + 0.16, dl.endSec);
+
+            let segChars = 0;
+            for (let k = segStartWi; k <= segEndWi; k++) segChars += Math.max(1, R[span.startIdx + k].rawText.length);
+            let cursor = tLo;
+            for (let k = segStartWi; k <= segEndWi; k++) {
+              const frac = Math.max(1, R[span.startIdx + k].rawText.length) / Math.max(1, segChars);
+              const dSec = Math.max(0.08, (tHi - tLo) * frac);
+              const ws = cursor;
+              const we = (k === segEndWi) ? Math.max(ws + 0.08, tHi) : Math.max(ws + 0.08, ws + dSec - 0.01);
+              wordTimes[k] = { s: ws, e: we, anchored: false };
+              cursor += dSec;
+            }
+          }
+
+          // Asegurar monotonicidad palabra a palabra y dividir cada palabra en sílabas 10 ms
+          const syls = [];
+          let prevEnd = dl.startSec;
+          for (let k = 0; k < span.count; k++) {
+            const wt = wordTimes[k];
+            const ws = Math.max(prevEnd, wt.s);
+            const we = Math.max(ws + 0.09, wt.e);
+            prevEnd = we;
+            const wSyls = this._splitWordAndAlignSyllables100Hz(R[span.startIdx + k].rawText, ws, we, vocalProfile);
+            for (const sObj of wSyls) syls.push(sObj);
+          }
+
+          const lineStartFinal = syls.length > 0 ? syls[0].startSec : +dl.startSec.toFixed(3);
+          const lineEndFinal = syls.length > 0 ? syls[syls.length - 1].endSec : +dl.endSec.toFixed(3);
+          finalLines.push({
+            ...rl.origRef,
+            _rawLrcTimeSec: rl.rawStart,
+            _rawLrcEndTimeSec: rl.rawEnd,
+            _origTimeSec: lineStartFinal,
+            _whisperRefined: true,
+            _isWhisperAligned: true,
+            _hasAcousticGeneratedWords: false,
+            timeSec: lineStartFinal,
+            endTimeSec: lineEndFinal,
+            text: rl.text,
+            words: syls.map(s => ({ timeSec: s.startSec, endSec: s.endSec, text: s.displayText })),
+            singstarSyllables: syls
+          });
+        } else {
+          const placeholderObj = {
+            ...rl.origRef,
+            _rawLrcTimeSec: rl.rawStart,
+            _rawLrcEndTimeSec: rl.rawEnd,
+            _origTimeSec: +dl.startSec.toFixed(3),
+            _whisperRefined: true,
+            _isWhisperAligned: true,
+            timeSec: +dl.startSec.toFixed(3),
+            endTimeSec: +dl.endSec.toFixed(3),
+            text: rl.text
+          };
+          unanchoredIndicesToDsp.push(finalLines.length);
+          unanchoredDraftObjs.push(placeholderObj);
+          finalLines.push(placeholderObj);
+        }
+      }
+
+      // Alinear sílabas 10 ms de las líneas proyectadas (todavía no ancladas palabra a palabra) contra vocalProfile
+      if (unanchoredDraftObjs.length > 0) {
+        const dspAlignedSubset = this._alignSyllablesWithVocalProfile(key, unanchoredDraftObjs, vocalProfile, actualDurSec);
+        for (let u = 0; u < unanchoredIndicesToDsp.length; u++) {
+          const targetIdx = unanchoredIndicesToDsp[u];
+          const alignedObj = dspAlignedSubset[u];
+          if (alignedObj) {
+            finalLines[targetIdx] = {
+              ...finalLines[targetIdx],
+              ...alignedObj,
+              _rawLrcTimeSec: finalLines[targetIdx]._rawLrcTimeSec,
+              _rawLrcEndTimeSec: finalLines[targetIdx]._rawLrcEndTimeSec,
+              _whisperRefined: true,
+              _isWhisperAligned: true
+            };
+          }
+        }
+      }
+
+      const representativeShift = +(linearProj(refFirstSec) - refFirstSec).toFixed(2);
+      return {
+        lines: finalLines,
+        shiftSec: representativeShift,
+        slope: +finalSlope.toFixed(4),
+        anchoredLines: anchoredLineCount,
+        matchedWords: matchedWordByRIdx.size,
+        hasGlobalLock: true
+      };
+    }
+
+    /**
+     * Wrapper de compatibilidad: delega al alineador forzado en 2 etapas sobre el audio real.
+     */
+    _refineReferenceLinesWithWhisperWords(key, refLines, whisperWords, vocalProfile, actualDurSec = 195) {
+      if (!Array.isArray(refLines) || refLines.length === 0) return [];
+      const aligned = this._alignReferenceLyricsToWhisperRealAudio(key, refLines, whisperWords, vocalProfile, actualDurSec);
+      if (aligned && aligned.hasGlobalLock && Array.isArray(aligned.lines) && aligned.lines.length >= 2) {
+        return aligned.lines;
+      }
+      return this._alignSyllablesWithVocalProfile(key, refLines, vocalProfile, actualDurSec);
     }
 
     /**
@@ -7195,301 +8458,481 @@
       });
     }
 
-    async transcribeBlobForKaraokeIfNeeded(track, key, audioBlob, plainLinesOpt = null) {
-      if (!track || !audioBlob || audioBlob.size < 40000) return null;
-      if (this._activeWhisperTrackKey === key && this.isTranscribingWhisper) return null;
-      const builtIn = this.karaokeService?._findBuiltInCustomSyncedLyrics(track, String(track.videoId || track.id || '').replace(/^magic_yt_|^yt_/, '').trim());
-      if (builtIn && builtIn.syncedLyrics) return null;
-
-      try {
-        const token = this._prepToken;
-        const decoded = await this._decodeAudioBlobSinglePass(track, key, audioBlob, token, null);
-        if (!decoded || !decoded.mono16k) return null;
-        const hasPlain = Array.isArray(plainLinesOpt) && plainLinesOpt.length >= 2;
-        return await this._transcribeTrackAudioWithWhisper(
-          track,
-          key,
-          decoded.mono16k,
-          decoded.vocalDspProfile,
-          token,
-          hasPlain ? plainLinesOpt : [],
-          {
-            actualDurSec: decoded.actualDurSec || 195,
-            isPlainUnaligned: hasPlain,
-            allowBackground: true
-          }
-        );
-      } catch (_) {
-        return null;
+    async alignOrTranscribeForKaraoke(track, key, audioBlob = null, referenceLines = [], actualDurHint = 0) {
+      if (!track || !key) return null;
+      if (this.isActiveWhisperFor(key)) {
+        if (this._activeWhisperPromise) return await this._activeWhisperPromise;
+        if (this._pendingKaraokeWhisperPromise && this._pendingKaraokeWhisperKey === key) {
+          return await this._pendingKaraokeWhisperPromise;
+        }
       }
+      if (this.karaokeService && this.karaokeService.isWhisperVerifiedFor(key, actualDurHint)) {
+        return this.karaokeService.cache.get(key) || null;
+      }
+
+      const cleanRef = Array.isArray(referenceLines)
+        ? referenceLines.filter(l => l && !l._isFallbackPlaceholder && !l._isAcousticVocalIsland && String(l.text || '').trim().length > 0)
+        : [];
+      const hasRef = cleanRef.length >= 2;
+      const isPlain = hasRef && this._isUnalignedPlainLyrics(cleanRef);
+
+      const startJobToken = this._whisperJobToken;
+      this._pendingKaraokeWhisperKey = key;
+
+      const taskPromise = (async () => {
+        try {
+          if (audioBlob instanceof Blob && audioBlob.size >= 40000) {
+            const decoded = await this._decodeAudioBlobSinglePass(track, key, audioBlob, null, null);
+            if (this._whisperJobToken !== startJobToken && this._pendingKaraokeWhisperKey !== key) return null;
+            if (!decoded || !decoded.mono16k) return null;
+            const durReal = decoded.actualDurSec || actualDurHint || 195;
+            if (this.karaokeService && this.karaokeService.isWhisperVerifiedFor(key, durReal)) {
+              return this.karaokeService.cache.get(key) || null;
+            }
+            return await this._transcribeTrackAudioWithWhisper(
+              track,
+              key,
+              decoded.mono16k,
+              decoded.vocalDspProfile,
+              null,
+              hasRef ? cleanRef : [],
+              {
+                actualDurSec: durReal,
+                isPlainUnaligned: isPlain,
+                allowBackground: true
+              }
+            );
+          }
+
+          // Sin blob local (p. ej. streaming yt_bridge): intentar respaldo Whisper por videoId en servidor
+          return await this._transcribeTrackAudioWithWhisper(
+            track,
+            key,
+            null,
+            null,
+            null,
+            hasRef ? cleanRef : [],
+            {
+              actualDurSec: actualDurHint || 195,
+              isPlainUnaligned: isPlain,
+              allowBackground: true
+            }
+          );
+        } catch (_) {
+          return null;
+        } finally {
+          if (this._pendingKaraokeWhisperKey === key) {
+            this._pendingKaraokeWhisperKey = '';
+          }
+          if (this._pendingKaraokeWhisperPromise === taskPromise) {
+            this._pendingKaraokeWhisperPromise = null;
+          }
+        }
+      })();
+
+      this._pendingKaraokeWhisperPromise = taskPromise;
+      return await taskPromise;
+    }
+
+    async transcribeBlobForKaraokeIfNeeded(track, key, audioBlob, plainLinesOpt = null) {
+      return await this.alignOrTranscribeForKaraoke(track, key, audioBlob, plainLinesOpt || [], 0);
     }
 
     async _transcribeTrackAudioWithWhisper(track, key, mono16kOrAudioBuf, vocalDspProfile, token, referenceLines = [], opts = {}) {
       if (!track) return null;
-      if (this._activeWhisperTrackKey === key && this.isTranscribingWhisper) return null;
+      if (this.isActiveWhisperFor(key) && this._activeWhisperPromise) {
+        return await this._activeWhisperPromise;
+      }
+      if (this.isTranscribingWhisper && this._activeWhisperTrackKey && this._activeWhisperTrackKey !== key) {
+        this._cancelWhisperWorkerTasks();
+      }
 
+      const jobToken = ++this._whisperJobToken;
       this._activeWhisperTrackKey = key;
       this.isTranscribingWhisper = true;
-      const badge = document.getElementById('ssProDspBadge');
-      const isPlainUnaligned = Boolean(opts && opts.isPlainUnaligned) || this._isUnalignedPlainLyrics(referenceLines);
-      const allowBackground = Boolean(opts && opts.allowBackground);
-      const hasReferenceLyrics = Array.isArray(referenceLines) && referenceLines.length >= 2 && !this._isPlaceholderLyrics(referenceLines);
 
-      let mono16k = null;
-      let actualDurSec = Number(opts && opts.actualDurSec) || 0;
-      if (mono16kOrAudioBuf instanceof Float32Array) {
-        mono16k = mono16kOrAudioBuf;
-        if (!actualDurSec) actualDurSec = mono16k.length / 16000;
-      } else if (mono16kOrAudioBuf && typeof mono16kOrAudioBuf.getChannelData === 'function') {
-        actualDurSec = actualDurSec || mono16kOrAudioBuf.duration || 195;
-        mono16k = await this._extract16kHzVocalBandpassMono(mono16kOrAudioBuf, token);
-      }
-      if (!actualDurSec) {
-        actualDurSec = this.audioEngine ? (this.audioEngine.getRealDurationSec(track) || 195) : 195;
-      }
+      const runJob = (async () => {
+        const badge = document.getElementById('ssProDspBadge');
+        const isPlainUnaligned = Boolean(opts && opts.isPlainUnaligned) || this._isUnalignedPlainLyrics(referenceLines);
+        const allowBackground = (opts && typeof opts.allowBackground === 'boolean') ? opts.allowBackground : true;
+        const hasReferenceLyrics = Array.isArray(referenceLines) && referenceLines.length >= 2 && !this._isPlaceholderLyrics(referenceLines);
 
-      const isStillRelevant = () => {
-        if (token !== undefined && token !== this._prepToken) return false;
-        if (this.isActive && this.currentTrackKey === key) return true;
-        if (allowBackground && this.karaokeService && (!this.karaokeService.currentTrackKey || this.karaokeService.currentTrackKey === key)) return true;
-        return this.currentTrackKey === key;
-      };
-
-      const applyTranscribedLinesLive = (stageLines, pureLinesToPersist, isComplete = false) => {
-        if (!Array.isArray(stageLines) || stageLines.length === 0) return;
-        if (!isStillRelevant()) return;
-        const alignedStage = stageLines[0]?.singstarSyllables
-          ? stageLines
-          : this._alignSyllablesWithVocalProfile(key, stageLines, vocalDspProfile, actualDurSec);
-        const studioData = {
-          track,
-          key,
-          actualDurSec,
-          dspContour: vocalDspProfile,
-          acousticLines: alignedStage,
-          hasDspMelody: Boolean(vocalDspProfile && vocalDspProfile.voicedCount >= 10),
-          hasAcousticSyllables: true,
-          hasPlaceholderLyrics: false,
-          hasUnalignedPlainLyrics: false,
-          isAudioTranscribed: isComplete || (hasReferenceLyrics && !isPlainUnaligned)
-        };
-        this._putStudioAnalysisCache(key, studioData);
-        if (this.currentTrackKey === key && this.isActive) {
-          this._applyStudioAnalysisToStage(studioData, Number(this.karaokeService?.timeOffsetSec || 0), false);
-          this._lastTeleprompterLineIdx = -2;
-          this._lastTeleprompterSylIdx = -2;
-        }
-        const cleanToSave = Array.isArray(pureLinesToPersist)
-          ? pureLinesToPersist.filter(l => l && !l._isAcousticVocalIsland && !l._isFallbackPlaceholder && String(l.text || '').trim().length > 0)
+        // Instantánea inmutable de tiempos LRC originales para que cada ventana alinee sin deriva acumulada
+        const rawRefLines = hasReferenceLyrics
+          ? referenceLines.map(l => ({
+              ...l,
+              _rawLrcTimeSec: Number.isFinite(Number(l._rawLrcTimeSec))
+                ? Number(l._rawLrcTimeSec)
+                : (Number.isFinite(Number(l._origTimeSec)) ? Number(l._origTimeSec) : Math.max(0, Number(l.timeSec) || 0)),
+              _rawLrcEndTimeSec: Number.isFinite(Number(l._rawLrcEndTimeSec))
+                ? Number(l._rawLrcEndTimeSec)
+                : (Number.isFinite(Number(l.endTimeSec)) ? Number(l.endTimeSec) : (Math.max(0, Number(l.timeSec) || 0) + 3.2))
+            }))
           : [];
-        if (cleanToSave.length >= 2) {
-          this._commitAlignedLinesToKaraoke(key, cleanToSave);
-          if (this.karaokeService && (!hasReferenceLyrics || isPlainUnaligned) && (isComplete || cleanToSave.length >= 3)) {
-            this.karaokeService.saveTranscribedLyricsToPersistentStore(track, cleanToSave, actualDurSec, { skipSingStarNotify: true });
+
+        let mono16k = null;
+        let actualDurSec = Number(opts && opts.actualDurSec) || 0;
+        if (mono16kOrAudioBuf instanceof Float32Array) {
+          mono16k = mono16kOrAudioBuf;
+          if (!actualDurSec) actualDurSec = mono16k.length / 16000;
+        } else if (mono16kOrAudioBuf && typeof mono16kOrAudioBuf.getChannelData === 'function') {
+          actualDurSec = actualDurSec || mono16kOrAudioBuf.duration || 195;
+          mono16k = await this._extract16kHzVocalBandpassMono(mono16kOrAudioBuf, null);
+        }
+        if (!actualDurSec) {
+          actualDurSec = this.audioEngine ? (this.audioEngine.getRealDurationSec(track) || 195) : 195;
+        }
+
+        const isStillRelevant = () => {
+          if (jobToken !== this._whisperJobToken) return false;
+          if (this.isActive && this.currentTrackKey === key) return true;
+          if (allowBackground && this.karaokeService && (!this.karaokeService.currentTrackKey || this.karaokeService.currentTrackKey === key)) return true;
+          return this.currentTrackKey === key;
+        };
+
+        let lockedOnce = false;
+        let lastShiftSec = 0;
+
+        const applyTranscribedLinesLive = (stageLines, pureLinesToPersist, isComplete = false, alignMeta = {}) => {
+          if (!Array.isArray(stageLines) || stageLines.length === 0) return;
+          if (!isStillRelevant()) return;
+          const alignedStage = stageLines[0]?.singstarSyllables
+            ? stageLines
+            : this._alignSyllablesWithVocalProfile(key, stageLines, vocalDspProfile, actualDurSec);
+          const verifiedNow = Boolean(isComplete || alignMeta.hasGlobalLock || !hasReferenceLyrics || isPlainUnaligned);
+          const studioData = {
+            track,
+            key,
+            actualDurSec,
+            dspContour: vocalDspProfile,
+            acousticLines: alignedStage,
+            hasDspMelody: Boolean(vocalDspProfile && vocalDspProfile.voicedCount >= 10),
+            hasAcousticSyllables: true,
+            hasPlaceholderLyrics: false,
+            hasUnalignedPlainLyrics: false,
+            isAudioTranscribed: verifiedNow,
+            isWhisperVerified: verifiedNow,
+            shiftSec: Number(alignMeta.shiftSec) || 0,
+            slope: Number(alignMeta.slope) || 1.0
+          };
+          this._putStudioAnalysisCache(key, studioData);
+
+          const cleanToSave = Array.isArray(pureLinesToPersist)
+            ? pureLinesToPersist.filter(l => l && !l._isAcousticVocalIsland && !l._isFallbackPlaceholder && String(l.text || '').trim().length > 0)
+            : [];
+          if (cleanToSave.length >= 2) {
+            lockedOnce = true;
+            if (Number.isFinite(Number(alignMeta.shiftSec))) lastShiftSec = Number(alignMeta.shiftSec);
+            this._commitAlignedLinesToKaraoke(key, cleanToSave, {
+              track,
+              audioDurSec: actualDurSec,
+              shiftSec: Number(alignMeta.shiftSec) || 0,
+              slope: Number(alignMeta.slope) || 1.0,
+              matchedWords: Number(alignMeta.matchedWords) || 0,
+              anchoredLines: Number(alignMeta.anchoredLines) || cleanToSave.length,
+              hasGlobalLock: Boolean(alignMeta.hasGlobalLock ?? true),
+              isComplete
+            });
+            if (this.karaokeService && (isComplete || alignMeta.hasGlobalLock || (!hasReferenceLyrics && cleanToSave.length >= 3))) {
+              this.karaokeService.saveTranscribedLyricsToPersistentStore(track, cleanToSave, actualDurSec, {
+                skipSingStarNotify: true,
+                skipApplyCache: true,
+                isComplete,
+                shiftSec: Number(alignMeta.shiftSec) || 0,
+                slope: Number(alignMeta.slope) || 1.0,
+                matchedWords: Number(alignMeta.matchedWords) || 0,
+                anchoredLines: Number(alignMeta.anchoredLines) || cleanToSave.length
+              });
+            }
           }
-        }
-      };
 
-      try {
-        const languageHint = this._detectLanguageHintForTrack(track, hasReferenceLyrics ? referenceLines : []);
+          // Aplicar a SingStar DESPUÉS de _commitAlignedLinesToKaraoke para leer el offset ya limpio (0.0s tras reset pre-IA)
+          if (this.currentTrackKey === key && this.isActive) {
+            const effOff = Number(this.karaokeService?.timeOffsetSec || 0);
+            const offBadge = document.getElementById('ssProOffsetBadge');
+            if (offBadge) offBadge.textContent = `${effOff >= 0 ? '+' : ''}${effOff.toFixed(2)}s`;
+            this._applyStudioAnalysisToStage(studioData, effOff, false);
+            this._lastTeleprompterLineIdx = -2;
+            this._lastTeleprompterSylIdx = -2;
+          }
+        };
 
-        // Reactivar el worker si se canceló previamente en otra canción
-        if (this._whisperWorker && !this._whisperWorkerFailed) {
-          try { this._whisperWorker.postMessage({ type: 'reset_cancel' }); } catch (_) {}
-        }
+        const formatReadyLabel = (shiftVal) => {
+          const s = Number(shiftVal) || 0;
+          return Math.abs(s) >= 0.65
+            ? `Sincro IA · ${s > 0 ? '+' : ''}${s.toFixed(1)}s`
+            : 'Sincro IA · 10ms';
+        };
 
-        // 1) Transcripción neuronal directa sobre el flujo vocal 16 kHz (Worker local ONNX -> respaldo Server PCM)
-        if (mono16k && mono16k.length >= 16000) {
-          const prioritySec = this.audioEngine ? (this.audioEngine.getCurrentSongTimeSec() || 0) : 0;
-          const windows = this._findActiveVocalWindowsForWhisper(vocalDspProfile, actualDurSec, prioritySec);
-          const collectedWords = [];
+        try {
+          const languageHint = this._detectLanguageHintForTrack(track, hasReferenceLyrics ? rawRefLines : []);
 
-          for (let wIdx = 0; wIdx < windows.length; wIdx++) {
-            if (!isStillRelevant()) return null;
+          // Reactivar el worker si se canceló previamente en otra canción
+          if (this._whisperWorker && !this._whisperWorkerFailed) {
+            try { this._whisperWorker.postMessage({ type: 'reset_cancel' }); } catch (_) {}
+          }
 
-            const win = windows[wIdx];
-            if (this.currentTrackKey === key && this.isActive) {
-              this._setSyncStatusChip(`Transcribiendo IA ${wIdx + 1}/${windows.length}`, 'working');
-              if (badge) {
-                badge.textContent = `WHISPER IA (${wIdx + 1}/${windows.length}) · ${Math.round(win.startSec)}s`;
+          // 1) Transcripción / Alineación forzada directa sobre el flujo vocal 16 kHz (Worker local ONNX -> respaldo Server PCM)
+          if (mono16k && mono16k.length >= 16000) {
+            const prioritySec = this.audioEngine ? (this.audioEngine.getCurrentSongTimeSec() || 0) : 0;
+            const windows = this._findActiveVocalWindowsForWhisper(vocalDspProfile, actualDurSec, prioritySec, {
+              forAlignment: hasReferenceLyrics
+            });
+            const collectedWords = [];
+
+            for (let wIdx = 0; wIdx < windows.length; wIdx++) {
+              if (!isStillRelevant()) return null;
+
+              const win = windows[wIdx];
+              const stepLabel = lockedOnce
+                ? `${formatReadyLabel(lastShiftSec)} (${wIdx + 1}/${windows.length})`
+                : (hasReferenceLyrics ? `Sincro IA ${wIdx + 1}/${windows.length}` : `Transcribiendo IA ${wIdx + 1}/${windows.length}`);
+              if (this.karaokeService) {
+                this.karaokeService.setKaraokeAiSyncStatus(key, stepLabel, 'working');
+              }
+              if (this.currentTrackKey === key && this.isActive) {
+                this._setSyncStatusChip(stepLabel, 'working');
+                if (badge) {
+                  badge.textContent = `WHISPER IA (${wIdx + 1}/${windows.length}) · ${Math.round(win.startSec)}s`;
+                }
+              }
+              const sSample = Math.max(0, Math.floor(win.startSec * 16000));
+              const eSample = Math.min(mono16k.length, Math.ceil(win.endSec * 16000));
+              if (eSample - sSample < 8000) continue;
+
+              const slicePcm = mono16k.subarray(sSample, eSample);
+              let res = await this._transcribeWindowViaWorker(
+                slicePcm,
+                win.startSec,
+                languageHint,
+                (statusMsg) => {
+                  if (badge && this.currentTrackKey === key && this.isActive && statusMsg) {
+                    badge.textContent = statusMsg.toUpperCase().slice(0, 34);
+                  }
+                }
+              );
+              if (!isStillRelevant()) return null;
+
+              // Si el Web Worker WASM/ONNX falló o no está disponible, respaldo automático Server PCM
+              if (!res || !Array.isArray(res.words) || res.words.length === 0) {
+                if (this._whisperWorkerFailed || !this._whisperWorker) {
+                  if (this.currentTrackKey === key && this.isActive) {
+                    this._setSyncStatusChip(`IA Servidor ${wIdx + 1}/${windows.length}`, 'working');
+                  }
+                  res = await this._transcribeWindowViaServerPcm(slicePcm, win.startSec, languageHint, track);
+                  if (!isStillRelevant()) return null;
+                }
+              }
+
+              if (res && Array.isArray(res.words) && res.words.length > 0) {
+                for (const w of res.words) {
+                  const txt = String(w?.text || '').trim();
+                  if (!txt) continue;
+                  const sSec = Number(w.startSec);
+                  const eSec = Number(w.endSec);
+                  if (!Number.isFinite(sSec)) continue;
+                  const dup = collectedWords.some(
+                    (ew) => Math.abs(ew.startSec - sSec) < 0.30 && ew.text.toLowerCase() === txt.toLowerCase()
+                  );
+                  if (!dup) {
+                    collectedWords.push({
+                      text: txt,
+                      startSec: sSec,
+                      endSec: Number.isFinite(eSec) ? Math.max(sSec + 0.10, eSec) : +(sSec + 0.32).toFixed(3)
+                    });
+                  }
+                }
+                collectedWords.sort((a, b) => a.startSec - b.startSec);
+
+                const isLastWin = (wIdx === windows.length - 1);
+                if (hasReferenceLyrics && isPlainUnaligned) {
+                  const alignedPlain = this._alignPlainLyricsWithWhisperAndIslands(
+                    key,
+                    rawRefLines,
+                    collectedWords,
+                    vocalDspProfile,
+                    actualDurSec
+                  );
+                  if (alignedPlain.length >= 2) {
+                    applyTranscribedLinesLive(alignedPlain, alignedPlain, isLastWin, {
+                      hasGlobalLock: collectedWords.length >= 4,
+                      matchedWords: collectedWords.length,
+                      anchoredLines: alignedPlain.length
+                    });
+                  }
+                } else if (hasReferenceLyrics) {
+                  const alignRes = this._alignReferenceLyricsToWhisperRealAudio(
+                    key,
+                    rawRefLines,
+                    collectedWords,
+                    vocalDspProfile,
+                    actualDurSec
+                  );
+                  if (alignRes && alignRes.hasGlobalLock && Array.isArray(alignRes.lines) && alignRes.lines.length >= 2) {
+                    applyTranscribedLinesLive(alignRes.lines, alignRes.lines, isLastWin, alignRes);
+                  }
+                } else {
+                  const liveLines = this._buildLinesFromWhisperWordsAndDsp(
+                    collectedWords,
+                    vocalDspProfile,
+                    actualDurSec,
+                    []
+                  );
+                  if (liveLines.length >= 1) {
+                    const stageLines = isLastWin
+                      ? liveLines
+                      : this._mergeTranscribedLinesWithVocalIslands(key, liveLines, vocalDspProfile, actualDurSec);
+                    applyTranscribedLinesLive(stageLines, liveLines, isLastWin, {
+                      hasGlobalLock: liveLines.length >= 2,
+                      matchedWords: collectedWords.length,
+                      anchoredLines: liveLines.length
+                    });
+                  }
+                }
               }
             }
-            const sSample = Math.max(0, Math.floor(win.startSec * 16000));
-            const eSample = Math.min(mono16k.length, Math.ceil(win.endSec * 16000));
-            if (eSample - sSample < 8000) continue;
 
-            const slicePcm = mono16k.subarray(sSample, eSample);
-            let res = await this._transcribeWindowViaWorker(
-              slicePcm,
-              win.startSec,
-              languageHint,
-              (statusMsg) => {
-                if (badge && this.currentTrackKey === key && this.isActive && statusMsg) {
-                  badge.textContent = statusMsg.toUpperCase().slice(0, 34);
-                }
-              }
-            );
-            if (!isStillRelevant()) return null;
-
-            // Si el Web Worker WASM/ONNX falló o no está disponible, respaldo automático Server PCM
-            if (!res || !Array.isArray(res.words) || res.words.length === 0) {
-              if (this._whisperWorkerFailed || !this._whisperWorker) {
-                if (this.currentTrackKey === key && this.isActive) {
-                  this._setSyncStatusChip(`IA Servidor ${wIdx + 1}/${windows.length}`, 'working');
-                }
-                res = await this._transcribeWindowViaServerPcm(slicePcm, win.startSec, languageHint, track);
-                if (!isStillRelevant()) return null;
-              }
-            }
-
-            if (res && Array.isArray(res.words) && res.words.length > 0) {
-              for (const w of res.words) {
-                const txt = String(w?.text || '').trim();
-                if (!txt) continue;
-                const sSec = Number(w.startSec);
-                const eSec = Number(w.endSec);
-                if (!Number.isFinite(sSec)) continue;
-                const dup = collectedWords.some(
-                  (ew) => Math.abs(ew.startSec - sSec) < 0.30 && ew.text.toLowerCase() === txt.toLowerCase()
-                );
-                if (!dup) {
-                  collectedWords.push({
-                    text: txt,
-                    startSec: sSec,
-                    endSec: Number.isFinite(eSec) ? Math.max(sSec + 0.10, eSec) : +(sSec + 0.32).toFixed(3)
-                  });
-                }
-              }
-              collectedWords.sort((a, b) => a.startSec - b.startSec);
-
-              const isLastWin = (wIdx === windows.length - 1);
+            if (collectedWords.length >= 3) {
+              let finalLines = [];
+              let finalMeta = { hasGlobalLock: true, shiftSec: 0, slope: 1.0, matchedWords: collectedWords.length, anchoredLines: 0 };
               if (hasReferenceLyrics && isPlainUnaligned) {
-                const alignedPlain = this._alignPlainLyricsWithWhisperAndIslands(
-                  key,
-                  referenceLines,
-                  collectedWords,
-                  vocalDspProfile,
-                  actualDurSec
-                );
-                if (alignedPlain.length >= 2) {
-                  applyTranscribedLinesLive(alignedPlain, alignedPlain, isLastWin);
-                }
+                finalLines = this._alignPlainLyricsWithWhisperAndIslands(key, rawRefLines, collectedWords, vocalDspProfile, actualDurSec);
+                finalMeta.anchoredLines = finalLines.length;
               } else if (hasReferenceLyrics) {
-                const refinedFull = this._refineReferenceLinesWithWhisperWords(
-                  key,
-                  referenceLines,
-                  collectedWords,
-                  vocalDspProfile,
-                  actualDurSec
-                );
-                if (refinedFull.length >= 2) {
-                  applyTranscribedLinesLive(refinedFull, refinedFull, isLastWin);
+                const alignRes = this._alignReferenceLyricsToWhisperRealAudio(key, rawRefLines, collectedWords, vocalDspProfile, actualDurSec);
+                if (alignRes && alignRes.hasGlobalLock && Array.isArray(alignRes.lines) && alignRes.lines.length >= 2) {
+                  finalLines = alignRes.lines;
+                  finalMeta = alignRes;
                 }
               } else {
-                const liveLines = this._buildLinesFromWhisperWordsAndDsp(
-                  collectedWords,
-                  vocalDspProfile,
-                  actualDurSec,
-                  []
+                finalLines = this._buildLinesFromWhisperWordsAndDsp(collectedWords, vocalDspProfile, actualDurSec, []);
+                finalMeta.anchoredLines = finalLines.length;
+              }
+
+              if (finalLines.length >= 1) {
+                applyTranscribedLinesLive(finalLines, finalLines, true, finalMeta);
+                const readyTxt = formatReadyLabel(finalMeta.shiftSec);
+                if (this.karaokeService) {
+                  this.karaokeService.setKaraokeAiSyncStatus(key, readyTxt, 'ready');
+                }
+                if (this.currentTrackKey === key && this.isActive) {
+                  this._setSyncStatusChip(readyTxt, 'ready');
+                  if (badge) badge.textContent = 'WHISPER IA + SÍLABAS 10MS';
+                  const shiftAbs = Math.abs(Number(finalMeta.shiftSec) || 0);
+                  const popSub = shiftAbs >= 0.65
+                    ? `Desfase corregido (${finalMeta.shiftSec > 0 ? '+' : ''}${finalMeta.shiftSec.toFixed(1)}s) en Karaoke y SingStar`
+                    : `${collectedWords.length} palabras ancladas al audio real`;
+                  this._spawnPopup('SINCRONIZADO CON AUDIO REAL', popSub, '#34d399', 1750);
+                }
+                return finalLines;
+              }
+            } else if (hasReferenceLyrics && isPlainUnaligned) {
+              const islandAligned = this._alignPlainLyricsWithWhisperAndIslands(key, rawRefLines, collectedWords, vocalDspProfile, actualDurSec);
+              if (islandAligned.length >= 2) {
+                applyTranscribedLinesLive(islandAligned, islandAligned, true, { hasGlobalLock: true, anchoredLines: islandAligned.length });
+                if (this.currentTrackKey === key && this.isActive) {
+                  this._setSyncStatusChip('Alineado a voz real', 'ready');
+                }
+                return islandAligned;
+              }
+            }
+          }
+
+          // 2) Respaldo en el servidor (/api/v1/lyrics/transcribe por videoId) cuando no hubo blob local
+          //    o el worker ONNX local no logró bloqueo — funciona tanto CON letra de referencia como SIN ella.
+          if (!lockedOnce) {
+            const rawVid = String(track.videoId || track.id || '').replace(/^magic_yt_|^yt_/, '').trim();
+            const vid = /^[A-Za-z0-9_-]{11}$/.test(rawVid) ? rawVid : '';
+            const baseUrl = typeof window.getApiBaseUrl === 'function' ? window.getApiBaseUrl() : '';
+            if (vid) {
+              try {
+                if (this.karaokeService) {
+                  this.karaokeService.setKaraokeAiSyncStatus(key, 'Sincro IA servidor...', 'working');
+                }
+                if (this.currentTrackKey === key && this.isActive) {
+                  this._setSyncStatusChip('Sincro IA servidor...', 'working');
+                }
+                const ctrl = new AbortController();
+                const tid = setTimeout(() => ctrl.abort(), 28000);
+                const resp = await fetch(
+                  `${baseUrl}/api/v1/lyrics/transcribe?videoId=${encodeURIComponent(vid)}&title=${encodeURIComponent(track.title || '')}&artist=${encodeURIComponent(track.artist || '')}&language=${encodeURIComponent(languageHint)}`,
+                  { method: 'POST', signal: ctrl.signal }
                 );
-                if (liveLines.length >= 1) {
-                  const stageLines = isLastWin
-                    ? liveLines
-                    : this._mergeTranscribedLinesWithVocalIslands(key, liveLines, vocalDspProfile, actualDurSec);
-                  applyTranscribedLinesLive(stageLines, liveLines, isLastWin);
-                }
-              }
-            }
-          }
-
-          if (collectedWords.length >= 3) {
-            let finalLines = [];
-            if (hasReferenceLyrics && isPlainUnaligned) {
-              finalLines = this._alignPlainLyricsWithWhisperAndIslands(key, referenceLines, collectedWords, vocalDspProfile, actualDurSec);
-            } else if (hasReferenceLyrics) {
-              finalLines = this._refineReferenceLinesWithWhisperWords(key, referenceLines, collectedWords, vocalDspProfile, actualDurSec);
-            } else {
-              finalLines = this._buildLinesFromWhisperWordsAndDsp(collectedWords, vocalDspProfile, actualDurSec, []);
-            }
-            if (finalLines.length >= 1) {
-              applyTranscribedLinesLive(finalLines, finalLines, true);
-              if (this.currentTrackKey === key && this.isActive) {
-                this._setSyncStatusChip('Sincronizado IA · 10ms', 'ready');
-                if (badge) badge.textContent = 'WHISPER IA + SÍLABAS 10MS';
-              }
-              if (!hasReferenceLyrics || isPlainUnaligned) {
-                this._spawnPopup('SÍLABAS SINCRONIZADAS CON IA', `${collectedWords.length} palabras ancladas al audio real`, '#34d399', 1800);
-              }
-              return finalLines;
-            }
-          } else if (hasReferenceLyrics && isPlainUnaligned) {
-            // Si Whisper devolvió pocas palabras pero hay texto plano e islas vocales, alinear contra las islas reales
-            const islandAligned = this._alignPlainLyricsWithWhisperAndIslands(key, referenceLines, collectedWords, vocalDspProfile, actualDurSec);
-            if (islandAligned.length >= 2) {
-              applyTranscribedLinesLive(islandAligned, islandAligned, true);
-              if (this.currentTrackKey === key && this.isActive) {
-                this._setSyncStatusChip('Alineado a voz real', 'ready');
-              }
-              return islandAligned;
-            }
-          }
-        }
-
-        // 2) Respaldo en el servidor (/api/v1/lyrics/transcribe por videoId) cuando no había letra externa
-        if (!hasReferenceLyrics) {
-          const rawVid = String(track.videoId || track.id || '').replace(/^magic_yt_|^yt_/, '').trim();
-          const vid = /^[A-Za-z0-9_-]{11}$/.test(rawVid) ? rawVid : '';
-          const baseUrl = typeof window.getApiBaseUrl === 'function' ? window.getApiBaseUrl() : '';
-          if (vid) {
-            try {
-              if (this.currentTrackKey === key && this.isActive) {
-                this._setSyncStatusChip('Transcribiendo servidor...', 'working');
-              }
-              const ctrl = new AbortController();
-              const tid = setTimeout(() => ctrl.abort(), 28000);
-              const resp = await fetch(
-                `${baseUrl}/api/v1/lyrics/transcribe?videoId=${encodeURIComponent(vid)}&title=${encodeURIComponent(track.title || '')}&artist=${encodeURIComponent(track.artist || '')}&language=${encodeURIComponent(languageHint)}`,
-                { method: 'POST', signal: ctrl.signal }
-              );
-              clearTimeout(tid);
-              if (resp && resp.ok) {
-                const data = await resp.json();
-                if (data && Array.isArray(data.words) && data.words.length >= 3) {
-                  const built = this._buildLinesFromWhisperWordsAndDsp(data.words, vocalDspProfile, actualDurSec, []);
-                  if (built.length >= 2) {
-                    applyTranscribedLinesLive(built, built, true);
-                    if (this.currentTrackKey === key && this.isActive) {
-                      this._setSyncStatusChip('Sincronizado IA · 10ms', 'ready');
-                      if (badge) badge.textContent = 'WHISPER IA + DTW 10MS';
+                clearTimeout(tid);
+                if (!isStillRelevant()) return null;
+                if (resp && resp.ok) {
+                  const data = await resp.json();
+                  if (data && Array.isArray(data.words) && data.words.length >= 3) {
+                    let srvLines = [];
+                    let srvMeta = { hasGlobalLock: true, shiftSec: 0, slope: 1.0, matchedWords: data.words.length, anchoredLines: 0 };
+                    if (hasReferenceLyrics && isPlainUnaligned) {
+                      srvLines = this._alignPlainLyricsWithWhisperAndIslands(key, rawRefLines, data.words, vocalDspProfile, actualDurSec);
+                      srvMeta.anchoredLines = srvLines.length;
+                    } else if (hasReferenceLyrics) {
+                      const alignSrv = this._alignReferenceLyricsToWhisperRealAudio(key, rawRefLines, data.words, vocalDspProfile, actualDurSec);
+                      if (alignSrv && alignSrv.hasGlobalLock && Array.isArray(alignSrv.lines) && alignSrv.lines.length >= 2) {
+                        srvLines = alignSrv.lines;
+                        srvMeta = alignSrv;
+                      }
+                    } else {
+                      srvLines = this._buildLinesFromWhisperWordsAndDsp(data.words, vocalDspProfile, actualDurSec, []);
+                      srvMeta.anchoredLines = srvLines.length;
                     }
-                    this._spawnPopup('LETRA TRANSCRITA CON IA', `${built.length} versos sincronizados sílaba a sílaba`, '#34d399', 1600);
-                    return built;
-                  }
-                } else if (data && data.syncedLyrics && String(data.syncedLyrics).includes('[')) {
-                  const parsed = this.karaokeService ? this.karaokeService.parseLrc(data.syncedLyrics, { track }) : [];
-                  if (parsed.length >= 2) {
-                    applyTranscribedLinesLive(parsed, parsed, true);
-                    if (this.currentTrackKey === key && this.isActive) {
-                      this._setSyncStatusChip('Sincronizado IA · 10ms', 'ready');
-                      if (badge) badge.textContent = 'WHISPER IA + DTW 10MS';
+                    if (srvLines.length >= 2) {
+                      applyTranscribedLinesLive(srvLines, srvLines, true, srvMeta);
+                      const readyTxt = formatReadyLabel(srvMeta.shiftSec);
+                      if (this.karaokeService) {
+                        this.karaokeService.setKaraokeAiSyncStatus(key, readyTxt, 'ready');
+                      }
+                      if (this.currentTrackKey === key && this.isActive) {
+                        this._setSyncStatusChip(readyTxt, 'ready');
+                        if (badge) badge.textContent = 'WHISPER IA + DTW 10MS';
+                      }
+                      this._spawnPopup('SINCRONIZADO CON AUDIO REAL', `${srvLines.length} versos bloqueados a la voz real`, '#34d399', 1600);
+                      return srvLines;
                     }
-                    this._spawnPopup('LETRA TRANSCRITA CON IA', `${parsed.length} versos sincronizados del audio`, '#34d399', 1600);
-                    return parsed;
+                  } else if (!hasReferenceLyrics && data && data.syncedLyrics && String(data.syncedLyrics).includes('[')) {
+                    const parsed = this.karaokeService ? this.karaokeService.parseLrc(data.syncedLyrics, { track }) : [];
+                    if (parsed.length >= 2) {
+                      applyTranscribedLinesLive(parsed, parsed, true, { hasGlobalLock: true, anchoredLines: parsed.length });
+                      if (this.currentTrackKey === key && this.isActive) {
+                        this._setSyncStatusChip('Sincro IA · 10ms', 'ready');
+                        if (badge) badge.textContent = 'WHISPER IA + DTW 10MS';
+                      }
+                      this._spawnPopup('LETRA TRANSCRITA CON IA', `${parsed.length} versos sincronizados del audio`, '#34d399', 1600);
+                      return parsed;
+                    }
                   }
                 }
-              }
-            } catch (_) {}
+              } catch (_) {}
+            }
+          }
+          return null;
+        } catch (_) {
+          return null;
+        } finally {
+          if (jobToken === this._whisperJobToken) {
+            this.isTranscribingWhisper = false;
+            if (this._activeWhisperTrackKey === key) {
+              this._activeWhisperTrackKey = '';
+              this._activeWhisperPromise = null;
+            }
+            // Liberar buffer PCM 16 kHz grande una vez terminada la alineación para mantener RAM ligera en Android
+            if (this._activeDecodedTrackKey === key && this._activeDecodedBundle) {
+              this._activeDecodedBundle.mono16k = null;
+            }
+            if (!lockedOnce && this.karaokeService && this.karaokeService._aiSyncStatusMap.get(key)?.state === 'working') {
+              this.karaokeService.setKaraokeAiSyncStatus(key, '', '');
+            }
+            if (!lockedOnce && this.currentTrackKey === key && this.isActive) {
+              this._setSyncStatusChip(vocalDspProfile ? 'Sincronizado DTW 10ms' : '', vocalDspProfile ? 'ready' : '');
+            }
           }
         }
-        return null;
-      } catch (_) {
-        return null;
-      } finally {
-        this.isTranscribingWhisper = false;
-        if (this._activeWhisperTrackKey === key) {
-          this._activeWhisperTrackKey = '';
-        }
-      }
+      })();
+
+      this._activeWhisperPromise = runJob;
+      return await runJob;
     }
 
     /**
@@ -7549,7 +8992,7 @@
       for (let f = 0; f < nFrames; f++) {
         // Ceder el hilo cada 300 frames (~3s de audio) para mantener 60fps constantes en móviles
         if (f > 0 && (f % 300) === 0) {
-          if (token !== this._prepToken) return null;
+          if (token !== undefined && token !== null && token !== this._prepToken) return null;
           if (onProgress && (f % 900) === 0) {
             const p = 38 + Math.round((f / nFrames) * 46);
             onProgress(p, `Analizando sílabas a 10ms y tono (${Math.round((f / nFrames) * 100)}%)...`);
@@ -8126,12 +9569,17 @@
      * Publica de forma segura las sílabas alineadas hacia KaraokeLyricsService
      * SIN provocar jamás recursión con renderLinesToDom -> onLyricsUpdated.
      */
-    _commitAlignedLinesToKaraoke(key, outLines) {
+    _commitAlignedLinesToKaraoke(key, outLines, meta = null) {
       if (!key || !this.karaokeService || !Array.isArray(outLines)) return;
       const cleanLines = outLines.filter(
         (l) => l && !l._isAcousticVocalIsland && !l._isFallbackPlaceholder && String(l.text || '').trim().length > 0
       );
       if (cleanLines.length < 2) return;
+      if (typeof this.karaokeService.applyWhisperVerifiedLines === 'function') {
+        const targetTrack = (meta && meta.track) || this.karaokeService.currentTrack || this.currentTrack || null;
+        this.karaokeService.applyWhisperVerifiedLines(targetTrack, key, cleanLines, meta || {});
+        return;
+      }
       this.karaokeService.cache.set(key, cleanLines.map(l => ({ ...l })));
       if (this.karaokeService.currentTrackKey === key) {
         this.karaokeService.currentLyrics = cleanLines.map(l => ({ ...l }));
@@ -8301,14 +9749,37 @@
         }
         const isPlaceholder = this._isPlaceholderLyrics(lyricsLines);
         const isPlainUnaligned = !isPlaceholder && this._isUnalignedPlainLyrics(lyricsLines);
+        const incomingHasWhisper = !isPlaceholder && lyricsLines.some(l => l && l._isWhisperAligned);
+        const incomingHasWhisperSyls = incomingHasWhisper && lyricsLines.every(
+          l => !l || l._isFallbackPlaceholder || (Array.isArray(l.singstarSyllables) && l.singstarSyllables.length > 0)
+        );
         if (this.studioAnalysisCache.has(key)) {
           const cached = this.studioAnalysisCache.get(key);
+          // Protección absoluta: si el estudio ya está verificado con Whisper real y llega una actualización no-Whisper
+          // (p.ej. offset manual, traducción o llegada tardía de LRCLIB), NO machacar las sílabas verificadas;
+          // únicamente re-aplicar el nuevo offset al escenario.
+          if (cached.isWhisperVerified && !incomingHasWhisper) {
+            if (this.isActive && key === this.currentTrackKey) {
+              this._applyStudioAnalysisToStage(cached, safeOffset, false);
+            }
+            return;
+          }
           // Nunca sobreescribir letras reales ya transcritas con placeholders o texto plano sin tiempos
           if (!isPlaceholder && !(isPlainUnaligned && cached.isAudioTranscribed && !cached.hasPlaceholderLyrics)) {
-            const dur = cached.actualDurSec || (this.audioEngine ? (this.audioEngine.getRealDurationSec(track) || 195) : 195);
-            cached.acousticLines = this._alignSyllablesWithVocalProfile(key, lyricsLines, cached.dspContour, dur);
-            cached.hasPlaceholderLyrics = false;
-            cached.hasUnalignedPlainLyrics = isPlainUnaligned;
+            if (incomingHasWhisperSyls) {
+              cached.acousticLines = lyricsLines
+                .filter(l => l && !l._isFallbackPlaceholder && String(l.text || '').trim().length > 0)
+                .map(l => ({ ...l }));
+              cached.isWhisperVerified = true;
+              cached.isAudioTranscribed = true;
+              cached.hasPlaceholderLyrics = false;
+              cached.hasUnalignedPlainLyrics = false;
+            } else {
+              const dur = cached.actualDurSec || (this.audioEngine ? (this.audioEngine.getRealDurationSec(track) || 195) : 195);
+              cached.acousticLines = this._alignSyllablesWithVocalProfile(key, lyricsLines, cached.dspContour, dur);
+              cached.hasPlaceholderLyrics = false;
+              cached.hasUnalignedPlainLyrics = isPlainUnaligned;
+            }
           }
           if (this.isActive && key === this.currentTrackKey) {
             this._applyStudioAnalysisToStage(cached, safeOffset, false);
@@ -8317,19 +9788,22 @@
         }
         if (this.isActive && key === this.currentTrackKey && !isPlaceholder && !isPlainUnaligned) {
           const dur = this.audioEngine ? (this.audioEngine.getRealDurationSec(track) || 195) : 195;
-          const quickAligned = this._alignSyllablesWithVocalProfile(key, lyricsLines, null, dur);
+          const stageLines = incomingHasWhisperSyls
+            ? lyricsLines.filter(l => l && !l._isFallbackPlaceholder && String(l.text || '').trim().length > 0).map(l => ({ ...l }))
+            : this._alignSyllablesWithVocalProfile(key, lyricsLines, null, dur);
           this._applyStudioAnalysisToStage({
             track,
             key,
             dspContour: null,
-            acousticLines: quickAligned,
+            acousticLines: stageLines,
             hasDspMelody: false,
             hasAcousticSyllables: true,
             hasPlaceholderLyrics: false,
-            hasUnalignedPlainLyrics: false
+            hasUnalignedPlainLyrics: false,
+            isWhisperVerified: incomingHasWhisperSyls
           }, safeOffset, false);
 
-          if (!this.isPreparingSong && this._activePrepKey !== key) {
+          if (!this.isPreparingSong && this._activePrepKey !== key && !this.isActiveWhisperFor(key)) {
             this._prepareTrackInStudio(track, false).catch(() => {});
           }
         }
@@ -10251,14 +11725,14 @@
         }
       });
 
-      // Ticker de alta precisión (80ms) para que el resaltado de sílabas/líneas de Karaoke, yt_bridge y el Videoclip no tengan retraso
+      // Ticker de alta precisión (50ms) para que el resaltado de sílabas/líneas de Karaoke, yt_bridge y el Videoclip no tengan retraso
       if (this.karaokeSyncInterval) clearInterval(this.karaokeSyncInterval);
       let ytBridgeTickCounter = 0;
       this.karaokeSyncInterval = setInterval(() => {
         if (!this.currentTrack) return;
         if (window.isGameLoadingOrActive || (window.engine && (window.engine.isRunning || window.engine.isCountingDown))) return;
         ytBridgeTickCounter++;
-        if (ytBridgeTickCounter % 2 === 0 && window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
+        if (ytBridgeTickCounter % 3 === 0 && window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
           window.DiscoverHomeApp.syncActiveVideoclipPlayback('tick');
         }
         if (!this.isPlaying()) return;
@@ -10269,7 +11743,7 @@
         if (this.activeSourceType === 'yt_bridge') {
           const fullDur = this.getTrackFullDurationSec(this.currentTrack);
           this._updatePlayerProgressUI(curSec, fullDur);
-          if (ytBridgeTickCounter % 5 === 0) {
+          if (ytBridgeTickCounter % 8 === 0) {
             this._updateMediaSessionPosition(curSec, fullDur);
           }
           if (curSec >= fullDur - 0.5 && (!this._lastSeekWallMs || (performance.now() - this._lastSeekWallMs) > 2000)) {
@@ -10279,7 +11753,7 @@
             this.nextTrack();
           }
         }
-      }, 80);
+      }, 50);
 
       this.previewAudio.addEventListener('ended', () => {
         if (this.activeSourceType !== 'preview') return;

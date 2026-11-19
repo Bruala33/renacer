@@ -541,7 +541,7 @@ class MainActivity : AppCompatActivity() {
 
         setContentView(webView)
         webView.clearCache(true)
-        webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html?v=85.0")
+        webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html?v=86.0")
         hideSystemUI()
     }
 
