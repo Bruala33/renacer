@@ -1338,10 +1338,10 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
-    version_code: 54,
-    version_name: '5.4.0',
-    release_notes: 'Piano Community v5.4.0: Seleccion de formas de hold en Modo Pulso escalada por duracion (lineas y curvas simples en holds cortos; infinitos, espirales y loopings en holds largos) y transicion corregida al terminar el Haz de Luz en Modo Cruce y Locura.',
-    download_url: '/download/apk?v=54.0',
+    version_code: 87,
+    version_name: '8.7.0',
+    release_notes: 'Piano Community v8.7.0: Motor vocal Whisper ONNX integrado offline, mejoras en SingStar y sincronización actualizada.',
+    download_url: '/download/apk?v=87.0',
   });
 });
 
@@ -1645,37 +1645,44 @@ function isCompleteZipApk(filePath, fileSize) {
   }
 }
 
-let cachedGithubApkProbe = { checkedAt: 0, validUrl: null, remoteSize: 0 };
+let cachedGithubApkProbe = { checkedAt: 0, validUrl: null, remoteSize: 0, expectedSize: 0 };
 
 async function getVerifiedGithubCdnApkUrl(expectedLocalSize) {
   const now = Date.now();
-  if (now - cachedGithubApkProbe.checkedAt < 300000) {
-    if (cachedGithubApkProbe.validUrl && Math.abs(cachedGithubApkProbe.remoteSize - expectedLocalSize) < 512000) {
+  if (
+    now - cachedGithubApkProbe.checkedAt < 300000 &&
+    cachedGithubApkProbe.expectedSize === expectedLocalSize
+  ) {
+    if (cachedGithubApkProbe.validUrl && Math.abs(cachedGithubApkProbe.remoteSize - expectedLocalSize) <= 1024) {
       return cachedGithubApkProbe.validUrl;
     }
     return null;
   }
-  const rawUrl = `https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}/PianoCommunity.apk`;
-  try {
-    const ctrl = new AbortController();
-    const tid = setTimeout(() => ctrl.abort(), 2200);
-    const headRes = await fetch(rawUrl, { method: 'HEAD', signal: ctrl.signal });
-    clearTimeout(tid);
-    const cl = parseInt(headRes.headers.get('content-length') || '0', 10);
-    if (headRes.ok && cl > 10000000 && Math.abs(cl - expectedLocalSize) < 512000) {
-      cachedGithubApkProbe = { checkedAt: now, validUrl: rawUrl, remoteSize: cl };
-      return rawUrl;
-    }
-  } catch (_) {}
-  cachedGithubApkProbe = { checkedAt: now, validUrl: null, remoteSize: 0 };
+
+  const candidateUrls = [
+    `https://github.com/${GITHUB_REPO}/releases/latest/download/PianoCommunity.apk`,
+    `https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}/app/static/PianoCommunity.apk`,
+  ];
+
+  for (const remoteUrl of candidateUrls) {
+    try {
+      const ctrl = new AbortController();
+      const tid = setTimeout(() => ctrl.abort(), 2800);
+      const headRes = await fetch(remoteUrl, { method: 'HEAD', redirect: 'follow', signal: ctrl.signal });
+      clearTimeout(tid);
+      const cl = parseInt(headRes.headers.get('content-length') || '0', 10);
+      if (headRes.ok && cl > 10000000 && Math.abs(cl - expectedLocalSize) <= 1024) {
+        cachedGithubApkProbe = { checkedAt: now, validUrl: remoteUrl, remoteSize: cl, expectedSize: expectedLocalSize };
+        return remoteUrl;
+      }
+    } catch (_) {}
+  }
+
+  cachedGithubApkProbe = { checkedAt: now, validUrl: null, remoteSize: 0, expectedSize: expectedLocalSize };
   return null;
 }
 
 app.all(['/download/apk', '/api/v1/app/download_apk', '/PianoCommunity.apk', '/static/PianoCommunity.apk', '/downloads/PianoCommunity.apk', '/HyperRhythm.apk'], async (req, res) => {
-  // En Render (plan gratuito de 5 GB/mes), redirigir las descargas del APK (60 MB) directamente a GitHub Releases CDN (0 bytes de gasto en Render)
-  if (process.env.RENDER && !req.query.local) {
-    return res.redirect(302, 'https://github.com/Bruala33/renacer/releases/latest/download/PianoCommunity.apk');
-  }
   const apkCandidates = [
     path.join(STATIC_DIR, 'PianoCommunity.apk'),
     path.join(__dirname, 'PianoCommunity.apk'),
@@ -1707,9 +1714,19 @@ app.all(['/download/apk', '/api/v1/app/download_apk', '/PianoCommunity.apk', '/s
       return b.stat.size - a.stat.size;
     });
     const { apkPath, stat } = validApks[0];
+
+    // En Render, solo redirigir a GitHub CDN si el APK remoto coincide exactamente en tamaño con el APK más reciente local
+    if (process.env.RENDER && !req.query.local) {
+      const verifiedCdnUrl = await getVerifiedGithubCdnApkUrl(stat.size);
+      if (verifiedCdnUrl) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+        return res.redirect(302, verifiedCdnUrl);
+      }
+    }
+
     const etag = `"apk-${stat.size.toString(16)}-${Math.floor(stat.mtimeMs).toString(16)}"`;
 
-    if (req.headers['if-none-match'] === etag) {
+    if (!req.query.t && !req.query.v && req.headers['if-none-match'] === etag) {
       return res.status(304).end();
     }
 
@@ -1737,6 +1754,11 @@ app.all(['/download/apk', '/api/v1/app/download_apk', '/PianoCommunity.apk', '/s
         'X-Content-Type-Options': 'nosniff'
       }
     });
+  }
+
+  if (process.env.RENDER) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    return res.redirect(302, `https://github.com/${GITHUB_REPO}/releases/latest/download/PianoCommunity.apk`);
   }
 
   return res.status(404).json({

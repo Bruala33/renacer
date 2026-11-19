@@ -94,3 +94,26 @@ jobs:
             git pull --rebase origin ${{ github.ref_name }}
             git push origin HEAD:${{ github.ref_name }}
           fi
+
+      - name: Sync GitHub Release Latest APK
+        if: hashFiles('app/static/PianoCommunity.apk') != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          LOCAL_SIZE=$(stat -c%s app/static/PianoCommunity.apk)
+          VERSION_NAME=$(grep -oE 'versionName\s*=\s*"[^"]+"' app/build.gradle.kts | head -n1 | cut -d'"' -f2 || echo "latest")
+          REMOTE_SIZE=$(curl -sIL "https://github.com/${{ github.repository }}/releases/latest/download/PianoCommunity.apk" | grep -i '^content-length:' | tail -n1 | awk '{print $2}' | tr -d '\r' || echo 0)
+          echo "Local APK size: $LOCAL_SIZE | Latest Release APK size: ${REMOTE_SIZE:-0} | Version: $VERSION_NAME"
+          if [ "${REMOTE_SIZE:-0}" != "$LOCAL_SIZE" ] || [ "${{ steps.check_apk.outputs.needs_build }}" = "true" ]; then
+            if gh release view latest >/dev/null 2>&1; then
+              gh release upload latest app/static/PianoCommunity.apk --clobber
+              gh release edit latest --title "Piano Community v${VERSION_NAME}" --latest
+            else
+              gh release create latest app/static/PianoCommunity.apk \
+                --title "Piano Community v${VERSION_NAME}" \
+                --notes "APK oficial sincronizado automáticamente (v${VERSION_NAME})." \
+                --latest
+            fi
+          else
+            echo "GitHub Release latest already matches app/static/PianoCommunity.apk"
+          fi
