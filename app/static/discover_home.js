@@ -1735,6 +1735,8 @@
       this.timeOffsetSec = 0;
       this.autoLeadingSilenceSec = 0;
       this.userOffsetsMap = this._loadUserOffsets();
+      this._userMultiAnchorsMap = new Map();
+      this._preAnchorLyricsMap = new Map();
       this._isUserManualScrolling = false;
       this._userManualScrollUntil = 0;
       this._userScrollingUntil = 0;
@@ -1931,13 +1933,95 @@
       if (!this.currentTrackKey || !Array.isArray(this.currentLyrics)) return null;
       const line = this.currentLyrics[lineIdx];
       if (!line || !Number.isFinite(Number(line.timeSec))) return null;
+      const key = this.currentTrackKey;
       const curSec = (typeof currentSec === 'number' && Number.isFinite(currentSec))
         ? Math.max(0, currentSec)
         : ((typeof dualStreamEngine !== 'undefined' && dualStreamEngine)
             ? dualStreamEngine.getCurrentSongTimeSec()
             : (this._lastSyncAudioSec || 0));
-      const targetOffset = +(Number(line.timeSec) - curSec).toFixed(2);
-      return this.setUserOffsetSec(this.currentTrackKey, targetOffset, { immediateLineIdx: lineIdx });
+
+      if (!this._preAnchorLyricsMap.has(key) || this._preAnchorLyricsMap.get(key).length !== this.currentLyrics.length) {
+        this._preAnchorLyricsMap.set(key, this.currentLyrics.map(l => ({
+          ...l,
+          words: Array.isArray(l.words) ? l.words.map(w => ({ ...w })) : undefined
+        })));
+      }
+      const baseLines = this._preAnchorLyricsMap.get(key);
+      const baseLine = baseLines[lineIdx];
+      if (!baseLine || !Number.isFinite(Number(baseLine.timeSec))) return null;
+      const baseT = Number(baseLine.timeSec);
+
+      let anchors = this._userMultiAnchorsMap.get(key) || [];
+      // Reemplazar anclas demasiado cercanas (<= 2 líneas) para evitar pendientes extremas
+      anchors = anchors.filter(a => Math.abs(a.lineIdx - lineIdx) >= 3);
+      anchors.push({ lineIdx, baseTimeSec: baseT, targetAudioSec: +curSec.toFixed(2) });
+      anchors.sort((a, b) => a.lineIdx - b.lineIdx);
+
+      // Validar monotonicidad estricta entre anclas de usuario
+      const validAnchors = [];
+      for (const a of anchors) {
+        const prev = validAnchors[validAnchors.length - 1];
+        if (!prev || (a.baseTimeSec > prev.baseTimeSec + 1.0 && a.targetAudioSec > prev.targetAudioSec + 0.8)) {
+          validAnchors.push(a);
+        } else if (a.lineIdx === lineIdx) {
+          validAnchors[validAnchors.length - 1] = a;
+        }
+      }
+      this._userMultiAnchorsMap.set(key, validAnchors);
+
+      if (validAnchors.length === 1) {
+        const targetOffset = +(baseT - curSec).toFixed(2);
+        return this.setUserOffsetSec(key, targetOffset, { immediateLineIdx: lineIdx });
+      }
+
+      // 2+ anclas en distintas secciones: deformación lineal por tramos (piecewise-linear warp) sin romper secciones previas
+      const projectSec = (rawT) => {
+        const firstA = validAnchors[0];
+        const lastA = validAnchors[validAnchors.length - 1];
+        if (rawT <= firstA.baseTimeSec) {
+          return Math.max(0, firstA.targetAudioSec + (rawT - firstA.baseTimeSec));
+        }
+        if (rawT >= lastA.baseTimeSec) {
+          return Math.max(0, lastA.targetAudioSec + (rawT - lastA.baseTimeSec));
+        }
+        for (let k = 0; k < validAnchors.length - 1; k++) {
+          const a = validAnchors[k];
+          const b = validAnchors[k + 1];
+          if (rawT >= a.baseTimeSec && rawT <= b.baseTimeSec) {
+            const frac = (rawT - a.baseTimeSec) / Math.max(0.05, b.baseTimeSec - a.baseTimeSec);
+            return Math.max(0, a.targetAudioSec + frac * (b.targetAudioSec - a.targetAudioSec));
+          }
+        }
+        return rawT;
+      };
+
+      const warped = baseLines.map((l) => {
+        const origT = Number(l.timeSec || 0);
+        const origEnd = Number(l.endTimeSec || (origT + 3.2));
+        const newT = +projectSec(origT).toFixed(2);
+        const newEnd = +Math.max(newT + 0.35, projectSec(origEnd)).toFixed(2);
+        const out = { ...l, timeSec: newT, endTimeSec: newEnd, elasticOffsetSec: 0 };
+        if (Array.isArray(l.words)) {
+          out.words = l.words.map(w => ({
+            ...w,
+            timeSec: +projectSec(Number(w.timeSec || origT)).toFixed(3)
+          }));
+        }
+        return out;
+      });
+      for (let i = 1; i < warped.length; i++) {
+        if (warped[i].timeSec < warped[i - 1].timeSec + 0.15) {
+          warped[i].timeSec = +(warped[i - 1].timeSec + 0.15).toFixed(2);
+        }
+        if (warped[i - 1].endTimeSec > warped[i].timeSec - 0.04) {
+          warped[i - 1].endTimeSec = +Math.max(warped[i - 1].timeSec + 0.30, warped[i].timeSec - 0.04).toFixed(2);
+        }
+      }
+
+      this.cache.set(key, warped.map(l => ({ ...l })));
+      this.currentLyrics = warped;
+      this.setKaraokeAiSyncStatus(key, `Sincro · ${validAnchors.length} anclas`, 'ready');
+      return this.setUserOffsetSec(key, 0, { immediateLineIdx: lineIdx });
     }
 
     setTimeOffset(offsetSec = 0) {
@@ -1957,7 +2041,19 @@
 
     resetOffset() {
       if (!this.currentTrackKey) return 0;
-      return this.setUserOffsetSec(this.currentTrackKey, 0);
+      const key = this.currentTrackKey;
+      const hadMulti = this._userMultiAnchorsMap.has(key) && (this._userMultiAnchorsMap.get(key)?.length || 0) >= 2;
+      this._userMultiAnchorsMap.delete(key);
+      if (hadMulti && this._preAnchorLyricsMap.has(key)) {
+        const restored = this._preAnchorLyricsMap.get(key).map(l => ({
+          ...l,
+          words: Array.isArray(l.words) ? l.words.map(w => ({ ...w })) : undefined
+        }));
+        this.cache.set(key, restored.map(l => ({ ...l })));
+        this.currentLyrics = restored;
+      }
+      this._preAnchorLyricsMap.delete(key);
+      return this.setUserOffsetSec(key, 0);
     }
 
     resetUserOffset() {
@@ -2659,8 +2755,9 @@
       const dur = Number(audioBuf.duration) || (ch0.length / sr);
       if (!ch0 || ch0.length < sr * 2 || !Number.isFinite(dur) || dur < 2) return null;
 
-      const FRAME_HZ = 10;
-      const nFrames = Math.max(20, Math.floor(dur * FRAME_HZ));
+      // 20 Hz (50 ms/frame): doble precisión temporal en ataques/cierres vocales con el mismo coste de muestreo
+      const FRAME_HZ = 20;
+      const nFrames = Math.max(40, Math.floor(dur * FRAME_HZ));
       const step = Math.max(1, Math.floor(sr / 11025));
       const srEff = sr / step;
 
@@ -2715,7 +2812,6 @@
         const rmsT = cnt > 0 ? Math.sqrt(sumTotal / cnt) : 0;
         const midV = cnt > 0 ? Math.sqrt(sumMidVoice / cnt) : 0;
         const sideV = cnt > 0 ? Math.sqrt(sumSideVoice / cnt) : 0;
-        // Dominancia de voz centrada sobre instrumentos estéreo abiertos en banda vocal
         const centerFocus = ch1 ? Math.min(1.25, (midV + 0.002) / (midV + 0.55 * sideV + 0.002)) : 1.0;
         const rmsV = midV * centerFocus;
         rawTotal[f] = rmsT;
@@ -2732,7 +2828,7 @@
         if (rmsT > 0.0020) activeLogSal.push(logSal);
       }
 
-      if (nonZeroTotal.length < 10) return null;
+      if (nonZeroTotal.length < 15) return null;
       nonZeroTotal.sort((a, b) => a - b);
       nonZeroVoice.sort((a, b) => a - b);
       const p90T = nonZeroTotal[Math.min(nonZeroTotal.length - 1, Math.floor(nonZeroTotal.length * 0.90))] || 0.1;
@@ -2759,25 +2855,63 @@
         envOnset[f] = diff > 0 ? Math.min(1.2, diff * 1.4) : 0;
       }
 
-      // Curva Sigmoid Vocal-VAD adaptativa [0..1] + flujo de entrada (vadOnset) y cierre (vadOffset) de frases
+      // Contraste de modulación silábica (3-8 Hz): la voz cantada articula sílabas cada ~150-350ms,
+      // mientras que colchones de cuerdas/órganos/guitarras sostenidas tienen envolvente plana.
+      const salEnhanced = new Float32Array(nFrames);
+      const activeSalEnh = [];
+      for (let f = 0; f < nFrames; f++) {
+        const fL = Math.max(0, f - 3);
+        const fR = Math.min(nFrames - 1, f + 3);
+        const localAvg = 0.5 * (rawLogSalience[fL] + rawLogSalience[fR]);
+        const modPulse = Math.min(0.45, Math.abs(rawLogSalience[f] - localAvg));
+        const val = rawLogSalience[f] + 0.22 * modPulse;
+        salEnhanced[f] = val;
+        if (rawTotal[f] >= silenceCutT) activeSalEnh.push(val);
+      }
+
+      // Curva Sigmoid Vocal-VAD híbrida (62% global + 38% ventana rodante ±12s O(N)) + vadOnset / vadOffset
       const vadRaw = new Float32Array(nFrames);
       const vadCurve = new Float32Array(nFrames);
       const vadOnset = new Float32Array(nFrames);
       const vadOffset = new Float32Array(nFrames);
-      if (activeLogSal.length >= 10) {
-        activeLogSal.sort((a, b) => a - b);
-        const p25 = activeLogSal[Math.floor(activeLogSal.length * 0.25)];
-        const p55 = activeLogSal[Math.floor(activeLogSal.length * 0.55)];
-        const p85 = activeLogSal[Math.min(activeLogSal.length - 1, Math.floor(activeLogSal.length * 0.85))];
+      if (activeSalEnh.length >= 15) {
+        activeSalEnh.sort((a, b) => a - b);
+        const p25 = activeSalEnh[Math.floor(activeSalEnh.length * 0.25)];
+        const p55 = activeSalEnh[Math.floor(activeSalEnh.length * 0.55)];
+        const p85 = activeSalEnh[Math.min(activeSalEnh.length - 1, Math.floor(activeSalEnh.length * 0.85))];
         const dynRange = Math.max(0.24, p85 - p25);
         const midThr = p55 - 0.06 * dynRange;
         const spread = Math.max(0.14, dynRange * 0.36);
+
+        // Sumas prefijas O(N) para normalización local en ventana ±12s (captura estrofas acústicas suaves y estribillos densos)
+        const prefSum = new Float64Array(nFrames + 1);
+        const prefSq = new Float64Array(nFrames + 1);
+        const prefCnt = new Int32Array(nFrames + 1);
+        for (let f = 0; f < nFrames; f++) {
+          const isAct = rawTotal[f] >= silenceCutT ? 1 : 0;
+          const v = isAct ? salEnhanced[f] : 0;
+          prefSum[f + 1] = prefSum[f] + v;
+          prefSq[f + 1] = prefSq[f] + v * v;
+          prefCnt[f + 1] = prefCnt[f] + isAct;
+        }
+        const halfWin = 12 * FRAME_HZ; // ±12s
 
         for (let f = 0; f < nFrames; f++) {
           if (rawTotal[f] < silenceCutT) {
             vadRaw[f] = 0;
           } else {
-            const z = (rawLogSalience[f] - midThr) / spread;
+            const zGlobal = (salEnhanced[f] - midThr) / spread;
+            const w0 = Math.max(0, f - halfWin);
+            const w1 = Math.min(nFrames, f + halfWin + 1);
+            const cntW = prefCnt[w1] - prefCnt[w0];
+            let zLocal = zGlobal;
+            if (cntW >= 30) {
+              const meanW = (prefSum[w1] - prefSum[w0]) / cntW;
+              const varW = Math.max(0, (prefSq[w1] - prefSq[w0]) / cntW - meanW * meanW);
+              const stdW = Math.max(spread * 0.65, Math.sqrt(varW));
+              zLocal = (salEnhanced[f] - (meanW - 0.08 * stdW)) / stdW;
+            }
+            const z = 0.62 * zGlobal + 0.38 * zLocal;
             vadRaw[f] = 1.0 / (1.0 + Math.exp(-Math.max(-12, Math.min(12, z))));
           }
         }
@@ -2785,43 +2919,55 @@
           const a = vadRaw[Math.max(0, f - 1)];
           const b = vadRaw[f];
           const c = vadRaw[Math.min(nFrames - 1, f + 1)];
-          vadCurve[f] = 0.25 * a + 0.50 * b + 0.25 * c;
+          vadCurve[f] = 0.22 * a + 0.56 * b + 0.22 * c;
         }
-        // Flujo direccional de inicio (0->1) y fin (1->0) de frase vocal sobre ventanas ±0.5s
+        // Flujo direccional O(N) de inicio (0->1) y fin (1->0) de frase vocal sobre ventanas ±0.45s
+        const vadPref = new Float64Array(nFrames + 1);
+        for (let f = 0; f < nFrames; f++) vadPref[f + 1] = vadPref[f] + vadCurve[f];
+        const preSpan = Math.round(0.50 * FRAME_HZ);
+        const postSpan = Math.round(0.45 * FRAME_HZ);
         for (let f = 0; f < nFrames; f++) {
-          let pre = 0, preCnt = 0;
-          for (let k = Math.max(0, f - 6); k < f; k++) { pre += vadCurve[k]; preCnt++; }
-          let post = 0, postCnt = 0;
-          for (let k = f; k <= Math.min(nFrames - 1, f + 5); k++) { post += vadCurve[k]; postCnt++; }
-          const diff = (postCnt > 0 ? post / postCnt : 0) - (preCnt > 0 ? pre / preCnt : 0);
+          const p0 = Math.max(0, f - preSpan);
+          const preCnt = f - p0;
+          const pre = preCnt > 0 ? (vadPref[f] - vadPref[p0]) / preCnt : 0;
+          const q1 = Math.min(nFrames, f + postSpan + 1);
+          const postCnt = q1 - f;
+          const post = postCnt > 0 ? (vadPref[q1] - vadPref[f]) / postCnt : 0;
+          const diff = post - pre;
           vadOnset[f] = diff > 0 ? diff : 0;
           vadOffset[f] = diff < 0 ? -diff : 0;
         }
       }
 
+      const leadMinFrames = Math.max(3, Math.round(0.30 * FRAME_HZ));
       let leadSilenceSec = 0;
-      for (let f = 0; f < nFrames - 3; f++) {
-        if (envTotal[f] >= 0.07 && envTotal[f + 1] >= 0.07 && envTotal[f + 2] >= 0.07) {
+      for (let f = 0; f < nFrames - leadMinFrames; f++) {
+        let allAbove = true;
+        for (let k = 0; k < leadMinFrames; k++) {
+          if (envTotal[f + k] < 0.07) { allAbove = false; break; }
+        }
+        if (allAbove) {
           leadSilenceSec = +(f / FRAME_HZ).toFixed(2);
           break;
         }
       }
 
+      const musicWinFrames = Math.max(15, Math.round(1.50 * FRAME_HZ));
       let musicStartSec = leadSilenceSec;
-      for (let f = 0; f < nFrames - 15; f++) {
+      for (let f = 0; f < nFrames - musicWinFrames; f++) {
         let avg = 0;
-        for (let k = 0; k < 15; k++) avg += envTotal[f + k];
-        if (avg / 15 >= 0.16) {
+        for (let k = 0; k < musicWinFrames; k++) avg += envTotal[f + k];
+        if (avg / musicWinFrames >= 0.16) {
           musicStartSec = +(f / FRAME_HZ).toFixed(2);
           break;
         }
       }
 
       let musicEndSec = +dur.toFixed(2);
-      for (let f = nFrames - 1; f >= 15; f--) {
+      for (let f = nFrames - 1; f >= musicWinFrames; f--) {
         let avg = 0;
-        for (let k = 0; k < 15; k++) avg += envTotal[f - k];
-        if (avg / 15 >= 0.12) {
+        for (let k = 0; k < musicWinFrames; k++) avg += envTotal[f - k];
+        if (avg / musicWinFrames >= 0.12) {
           musicEndSec = +((f + 1) / FRAME_HZ).toFixed(2);
           break;
         }
@@ -2956,7 +3102,17 @@
 
     _computeDspAlignment(parsedLines, declaredDur, env) {
       if (!Array.isArray(parsedLines) || parsedLines.length < 3 || !env) {
-        return { shiftSec: 0, scale: 1.0, score: 0, scoreZero: 0, margin: 0, isVerifiedLock: false, lines: parsedLines };
+        return {
+          shiftSec: 0,
+          scale: 1.0,
+          score: 0,
+          scoreZero: 0,
+          margin: 0,
+          isVerifiedLock: false,
+          usedElasticWarp: false,
+          elasticSpreadSec: 0,
+          lines: parsedLines
+        };
       }
 
       const frameHz = env.frameHz || 10;
@@ -2977,6 +3133,8 @@
             scoreZero: obj0,
             margin: 0,
             isVerifiedLock: false,
+            usedElasticWarp: false,
+            elasticSpreadSec: 0,
             lines: parsedLines.map(l => ({ ...l, elasticOffsetSec: 0 }))
           };
         }
@@ -2999,23 +3157,62 @@
         const e = Number(parsedLines[i].endTimeSec) || (Number(parsedLines[i].timeSec || 0) + 3.2);
         if (e > lastLineEndSec) lastLineEndSec = e;
       }
-      const lrcDur = Number(declaredDur) || (lastLineEndSec + 6);
+      const midTimeSec = 0.5 * (firstVocalSec + lastLineEndSec);
+      const pulseHalfF = Math.max(3, Math.round(0.50 * frameHz));
+      const pulseDen = pulseHalfF + 0.8;
+      const minOverlapFrames = Math.max(30, Math.round(4.0 * frameHz));
 
-      // Construir plantilla binaria + pulsos de ataque/cierre de fraseo en toda la línea de tiempo [0 .. lastLineEnd+4s]
-      const buildTemplate = (scale) => {
-        const scaledEnd = lastLineEndSec * scale;
-        const tplLen = Math.max(30, Math.min(nAudio + 600, Math.ceil((scaledEnd + 4.0) * frameHz)));
+      // Sumas prefijas O(N) sobre el audio para scoring O(1) de ventanas locales y Viterbi rápido
+      const prefVad = new Float64Array(nAudio + 1);
+      const prefVad2 = new Float64Array(nAudio + 1);
+      const prefOn = new Float64Array(nAudio + 1);
+      const prefOn2 = new Float64Array(nAudio + 1);
+      const prefOff = new Float64Array(nAudio + 1);
+      const prefOff2 = new Float64Array(nAudio + 1);
+      for (let f = 0; f < nAudio; f++) {
+        const av = vadCurve[f];
+        const ao = vadOnset[f];
+        const af = vadOffset[f];
+        prefVad[f + 1] = prefVad[f] + av;
+        prefVad2[f + 1] = prefVad2[f] + av * av;
+        prefOn[f + 1] = prefOn[f] + ao;
+        prefOn2[f + 1] = prefOn2[f] + ao * ao;
+        prefOff[f + 1] = prefOff[f] + af;
+        prefOff2[f + 1] = prefOff2[f] + af * af;
+      }
+      const meanVadSpan = (t0Sec, t1Sec) => {
+        const f0 = Math.max(0, Math.min(nAudio, Math.floor(t0Sec * frameHz)));
+        const f1 = Math.max(f0, Math.min(nAudio, Math.ceil(t1Sec * frameHz)));
+        return f1 > f0 ? (prefVad[f1] - prefVad[f0]) / (f1 - f0) : 0;
+      };
+      const sampleSmooth = (arr, tSec) => {
+        const f = Math.round(tSec * frameHz);
+        if (f < 0 || f >= nAudio) return 0;
+        const l = arr[Math.max(0, f - 1)];
+        const c = arr[f];
+        const r = arr[Math.min(nAudio - 1, f + 1)];
+        return 0.25 * l + 0.50 * c + 0.25 * r;
+      };
+
+      // Construir plantilla binaria + pulsos de ataque/cierre de fraseo desde cualquier lista de líneas
+      const buildTemplateFromLines = (srcLines, scale = 1.0) => {
+        let maxEnd = 4;
+        for (let i = 0; i < srcLines.length; i++) {
+          const e = (Number(srcLines[i].endTimeSec) || (Number(srcLines[i].timeSec || 0) + 3.2)) * scale;
+          if (e > maxEnd) maxEnd = e;
+        }
+        const tplLen = Math.max(Math.round(3 * frameHz), Math.min(nAudio + Math.round(60 * frameHz), Math.ceil((maxEnd + 4.0) * frameHz)));
         const tVad = new Float32Array(tplLen);
         const tOn = new Float32Array(tplLen);
         const tOff = new Float32Array(tplLen);
         let vocalFrameTotal = 0;
 
-        for (let i = 0; i < parsedLines.length; i++) {
-          const l = parsedLines[i];
-          const sSec = Number(l.timeSec || 0) * scale;
-          const eSecRaw = Number(l.endTimeSec || (Number(l.timeSec || 0) + 3.2)) * scale;
-          const nextSec = (i + 1 < parsedLines.length) ? (Number(parsedLines[i + 1].timeSec || 0) * scale) : (eSecRaw + 5.0);
-          const eSec = Math.max(sSec + 0.4, Math.min(eSecRaw, nextSec - 0.05));
+        for (let i = 0; i < srcLines.length; i++) {
+          const l = srcLines[i];
+          const sSec = Math.max(0, Number(l.timeSec || 0) * scale);
+          const eSecRaw = Math.max(sSec + 0.4, Number(l.endTimeSec || (Number(l.timeSec || 0) + 3.2)) * scale);
+          const nextSec = (i + 1 < srcLines.length) ? (Number(srcLines[i + 1].timeSec || 0) * scale) : (eSecRaw + 5.0);
+          const eSec = Math.max(sSec + 0.35, Math.min(eSecRaw, nextSec - 0.05));
 
           const sF = Math.max(0, Math.min(tplLen - 1, Math.round(sSec * frameHz)));
           const eF = Math.max(sF, Math.min(tplLen - 1, Math.round(eSec * frameHz)));
@@ -3024,24 +3221,24 @@
             tVad[f] = 1.0;
           }
 
-          const prevEnd = i === 0 ? 0 : (Number(parsedLines[i - 1].endTimeSec || (Number(parsedLines[i - 1].timeSec || 0) + 3.0)) * scale);
+          const prevEnd = i === 0 ? 0 : (Number(srcLines[i - 1].endTimeSec || (Number(srcLines[i - 1].timeSec || 0) + 3.0)) * scale);
           const gapBefore = i === 0 ? Math.max(1.8, sSec) : Math.max(0, sSec - prevEnd);
           const onWeight = gapBefore >= 1.8 ? 1.35 : (gapBefore >= 0.70 ? 1.05 : 0.55);
-          for (let df = -3; df <= 3; df++) {
+          for (let df = -pulseHalfF; df <= pulseHalfF; df++) {
             const idx = sF + df;
             if (idx >= 0 && idx < tplLen) {
-              const w = onWeight * (1.0 - Math.abs(df) / 3.8);
+              const w = onWeight * (1.0 - Math.abs(df) / pulseDen);
               if (w > tOn[idx]) tOn[idx] = w;
             }
           }
 
           const gapAfter = Math.max(0, nextSec - eSec);
-          if (gapAfter >= 0.65 || i === parsedLines.length - 1) {
+          if (gapAfter >= 0.65 || i === srcLines.length - 1) {
             const offWeight = gapAfter >= 1.8 ? 1.25 : 0.90;
-            for (let df = -3; df <= 3; df++) {
+            for (let df = -pulseHalfF; df <= pulseHalfF; df++) {
               const idx = eF + df;
               if (idx >= 0 && idx < tplLen) {
-                const w = offWeight * (1.0 - Math.abs(df) / 3.8);
+                const w = offWeight * (1.0 - Math.abs(df) / pulseDen);
                 if (w > tOff[idx]) tOff[idx] = w;
               }
             }
@@ -3050,10 +3247,53 @@
         return { tplLen, tVad, tOn, tOff, vocalFrameTotal: Math.max(1, vocalFrameTotal) };
       };
 
-      const tpl1 = buildTemplate(1.0);
+      const tpl1 = buildTemplateFromLines(parsedLines, 1.0);
 
-      // Correlación de Pearson normalizada de media cero en toda la línea de tiempo (soporta lags enteros y sub-frame 0.05s)
-      const evalTemplateAtShift = (tpl, shiftSec) => {
+      // Estimar suelo instrumental adaptativo (percentil 20 de vadCurve en O(N)) y actividad vocal real
+      const vadHist = new Int32Array(51);
+      for (let f = 0; f < nAudio; f++) {
+        const bin = Math.max(0, Math.min(50, Math.floor(vadCurve[f] * 50)));
+        vadHist[bin]++;
+      }
+      const p20Target = Math.floor(nAudio * 0.20);
+      let vadFloor = 0.20;
+      let histAcc = 0;
+      for (let b = 0; b <= 50; b++) {
+        histAcc += vadHist[b];
+        if (histAcc >= p20Target) {
+          vadFloor = Math.max(0.08, Math.min(0.28, (b + 0.5) / 50));
+          break;
+        }
+      }
+      const vocActiveThresh = Math.max(0.35, Math.min(0.46, vadFloor + 0.14));
+      const prefVocActive = new Float64Array(nAudio + 1);
+      for (let f = 0; f < nAudio; f++) {
+        prefVocActive[f + 1] = prefVocActive[f] + (vadCurve[f] >= vocActiveThresh ? 1 : 0);
+      }
+
+      // Detectar primera entrada vocal sostenida en el audio real (protección anti-alias contra saltos de estrofa,
+      // capturando tanto voces suaves ~0.38 sobre intro ~0.23 como entradas potentes >=0.52)
+      let firstAudioVocalSec = 0;
+      const fastVocF = Math.max(4, Math.round(0.45 * frameHz));
+      const softVocF = Math.max(10, Math.round(1.10 * frameHz));
+      for (let f = 0; f < nAudio - softVocF; f++) {
+        const fastAvg = (prefVad[f + fastVocF] - prefVad[f]) / fastVocF;
+        if (fastAvg >= 0.52) {
+          firstAudioVocalSec = f / frameHz;
+          break;
+        }
+        const softAvg = (prefVad[f + softVocF] - prefVad[f]) / softVocF;
+        const softActiveFrac = (prefVocActive[f + softVocF] - prefVocActive[f]) / softVocF;
+        if (softAvg >= vocActiveThresh && softActiveFrac >= 0.65) {
+          firstAudioVocalSec = f / frameHz;
+          break;
+        }
+      }
+      const fFirstAudioVoc = Math.max(0, Math.min(nAudio, Math.round(firstAudioVocalSec * frameHz)));
+
+      // Correlación de Pearson normalizada de media cero sobre la ventana solapada + guardia anti-alias pre-vocal
+      // (Una intro instrumental de +11s tiene actividad vocal ~0 -> penalización 0; saltar Estrofa 1 -> penalización fuerte)
+      const evalTemplateAtShift = (tpl, shiftSec, tplFirstVocalSec = firstVocalSec) => {
         const shiftF = shiftSec * frameHz;
         const intShift = Math.floor(shiftF);
         const frac = shiftF - intShift;
@@ -3063,7 +3303,7 @@
         const iStart = Math.max(0, -intShift);
         const iEnd = Math.min(tpl.tplLen - 1, maxAudioIdx - intShift);
         const overlapN = iEnd - iStart + 1;
-        if (overlapN < 40) return -999;
+        if (overlapN < minOverlapFrames) return -999;
 
         const { tVad, tOn, tOff, tplLen, vocalFrameTotal } = tpl;
         let oobVocal = 0;
@@ -3077,19 +3317,22 @@
         let sAF = 0, sTF = 0, sAF2 = 0, sTF2 = 0, sAFTF = 0;
 
         if (!useLerp) {
+          const a0 = iStart + intShift;
+          const a1 = iEnd + intShift + 1;
+          sAV = prefVad[a1] - prefVad[a0];
+          sAV2 = prefVad2[a1] - prefVad2[a0];
+          sAO = prefOn[a1] - prefOn[a0];
+          sAO2 = prefOn2[a1] - prefOn2[a0];
+          sAF = prefOff[a1] - prefOff[a0];
+          sAF2 = prefOff2[a1] - prefOff2[a0];
           for (let i = iStart; i <= iEnd; i++) {
             const ai = i + intShift;
-            const av = vadCurve[ai];
             const tv = tVad[i];
-            sAV += av; sTV += tv; sAV2 += av * av; sTV2 += tv * tv; sAVTV += av * tv;
-
-            const ao = vadOnset[ai];
             const to = tOn[i];
-            sAO += ao; sTO += to; sAO2 += ao * ao; sTO2 += to * to; sAOTO += ao * to;
-
-            const af = vadOffset[ai];
             const tf = tOff[i];
-            sAF += af; sTF += tf; sAF2 += af * af; sTF2 += tf * tf; sAFTF += af * tf;
+            sTV += tv; sTV2 += tv * tv; sAVTV += vadCurve[ai] * tv;
+            sTO += to; sTO2 += to * to; sAOTO += vadOnset[ai] * to;
+            sTF += tf; sTF2 += tf * tf; sAFTF += vadOffset[ai] * tf;
           }
         } else {
           const w0 = 1.0 - frac;
@@ -3121,10 +3364,37 @@
         const rOn = pearson(sAO, sTO, sAO2, sTO2, sAOTO);
         const rOff = pearson(sAF, sTF, sAF2, sTF2, sAFTF);
 
-        return (0.42 * rVad) + (0.43 * rOn) + (0.15 * rOff) - (1.50 * oobFrac);
+        let skippedPreVocalPen = 0;
+        const firstLineAudioSec = tplFirstVocalSec + shiftSec;
+        if (firstLineAudioSec > firstAudioVocalSec + 1.8) {
+          const fLine0 = Math.max(fFirstAudioVoc, Math.min(nAudio, Math.round(firstLineAudioSec * frameHz)));
+          const skippedActiveSec = Math.max(0, (prefVocActive[fLine0] - prefVocActive[fFirstAudioVoc]) / frameHz);
+          const spanSkippedSec = Math.max(1.0, (fLine0 - fFirstAudioVoc) / frameHz);
+          if (skippedActiveSec > 1.8 && (skippedActiveSec / spanSkippedSec) > 0.28) {
+            skippedPreVocalPen = Math.min(0.60, 0.085 * (skippedActiveSec - 1.5));
+          }
+        }
+        let preIntroDeadPen = 0;
+        if (firstAudioVocalSec >= 3.0 && firstLineAudioSec < firstAudioVocalSec - 2.2) {
+          const cutAudioSec = firstAudioVocalSec - 0.8;
+          const fCutTpl = Math.min(tplLen, Math.max(0, Math.round((cutAudioSec - shiftSec) * frameHz)));
+          let deadIntroFrames = 0;
+          for (let i = Math.max(0, iStart); i < fCutTpl; i++) {
+            if (tVad[i] > 0.5) deadIntroFrames++;
+          }
+          const deadIntroSec = deadIntroFrames / frameHz;
+          if (deadIntroSec > 1.8) {
+            preIntroDeadPen = Math.min(0.65, 0.11 * (deadIntroSec - 1.5));
+          }
+        }
+
+        return (0.54 * rVad) + (0.32 * rOn) + (0.14 * rOff) - (1.50 * oobFrac) - skippedPreVocalPen - preIntroDeadPen;
       };
 
-      const scoreZero = evalTemplateAtShift(tpl1, 0);
+      // =========================================================================
+      // ETAPA 1: ANCLAJE MACRO GLOBAL + DERIVA DE TEMPO (INTERCEPTO CERO Y PIVOTADO)
+      // =========================================================================
+      const scoreZero = evalTemplateAtShift(tpl1, 0, firstVocalSec);
       const minShift = -Math.min(45, Math.max(10, lastLineEndSec * 0.35));
       const maxShift = Math.max(20, Math.min(95, actualDur - firstVocalSec - 10));
 
@@ -3149,19 +3419,17 @@
         }
       };
 
-      // Barrido grueso a 0.20s (2 frames) en todo [-45s .. +95s] (~12-24 ms en JS)
       for (let s = Math.ceil(minShift * 5) / 5; s <= maxShift; s += 0.20) {
         const sRound = +s.toFixed(2);
-        const sc = evalTemplateAtShift(tpl1, sRound);
+        const sc = evalTemplateAtShift(tpl1, sRound, firstVocalSec);
         coarseSamples.push({ s: sRound, sc });
         considerPeak(sRound, sc);
       }
       if (env.leadSilenceSec >= 0.3 && env.leadSilenceSec <= maxShift) {
         const ls = +env.leadSilenceSec.toFixed(2);
-        considerPeak(ls, evalTemplateAtShift(tpl1, ls));
+        considerPeak(ls, evalTemplateAtShift(tpl1, ls, firstVocalSec));
       }
 
-      // Barrido fino a 0.05s sobre los 3 mejores picos (con interpolación lineal sub-frame)
       let bestShift = 0;
       let bestScale = 1.0;
       let bestScore = scoreZero;
@@ -3169,7 +3437,7 @@
         for (let ds = -0.45; ds <= 0.451; ds += 0.05) {
           const candS = +(pk.shift + ds).toFixed(2);
           if (candS < minShift || candS > maxShift) continue;
-          const sc = evalTemplateAtShift(tpl1, candS);
+          const sc = evalTemplateAtShift(tpl1, candS, firstVocalSec);
           if (sc > bestScore) {
             bestScore = sc;
             bestShift = candS;
@@ -3190,22 +3458,23 @@
 
       let margin = computeMarginAround(bestShift, bestScore);
 
-      // Comprobación opcional de deriva de tempo (solo si duración difiere >=1.5% o margen inicial es bajo)
-      const durRatio = actualDur / Math.max(30, lrcDur);
-      const hasDurCue = Math.abs(durRatio - 1.0) >= 0.015 && durRatio >= 0.92 && durRatio <= 1.08;
-      if ((hasDurCue || margin < 0.055) && parsedLines.length >= 8) {
+      // Comprobación siempre activa de deriva de tempo: prueba intercepto cero (0s) Y pivote en midTimeSec sobre los picos
+      if (parsedLines.length >= 8) {
         let bestTempoScore = bestScore;
         let chosenTempoScale = 1.0;
         let chosenTempoShift = bestShift;
-        const shiftAnchors = [bestShift];
-        if (Math.abs(bestShift) >= 1.0) shiftAnchors.push(0);
-        for (let scRate = 0.955; scRate <= 1.0451; scRate += 0.005) {
-          if (Math.abs(scRate - 1.0) < 0.009) continue;
-          const tplS = buildTemplate(scRate);
-          for (const anchor of shiftAnchors) {
-            for (let ds = -1.6; ds <= 1.61; ds += 0.20) {
-              const candS = +(anchor + ds).toFixed(2);
-              const tSc = evalTemplateAtShift(tplS, candS);
+        for (let scRate = 0.95; scRate <= 1.0501; scRate += 0.01) {
+          if (Math.abs(scRate - 1.0) < 0.008) continue;
+          const tplS = buildTemplateFromLines(parsedLines, scRate);
+          const pivotComp = midTimeSec * (1.0 - scRate);
+          const centers = [0, bestShift + pivotComp];
+          if (peaks.length >= 2 && Math.abs(peaks[1].shift - bestShift) >= 3.0) {
+            centers.push(peaks[1].shift + pivotComp);
+          }
+          for (const centerS of centers) {
+            for (let ds = -2.0; ds <= 2.01; ds += 0.25) {
+              const candS = +(centerS + ds).toFixed(2);
+              const tSc = evalTemplateAtShift(tplS, candS, firstVocalSec * scRate);
               if (tSc > bestTempoScore) {
                 bestTempoScore = tSc;
                 chosenTempoScale = +scRate.toFixed(3);
@@ -3214,46 +3483,743 @@
             }
           }
         }
-        if (bestTempoScore > bestScore + 0.045 && Math.abs(chosenTempoScale - 1.0) >= 0.009) {
-          bestScore = bestTempoScore;
-          bestScale = chosenTempoScale;
-          bestShift = chosenTempoShift;
-          margin = Math.max(margin, bestTempoScore - scoreZero);
+        // Refinamiento fino de tempo (±0.006 paso 0.002) si mostró mejora clara
+        if (bestTempoScore > bestScore + 0.016 && Math.abs(chosenTempoScale - 1.0) >= 0.008) {
+          const baseScale = chosenTempoScale;
+          const baseSh = chosenTempoShift;
+          for (let dr = -0.006; dr <= 0.0061; dr += 0.002) {
+            const scRate = +(baseScale + dr).toFixed(3);
+            if (Math.abs(scRate - 1.0) < 0.005 || scRate < 0.93 || scRate > 1.07) continue;
+            const tplS = buildTemplateFromLines(parsedLines, scRate);
+            const pivotAdj = midTimeSec * (baseScale - scRate);
+            const fineCenters = Math.abs(baseSh) < 1.5 ? [baseSh, baseSh + pivotAdj] : [baseSh + pivotAdj];
+            for (const fCen of fineCenters) {
+              for (let ds = -0.45; ds <= 0.451; ds += 0.10) {
+                const candS = +(fCen + ds).toFixed(2);
+                const tSc = evalTemplateAtShift(tplS, candS, firstVocalSec * scRate);
+                if (tSc > bestTempoScore) {
+                  bestTempoScore = tSc;
+                  chosenTempoScale = scRate;
+                  chosenTempoShift = candS;
+                }
+              }
+            }
+          }
+          if (bestTempoScore > bestScore + 0.024 && Math.abs(chosenTempoScale - 1.0) >= 0.006) {
+            bestScore = bestTempoScore;
+            bestScale = chosenTempoScale;
+            bestShift = chosenTempoShift;
+            margin = Math.max(margin, bestTempoScore - scoreZero);
+          }
         }
       }
 
-      // Guardia estricta contra falsos desplazamientos + indicador de bloqueo verificado
-      let isVerifiedLock = (bestScore >= 0.14 && margin >= 0.032) || (bestScore >= 0.22 && margin >= 0.022);
-
+      // Guardia rígida de Etapa 1 contra desplazamientos espurios cuando no hay evidencia
+      const rawStage1Shift = bestShift;
       if (bestScale === 1.0 && Math.abs(bestShift) >= 0.45) {
-        const strongOverZero = (isVerifiedLock && bestScore >= scoreZero + 0.022) || (bestScore >= scoreZero + 0.042 && bestScore >= 0.11);
+        const s1Lock = (bestScore >= 0.14 && margin >= 0.032) || (bestScore >= 0.22 && margin >= 0.022);
+        const strongOverZero = (s1Lock && bestScore >= scoreZero + 0.022) || (bestScore >= scoreZero + 0.042 && bestScore >= 0.11);
         if (!strongOverZero) {
           bestShift = 0;
           bestScore = scoreZero;
           margin = computeMarginAround(0, scoreZero);
-          isVerifiedLock = (scoreZero >= 0.14 && margin >= 0.028) || (scoreZero >= 0.22 && margin >= 0.018);
         }
       } else if (bestScale === 1.0 && Math.abs(bestShift) < 0.12) {
         bestShift = 0;
       }
 
-      // Proyectar líneas y aplicar micro-ajuste local suave (±0.20s) sobre picos claros de vadOnset tras pausas >= 1.2s
-      const aligned = parsedLines.map((l, idx) => {
+      const projectLinesRigid = (sh, sc) => parsedLines.map((l) => {
         const origT = Number(l.timeSec || 0);
-        const origEnd = Number(l.endTimeSec || (origT + 3.5));
-        let newT = Math.max(0, +(origT * bestScale + bestShift).toFixed(2));
-        let newEnd = Math.max(newT + 0.4, +(origEnd * bestScale + bestShift).toFixed(2));
-        let microDelta = 0;
+        const origEnd = Number(l.endTimeSec || (origT + 3.2));
+        const newT = Math.max(0, +(origT * sc + sh).toFixed(2));
+        const newEnd = Math.max(newT + 0.4, +(origEnd * sc + sh).toFixed(2));
+        return { origIdx: 0, timeSec: newT, endTimeSec: newEnd, text: l.text, words: l.words, origT, origEnd };
+      });
 
-        if (isVerifiedLock) {
+      let championLines = projectLinesRigid(bestShift, bestScale);
+      let championTpl = buildTemplateFromLines(championLines, 1.0);
+      let championScore = evalTemplateAtShift(championTpl, 0, championLines[0].timeSec);
+      let usedElasticWarp = false;
+
+      // =========================================================================
+      // ETAPA 2: ALINEADOR ELÁSTICO POR BLOQUES/ESTROFAS (VITERBI DP NO LINEAL)
+      // Con conservación vocal acústica universal y comparación dual (escala de
+      // Etapa 1 vs escala 1.0) para no confundir cortes de sección con deriva lineal.
+      // =========================================================================
+      if (parsedLines.length >= 6 && actualDur >= 25) {
+        const deadLineThresh = Math.max(0.24, Math.min(0.32, vadFloor + 0.09));
+
+        const runStage2Blocks = (useScale, baseShiftIn) => {
+          const tplScaled = useScale === 1.0 ? tpl1 : buildTemplateFromLines(parsedLines, useScale);
+          const { tVad: sTV, tOn: sTO, tOff: sTF, tplLen: sTplLen } = tplScaled;
+
+          // Particionar en bloques vocales compactos (>= 2 líneas y ~10-14s, o corte por solo >= 3.5s)
+          const blocks = [];
+          let curStartIdx = 0;
+          for (let i = 1; i < parsedLines.length; i++) {
+            const prevEnd = Number(parsedLines[i - 1].endTimeSec || (Number(parsedLines[i - 1].timeSec || 0) + 3.0)) * useScale;
+            const curStart = Number(parsedLines[i].timeSec || 0) * useScale;
+            const blkFirst = Number(parsedLines[curStartIdx].timeSec || 0) * useScale;
+            const gap = Math.max(0, curStart - prevEnd);
+            const count = i - curStartIdx;
+            const span = prevEnd - blkFirst;
+            const shouldSplit =
+              (gap >= 3.50 && count >= 1) ||
+              (gap >= 1.35 && count >= 2 && span >= 8.0) ||
+              (count >= 2 && span >= 10.0) ||
+              count >= 4;
+            if (shouldSplit) {
+              blocks.push({ startIdx: curStartIdx, endIdx: i - 1 });
+              curStartIdx = i;
+            }
+          }
+          blocks.push({ startIdx: curStartIdx, endIdx: parsedLines.length - 1 });
+
+          // Fusionar último bloque diminuto de 1 línea solo si está pegado (< 3.5s) al anterior
+          if (blocks.length >= 2) {
+            const lastB = blocks[blocks.length - 1];
+            const prevB = blocks[blocks.length - 2];
+            if (lastB.endIdx === lastB.startIdx) {
+              const pEnd = Number(parsedLines[prevB.endIdx].endTimeSec || (Number(parsedLines[prevB.endIdx].timeSec || 0) + 3.0)) * useScale;
+              const lStart = Number(parsedLines[lastB.startIdx].timeSec || 0) * useScale;
+              if ((lStart - pEnd) < 3.5) {
+                prevB.endIdx = lastB.endIdx;
+                blocks.pop();
+              }
+            }
+          }
+
+          if (blocks.length < 2) return null;
+
+          const stage2BaseShift = baseShiftIn;
+          let maxResSec = 14.0;
+          for (const pk of peaks.slice(0, 4)) {
+            const dPk = Math.abs(pk.shift - stage2BaseShift);
+            if (dPk > maxResSec - 2.0 && dPk <= 22.0) {
+              maxResSec = Math.min(22.0, Math.ceil(dPk + 3.0));
+            }
+          }
+          const resStep = maxResSec > 16.0 ? 0.25 : 0.20;
+          const deltas = [];
+          for (let d = -maxResSec; d <= maxResSec + 1e-4; d += resStep) {
+            deltas.push(+d.toFixed(2));
+          }
+          const nStates = deltas.length;
+          const K = blocks.length;
+
+          // Precalcular metadatos y estadísticas de plantilla por bloque (slice sin copia sobre tplScaled)
+          const blockMeta = [];
+          for (let k = 0; k < K; k++) {
+            const b = blocks[k];
+            const bStart = Number(parsedLines[b.startIdx].timeSec || 0) * useScale;
+            const bEnd = Number(parsedLines[b.endIdx].endTimeSec || (Number(parsedLines[b.endIdx].timeSec || 0) + 3.2)) * useScale;
+            const prevEnd = b.startIdx > 0
+              ? Number(parsedLines[b.startIdx - 1].endTimeSec || (Number(parsedLines[b.startIdx - 1].timeSec || 0) + 3.0)) * useScale
+              : 0;
+            const nextStart = b.endIdx + 1 < parsedLines.length
+              ? Number(parsedLines[b.endIdx + 1].timeSec || 0) * useScale
+              : (bEnd + 5.0);
+            const gapBefore = b.startIdx === 0 ? Math.max(2.0, bStart) : Math.max(0, bStart - prevEnd);
+            const gapAfter = Math.max(0, nextStart - bEnd);
+            const padBefore = Math.min(2.2, Math.max(0.45, gapBefore * 0.65));
+            const padAfter = Math.min(2.0, Math.max(0.45, gapAfter * 0.65));
+            const winStartF = Math.max(0, Math.floor((bStart - padBefore) * frameHz));
+            const winEndF = Math.min(sTplLen - 1, Math.ceil((bEnd + padAfter) * frameHz));
+            const wLen = Math.max(1, winEndF - winStartF + 1);
+
+            const lineStarts = [];
+            const lineEnds = [];
+            for (let li = b.startIdx; li <= b.endIdx; li++) {
+              const ls = Number(parsedLines[li].timeSec || 0) * useScale;
+              const le = Number(parsedLines[li].endTimeSec || (Number(parsedLines[li].timeSec || 0) + 3.2)) * useScale;
+              lineStarts.push(ls);
+              lineEnds.push(Math.max(ls + 0.4, le));
+            }
+
+            let sumTV = 0, sumTV2 = 0, sumTO = 0, sumTO2 = 0, sumTF = 0, sumTF2 = 0;
+            let sungCnt = 0, silCnt = 0;
+            for (let f = winStartF; f <= winEndF; f++) {
+              const tv = sTV[f];
+              const to = sTO[f];
+              const tf = sTF[f];
+              sumTV += tv; sumTV2 += tv * tv;
+              sumTO += to; sumTO2 += to * to;
+              sumTF += tf; sumTF2 += tf * tf;
+              if (tv > 0.5) sungCnt++; else silCnt++;
+            }
+            const varTV = Math.max(0, sumTV2 - (sumTV * sumTV) / wLen);
+            const varTO = Math.max(0, sumTO2 - (sumTO * sumTO) / wLen);
+            const varTF = Math.max(0, sumTF2 - (sumTF * sumTF) / wLen);
+
+            const lastLineStart = Number(parsedLines[b.endIdx].timeSec || 0) * useScale;
+            const lastLineDur = Math.max(0.4, bEnd - lastLineStart);
+
+            blockMeta.push({
+              ...b,
+              bStart,
+              bEnd,
+              lastLineDur,
+              gapBefore,
+              gapAfter,
+              winStartF,
+              winEndF,
+              wLen,
+              lineStarts,
+              lineEnds,
+              sumTV,
+              stdTV: varTV > 1e-7 ? Math.sqrt(varTV) : 0,
+              sumTO,
+              stdTO: varTO > 1e-7 ? Math.sqrt(varTO) : 0,
+              sumTF,
+              stdTF: varTF > 1e-7 ? Math.sqrt(varTF) : 0,
+              sungCnt,
+              silCnt
+            });
+          }
+
+          const scoreBlockAtTotalShift = (bm, totShiftSec) => {
+            const intShift = Math.round(totShiftSec * frameHz);
+            const aStart = bm.winStartF + intShift;
+            const aEnd = bm.winEndF + intShift;
+            if (aEnd < 8 || aStart >= nAudio - 8) return -1.5;
+
+            const f0 = Math.max(bm.winStartF, -intShift);
+            const f1 = Math.min(bm.winEndF, nAudio - 1 - intShift);
+            const ov = f1 - f0 + 1;
+            const minOv = Math.max(10, Math.floor(bm.wLen * 0.55));
+            if (ov < minOv) return -1.5;
+
+            const oobFrac = 1.0 - (ov / bm.wLen);
+            const ai0 = f0 + intShift;
+            const ai1 = f1 + intShift + 1;
+            const sAV = prefVad[ai1] - prefVad[ai0];
+            const sAV2 = prefVad2[ai1] - prefVad2[ai0];
+            const sAO = prefOn[ai1] - prefOn[ai0];
+            const sAO2 = prefOn2[ai1] - prefOn2[ai0];
+            const sAF = prefOff[ai1] - prefOff[ai0];
+            const sAF2 = prefOff2[ai1] - prefOff2[ai0];
+
+            let sAVTV = 0, sAOTO = 0, sAFTF = 0;
+            let sungVadSum = 0, silVadSum = 0, ovSung = 0, ovSil = 0;
+            let tSumV = bm.sumTV, tStdV = bm.stdTV;
+            let tSumO = bm.sumTO, tStdO = bm.stdTO;
+            let tSumF = bm.sumTF, tStdF = bm.stdTF;
+
+            if (ov === bm.wLen) {
+              for (let f = f0; f <= f1; f++) {
+                const ai = f + intShift;
+                const av = vadCurve[ai];
+                const tv = sTV[f];
+                sAVTV += av * tv;
+                sAOTO += vadOnset[ai] * sTO[f];
+                sAFTF += vadOffset[ai] * sTF[f];
+                if (tv > 0.5) { sungVadSum += av; ovSung++; } else { silVadSum += av; ovSil++; }
+              }
+            } else {
+              let lTV = 0, lTV2 = 0, lTO = 0, lTO2 = 0, lTF = 0, lTF2 = 0;
+              for (let f = f0; f <= f1; f++) {
+                const ai = f + intShift;
+                const av = vadCurve[ai];
+                const tv = sTV[f];
+                const to = sTO[f];
+                const tf = sTF[f];
+                lTV += tv; lTV2 += tv * tv; sAVTV += av * tv;
+                lTO += to; lTO2 += to * to; sAOTO += vadOnset[ai] * to;
+                lTF += tf; lTF2 += tf * tf; sAFTF += vadOffset[ai] * tf;
+                if (tv > 0.5) { sungVadSum += av; ovSung++; } else { silVadSum += av; ovSil++; }
+              }
+              tSumV = lTV;
+              const vV = lTV2 - (lTV * lTV) / ov;
+              tStdV = vV > 1e-7 ? Math.sqrt(vV) : 0;
+              tSumO = lTO;
+              const vO = lTO2 - (lTO * lTO) / ov;
+              tStdO = vO > 1e-7 ? Math.sqrt(vO) : 0;
+              tSumF = lTF;
+              const vF = lTF2 - (lTF * lTF) / ov;
+              tStdF = vF > 1e-7 ? Math.sqrt(vF) : 0;
+            }
+
+            const vAV = sAV2 - (sAV * sAV) / ov;
+            const vAO = sAO2 - (sAO * sAO) / ov;
+            const vAF = sAF2 - (sAF * sAF) / ov;
+            const rVad = (vAV > 1e-7 && tStdV > 1e-7) ? ((sAVTV - (sAV * tSumV) / ov) / (Math.sqrt(vAV) * tStdV)) : 0;
+            const rOn = (vAO > 1e-7 && tStdO > 1e-7) ? ((sAOTO - (sAO * tSumO) / ov) / (Math.sqrt(vAO) * tStdO)) : 0;
+            const rOff = (vAF > 1e-7 && tStdF > 1e-7) ? ((sAFTF - (sAF * tSumF) / ov) / (Math.sqrt(vAF) * tStdF)) : 0;
+
+            const meanSung = ovSung > 0 ? (sungVadSum / ovSung) : 0;
+            const meanSil = ovSil > 0 ? (silVadSum / ovSil) : 0;
+            const contrastBonus = (ovSung >= 4 && ovSil >= 4)
+              ? 0.14 * (meanSung - meanSil)
+              : 0.16 * (meanSung - 0.35);
+
+            // Penalizar líneas del bloque que caigan en silencio instrumental puro (deshace alias periódicos en cortes/solos)
+            let deadLineSum = 0;
+            const nLinesB = bm.lineStarts.length;
+            for (let li = 0; li < nLinesB; li++) {
+              const lS = bm.lineStarts[li] + totShiftSec;
+              const lE = bm.lineEnds[li] + totShiftSec;
+              const lVad = meanVadSpan(lS + 0.15, Math.max(lS + 0.35, lE - 0.15));
+              if (lVad < deadLineThresh) {
+                deadLineSum += (deadLineThresh - lVad) / deadLineThresh;
+              }
+            }
+            const deadLinePen = 0.42 * (deadLineSum / Math.max(1, nLinesB));
+
+            return (0.56 * rVad) + (0.29 * rOn) + (0.15 * rOff) + contrastBonus - deadLinePen - (1.20 * oobFrac);
+          };
+
+          // Tabla de emisiones E[k][j] y DP Viterbi con guardia de cobertura vocal pre-Bloque 0 y conservación vocal entre bloques
+          const emit = new Array(K);
+          for (let k = 0; k < K; k++) {
+            const row = new Float32Array(nStates);
+            const bm = blockMeta[k];
+            for (let j = 0; j < nStates; j++) {
+              row[j] = scoreBlockAtTotalShift(bm, stage2BaseShift + deltas[j]);
+            }
+            emit[k] = row;
+          }
+
+          const dp = new Array(K);
+          const back = new Array(K);
+          dp[0] = new Float32Array(nStates);
+          back[0] = new Int16Array(nStates);
+          for (let j = 0; j < nStates; j++) {
+            const candStart0 = blockMeta[0].bStart + stage2BaseShift + deltas[j];
+            let preSkipPen = 0;
+            if (candStart0 > firstAudioVocalSec + 2.0) {
+              const fCand0 = Math.max(fFirstAudioVoc, Math.min(nAudio, Math.round(candStart0 * frameHz)));
+              const skippedActiveSec = Math.max(0, (prefVocActive[fCand0] - prefVocActive[fFirstAudioVoc]) / frameHz);
+              if (skippedActiveSec > 1.8) {
+                preSkipPen = Math.min(2.0, 0.25 + 0.35 * (skippedActiveSec - 1.8));
+              }
+            } else if (firstAudioVocalSec >= 3.0 && candStart0 < firstAudioVocalSec - 2.5) {
+              const preDeadSec = Math.min(blockMeta[0].bEnd - blockMeta[0].bStart, (firstAudioVocalSec - 0.8) - candStart0);
+              if (preDeadSec > 1.8) {
+                preSkipPen = Math.min(2.0, 0.30 + 0.35 * (preDeadSec - 1.8));
+              }
+            }
+            dp[0][j] = emit[0][j] - 0.0022 * Math.abs(deltas[j]) - preSkipPen;
+            back[0][j] = -1;
+          }
+
+          for (let k = 1; k < K; k++) {
+            const curDp = new Float32Array(nStates);
+            const curBack = new Int16Array(nStates);
+            const prevDp = dp[k - 1];
+            const curEmit = emit[k];
+            const prevB = blockMeta[k - 1];
+            const curB = blockMeta[k];
+            const gapK = Math.max(0, curB.bStart - prevB.bEnd);
+            const isStructBreak = gapK >= 1.30;
+            // Si la última línea del bloque previo quedó truncada por compresión del LRC (<4.3s),
+            // tolerar su cola natural de canto antes de empezar a contar canto omitido en el hueco.
+            const tailAllowance = Math.max(0, Math.min(1.4, 4.3 - prevB.lastLineDur));
+
+            for (let j = 0; j < nStates; j++) {
+              const dCur = deltas[j];
+              const curNewStart = curB.bStart + stage2BaseShift + dCur;
+              const anchorPen = 0.0018 * Math.abs(dCur);
+              const em = curEmit[j] - anchorPen;
+              let bestVal = -1e9;
+              let bestPrev = j;
+
+              for (let p = 0; p < nStates; p++) {
+                const prevVal = prevDp[p];
+                if (prevVal <= -1e8) continue;
+                const dPrev = deltas[p];
+                const jump = dCur - dPrev;
+                // Orden físico estricto: el bloque k no puede comenzar antes de terminar el bloque k-1
+                if (gapK + jump < -0.15) continue;
+                const absJ = Math.abs(jump);
+
+                // Conservación vocal acústica universal O(1) con rampa continua (sin escalón explotable por DP):
+                // permite solos/cortes instrumentales reales (0s de canto activo) y penaliza suavemente
+                // cualquier hueco inter-bloque que se trague > 1.85s de canto sostenido.
+                const prevNewEnd = prevB.bEnd + stage2BaseShift + dPrev;
+                const gStart = prevNewEnd + 0.50 + tailAllowance;
+                const gEnd = curNewStart - 0.35;
+                const gSpan = Math.max(0, gEnd - gStart);
+                let gapVocalPen = 0;
+                if (gSpan >= 1.9) {
+                  const fg0 = Math.max(0, Math.min(nAudio, Math.floor(gStart * frameHz)));
+                  const fg1 = Math.max(fg0, Math.min(nAudio, Math.ceil(gEnd * frameHz)));
+                  const skippedGapVocSec = (prefVocActive[fg1] - prefVocActive[fg0]) / frameHz;
+                  if (skippedGapVocSec > 1.85 && ((skippedGapVocSec / gSpan) >= 0.25 || skippedGapVocSec >= 2.8)) {
+                    gapVocalPen = Math.min(2.4, 0.62 * (skippedGapVocSec - 1.85));
+                  }
+                }
+
+                let transPen = 0;
+                if (jump > 1.0) {
+                  transPen = 0.010 + 0.007 * Math.min(7.0, absJ - 1.0);
+                } else if (isStructBreak) {
+                  // Penalización Huber acotada en cortes/pausas >= 1.30s (permite acortar solos/ediciones radio)
+                  transPen = absJ <= 1.2
+                    ? (0.012 * absJ * absJ)
+                    : (0.018 + 0.013 * Math.min(6.0, absJ - 1.2));
+                } else {
+                  if (gapK < 0.85 && absJ > 4.2) continue;
+                  // Continuidad suave entre bloques contiguos sin pausa larga
+                  transPen = absJ <= 1.4
+                    ? (0.025 * absJ * absJ)
+                    : (0.049 + 0.055 * (absJ - 1.4));
+                }
+                const cand = prevVal - transPen - gapVocalPen + em;
+                if (cand > bestVal) {
+                  bestVal = cand;
+                  bestPrev = p;
+                }
+              }
+              curDp[j] = bestVal;
+              curBack[j] = bestPrev;
+            }
+            dp[k] = curDp;
+            back[k] = curBack;
+          }
+
+          let bestLastJ = 0;
+          let bestLastScore = -1e9;
+          for (let j = 0; j < nStates; j++) {
+            if (dp[K - 1][j] > bestLastScore) {
+              bestLastScore = dp[K - 1][j];
+              bestLastJ = j;
+            }
+          }
+
+          const optDeltas = new Float64Array(K);
+          let curJ = bestLastJ;
+          for (let k = K - 1; k >= 0; k--) {
+            optDeltas[k] = deltas[curJ];
+            curJ = back[k][curJ];
+            if (curJ < 0) curJ = 0;
+          }
+
+          // Refinamiento fino sub-frame (±0.20s, paso 0.05s) por bloque respetando monotonicidad
+          for (let k = 0; k < K; k++) {
+            const bm = blockMeta[k];
+            let bestD = optDeltas[k];
+            let bestSc = scoreBlockAtTotalShift(bm, stage2BaseShift + bestD);
+            const minAllowed = k > 0
+              ? (blockMeta[k - 1].bEnd + optDeltas[k - 1] - bm.bStart - 0.10)
+              : -maxResSec - 0.5;
+            const maxAllowed = k + 1 < K
+              ? (blockMeta[k + 1].bStart + optDeltas[k + 1] - bm.bEnd + 0.10)
+              : maxResSec + 0.5;
+            for (let dd = -0.20; dd <= 0.201; dd += 0.05) {
+              const candD = +(optDeltas[k] + dd).toFixed(2);
+              if (candD < minAllowed || candD > maxAllowed) continue;
+              const sc = scoreBlockAtTotalShift(bm, stage2BaseShift + candD);
+              if (sc > bestSc) {
+                bestSc = sc;
+                bestD = candD;
+              }
+            }
+            optDeltas[k] = bestD;
+          }
+
+          // Proyectar líneas desde los desplazamientos óptimos por bloque (rampa suave solo en derivas graduales <=1.2s)
+          const blockProjected = new Array(parsedLines.length);
+          for (let k = 0; k < K; k++) {
+            const bm = blockMeta[k];
+            const dCur = optDeltas[k];
+            const dPrev = k > 0 ? optDeltas[k - 1] : dCur;
+            const dNext = k + 1 < K ? optDeltas[k + 1] : dCur;
+            const smoothLeft = k > 0 && (bm.bStart - blockMeta[k - 1].bEnd) < 1.25 && Math.abs(dCur - dPrev) <= 1.2;
+            const smoothRight = k + 1 < K && (blockMeta[k + 1].bStart - bm.bEnd) < 1.25 && Math.abs(dCur - dNext) <= 1.2;
+            const blkLen = Math.max(1, bm.endIdx - bm.startIdx + 1);
+
+            for (let i = bm.startIdx; i <= bm.endIdx; i++) {
+              const l = parsedLines[i];
+              const origT = Number(l.timeSec || 0);
+              const origEnd = Number(l.endTimeSec || (origT + 3.2));
+              let localDelta = dCur;
+              if (blkLen >= 2) {
+                const pos = (i - bm.startIdx) / (blkLen - 1);
+                if (smoothLeft && pos < 0.35) {
+                  const w = pos / 0.35;
+                  localDelta = dPrev * (0.35 * (1 - w)) + dCur * (1 - 0.35 * (1 - w));
+                } else if (smoothRight && pos > 0.65) {
+                  const w = (pos - 0.65) / 0.35;
+                  localDelta = dCur * (1 - 0.35 * w) + dNext * (0.35 * w);
+                }
+              }
+              const totSh = stage2BaseShift + localDelta;
+              const newT = Math.max(0, +(origT * useScale + totSh).toFixed(2));
+              const newEnd = Math.max(newT + 0.4, +(origEnd * useScale + totSh).toFixed(2));
+              blockProjected[i] = { timeSec: newT, endTimeSec: newEnd, text: l.text, words: l.words, origT, origEnd };
+            }
+          }
+
+          for (let i = 1; i < blockProjected.length; i++) {
+            if (blockProjected[i].timeSec < blockProjected[i - 1].timeSec + 0.15) {
+              blockProjected[i].timeSec = +(blockProjected[i - 1].timeSec + 0.15).toFixed(2);
+            }
+            if (blockProjected[i - 1].endTimeSec > blockProjected[i].timeSec - 0.04) {
+              blockProjected[i - 1].endTimeSec = +Math.max(blockProjected[i - 1].timeSec + 0.35, blockProjected[i].timeSec - 0.04).toFixed(2);
+            }
+          }
+
+          const blockTpl = buildTemplateFromLines(blockProjected, 1.0);
+          const blockScore = evalTemplateAtShift(blockTpl, 0, blockProjected[0].timeSec);
+          return { lines: blockProjected, tpl: blockTpl, score: blockScore, scale: useScale };
+        };
+
+        const stage1RigidSnapshot = championLines;
+        const stage1RigidScore = championScore;
+        const primaryBaseShift = (Math.abs(bestShift) < 0.1 && Math.abs(rawStage1Shift) > 1.5 && bestScore < 0.22)
+          ? rawStage1Shift
+          : bestShift;
+        let bestBlockCand = runStage2Blocks(bestScale, primaryBaseShift);
+        if (bestScale !== 1.0) {
+          const unscaledBase = peaks.length > 0 ? peaks[0].shift : 0;
+          const unscaledCand = runStage2Blocks(1.0, unscaledBase);
+          if (unscaledCand && (!bestBlockCand || unscaledCand.score > bestBlockCand.score + 0.004)) {
+            bestBlockCand = unscaledCand;
+          }
+        }
+
+        const minElasticGain = championScore >= 0.34 ? 0.030 : 0.012;
+        if (bestBlockCand && bestBlockCand.score > championScore + minElasticGain) {
+          championLines = bestBlockCand.lines;
+          championTpl = bestBlockCand.tpl;
+          championScore = bestBlockCand.score;
+          bestScale = bestBlockCand.scale;
+          usedElasticWarp = true;
+        }
+
+        // Guardar referencia de Etapa 1 para que Etapa 3 compare también pulido directo desde Etapa 1
+        // (evita que un LRC con jitter humano alternante sea desplazado primero por bloques)
+        this._lastStage1Snap = { lines: stage1RigidSnapshot, score: stage1RigidScore };
+      } else {
+        this._lastStage1Snap = null;
+      }
+
+      // =========================================================================
+      // ETAPA 3: MICRO-ALINEADOR VITERBI POR LÍNEA (RADIO ADAPTATIVO CONTRA JITTER)
+      // Si Etapa 1/2 ya bloqueó fuerte (>=0.34) y >=72% de líneas son limpias,
+      // solo pulido quirúrgico ±0.35s; si hay jitter LRC humano, abre ±1.65s y
+      // compara también pulido directo desde Etapa 1 para deshacer jitter alternante.
+      // =========================================================================
+      if (championLines.length >= 4 && actualDur >= 20) {
+        const runStage3Lines = (srcLines, srcScore) => {
+          const N = srcLines.length;
+          const looksCleanArr = new Uint8Array(N);
+          let cleanCount = 0;
+          for (let i = 0; i < N; i++) {
+            const cur = srcLines[i];
+            const t0 = cur.timeSec;
+            const dur = Math.max(0.5, Math.min(6.5, cur.endTimeSec - t0));
+            const prevEnd = i === 0 ? 0 : srcLines[i - 1].endTimeSec;
+            const gapBefore = i === 0 ? Math.max(1.5, t0) : Math.max(0, t0 - prevEnd);
+            const preV0 = meanVadSpan(Math.max(0, t0 - 0.50), Math.max(0, t0 - 0.06));
+            const headV0 = meanVadSpan(t0 + 0.04, Math.min(actualDur, t0 + Math.min(1.1, dur)));
+            const bodyV0 = meanVadSpan(t0, Math.min(actualDur, t0 + dur));
+            const on0 = sampleSmooth(vadOnset, t0);
+            const clean = (headV0 >= 0.40) && ((headV0 - preV0) >= 0.18 || (on0 >= 0.22 && (headV0 - preV0) >= 0.08));
+            if (clean) {
+              looksCleanArr[i] = 1;
+              cleanCount++;
+            }
+          }
+
+          const alreadyTightLock = srcScore >= 0.34 && (cleanCount / N) >= 0.55;
+          const maxEps = alreadyTightLock ? 0.35 : 2.00;
+          const epsStep = alreadyTightLock ? 0.05 : 0.10;
+          const epsGrid = [];
+          for (let e = -maxEps; e <= maxEps + 1e-4; e += epsStep) epsGrid.push(+e.toFixed(2));
+          const nE = epsGrid.length;
+          const lDp = new Array(N);
+          const lBack = new Array(N);
+          const anchorWeights = new Float32Array(N);
+          const isNoisyLrc = !alreadyTightLock && srcScore < 0.28;
+          for (let i = 0; i < N; i++) {
+            anchorWeights[i] = alreadyTightLock ? 0.25 : (isNoisyLrc ? 0.012 : (looksCleanArr[i] ? 0.07 : 0.010));
+          }
+
+          const scoreLineAt = (idx, candT) => {
+            const cur = srcLines[idx];
+            const dur = Math.max(0.5, Math.min(6.5, cur.endTimeSec - cur.timeSec));
+            if (candT < 0 || candT > actualDur - 0.35) return -1.2;
+            const prevEnd = idx === 0 ? 0 : srcLines[idx - 1].endTimeSec;
+            const nextStart = idx + 1 < N ? srcLines[idx + 1].timeSec : (cur.endTimeSec + 4.0);
+            const gapBefore = idx === 0 ? Math.max(1.5, cur.timeSec) : Math.max(0, cur.timeSec - prevEnd);
+            const gapAfter = Math.max(0, nextStart - cur.endTimeSec);
+
+            const preVad = meanVadSpan(Math.max(0, candT - 0.50), Math.max(0, candT - 0.06));
+            const headVad = meanVadSpan(candT + 0.04, Math.min(actualDur, candT + Math.min(1.1, dur)));
+            const bodyVad = meanVadSpan(candT, Math.min(actualDur, candT + dur));
+            const onPeak = sampleSmooth(vadOnset, candT);
+            const offPeak = (gapAfter >= 0.45 || !alreadyTightLock)
+              ? sampleSmooth(vadOffset, Math.min(actualDur - 0.05, candT + dur))
+              : 0;
+
+            const onsetTerm = (gapBefore >= 0.45 || !alreadyTightLock)
+              ? (0.50 * onPeak + 0.36 * (headVad - preVad))
+              : (0.28 * onPeak + 0.14 * (headVad - preVad));
+            return onsetTerm + (0.26 * bodyVad) + (0.16 * offPeak);
+          };
+
+          lDp[0] = new Float32Array(nE);
+          lBack[0] = new Int16Array(nE);
+          for (let j = 0; j < nE; j++) {
+            const e = epsGrid[j];
+            lDp[0][j] = scoreLineAt(0, srcLines[0].timeSec + e) - anchorWeights[0] * e * e;
+            lBack[0][j] = -1;
+          }
+
+          for (let i = 1; i < N; i++) {
+            const curDp = new Float32Array(nE);
+            const curBack = new Int16Array(nE);
+            const prevDp = lDp[i - 1];
+            const baseCur = srcLines[i].timeSec;
+            const basePrev = srcLines[i - 1].timeSec;
+            const prevDur = Math.max(0.4, srcLines[i - 1].endTimeSec - basePrev);
+            const origGap = Math.max(0.25, baseCur - basePrev);
+            const minStep = Math.max(0.28, Math.min(origGap * 0.55, 1.15));
+            const minFromPrevStart = Math.max(minStep, prevDur - 0.55);
+            const gapBefore = Math.max(0, baseCur - srcLines[i - 1].endTimeSec);
+            const smoothW = alreadyTightLock
+              ? (gapBefore >= 1.2 ? 0.020 : 0.065)
+              : (isNoisyLrc ? 0.004 : (gapBefore >= 0.9 ? 0.008 : 0.018));
+            const aW = anchorWeights[i];
+
+            for (let j = 0; j < nE; j++) {
+              const eCur = epsGrid[j];
+              const candT = baseCur + eCur;
+              const em = scoreLineAt(i, candT) - aW * eCur * eCur;
+              let bestV = -1e9;
+              let bestP = j;
+              for (let p = 0; p < nE; p++) {
+                if (prevDp[p] <= -1e8) continue;
+                const prevT = basePrev + epsGrid[p];
+                if (candT < prevT + minFromPrevStart) continue;
+                const diff = eCur - epsGrid[p];
+                const v = prevDp[p] - smoothW * diff * diff + em;
+                if (v > bestV) {
+                  bestV = v;
+                  bestP = p;
+                }
+              }
+              curDp[j] = bestV;
+              curBack[j] = bestP;
+            }
+            lDp[i] = curDp;
+            lBack[i] = curBack;
+          }
+
+          let bestEndE = 0;
+          let bestEndV = -1e9;
+          for (let j = 0; j < nE; j++) {
+            if (lDp[N - 1][j] > bestEndV) {
+              bestEndV = lDp[N - 1][j];
+              bestEndE = j;
+            }
+          }
+
+          const optEps = new Float64Array(N);
+          let cE = bestEndE;
+          for (let i = N - 1; i >= 0; i--) {
+            optEps[i] = epsGrid[cE];
+            cE = lBack[i][cE];
+            if (cE < 0) cE = 0;
+          }
+
+          if (!alreadyTightLock) {
+            for (let i = 0; i < N; i++) {
+              const baseT = srcLines[i].timeSec;
+              const aW = anchorWeights[i];
+              let bestE = optEps[i];
+              let bestS = scoreLineAt(i, baseT + bestE) - aW * bestE * bestE;
+              for (const dd of [-0.05, 0.05]) {
+                const candE = +(optEps[i] + dd).toFixed(2);
+                const candT = baseT + candE;
+                if (i > 0 && candT < srcLines[i - 1].timeSec + optEps[i - 1] + 0.25) continue;
+                if (i + 1 < N && candT > srcLines[i + 1].timeSec + optEps[i + 1] - 0.25) continue;
+                const sc = scoreLineAt(i, candT) - aW * candE * candE;
+                if (sc > bestS) {
+                  bestS = sc;
+                  bestE = candE;
+                }
+              }
+              optEps[i] = bestE;
+            }
+          }
+
+          const lineWarped = srcLines.map((cl, i) => {
+            const e = optEps[i];
+            const newT = Math.max(0, +(cl.timeSec + e).toFixed(2));
+            const newEnd = Math.max(newT + 0.4, +(cl.endTimeSec + e).toFixed(2));
+            return { ...cl, timeSec: newT, endTimeSec: newEnd };
+          });
+          for (let i = 1; i < lineWarped.length; i++) {
+            if (lineWarped[i].timeSec < lineWarped[i - 1].timeSec + 0.15) {
+              lineWarped[i].timeSec = +(lineWarped[i - 1].timeSec + 0.15).toFixed(2);
+            }
+            if (lineWarped[i - 1].endTimeSec > lineWarped[i].timeSec - 0.04) {
+              lineWarped[i - 1].endTimeSec = +Math.max(lineWarped[i - 1].timeSec + 0.35, lineWarped[i].timeSec - 0.04).toFixed(2);
+            }
+          }
+
+          const lineTpl = buildTemplateFromLines(lineWarped, 1.0);
+          const lineScore = evalTemplateAtShift(lineTpl, 0, lineWarped[0].timeSec);
+          return { lines: lineWarped, tpl: lineTpl, score: lineScore, alreadyTightLock };
+        };
+
+        let bestLineCand = runStage3Lines(championLines, championScore);
+        if (usedElasticWarp && this._lastStage1Snap && championScore < 0.39) {
+          const directCand = runStage3Lines(this._lastStage1Snap.lines, this._lastStage1Snap.score);
+          if (directCand && directCand.score > bestLineCand.score) {
+            bestLineCand = directCand;
+          }
+        }
+        this._lastStage1Snap = null;
+
+        const minLineGain = bestLineCand.alreadyTightLock ? 0.018 : 0.012;
+        if (bestLineCand.score > championScore + minLineGain) {
+          championLines = bestLineCand.lines;
+          championTpl = bestLineCand.tpl;
+          championScore = bestLineCand.score;
+          usedElasticWarp = true;
+        }
+      }
+
+      // Calcular margen real contra desplazamientos señuelo para validar bloqueo de la alineación ganadora
+      let finalScore = championScore;
+      let finalMargin = margin;
+      if (usedElasticWarp) {
+        let maxDecoy = -1;
+        for (const decoySh of [-9.0, -6.0, -3.5, 3.5, 6.0, 9.0]) {
+          const dSc = evalTemplateAtShift(championTpl, decoySh, championLines[0].timeSec);
+          if (dSc > maxDecoy) maxDecoy = dSc;
+        }
+        if (maxDecoy > -1) {
+          finalMargin = Math.max(0, finalScore - maxDecoy);
+        }
+      }
+
+      const isVerifiedLock = (finalScore >= 0.14 && finalMargin >= 0.032) || (finalScore >= 0.22 && finalMargin >= 0.022);
+
+      // Si no se aplicó deformación elástica, aplicar micro-snap suave ±0.20s sobre picos claros tras pausas >= 1.2s
+      let minLineDelta = Infinity;
+      let maxLineDelta = -Infinity;
+      let deltaSum = 0;
+
+      const aligned = championLines.map((cl, idx) => {
+        const origT = Number(parsedLines[idx].timeSec || 0);
+        const origEnd = Number(parsedLines[idx].endTimeSec || (origT + 3.2));
+        let newT = cl.timeSec;
+        let newEnd = cl.endTimeSec;
+
+        if (!usedElasticWarp && isVerifiedLock) {
           const prevOrigEnd = idx === 0 ? 0 : Number(parsedLines[idx - 1].endTimeSec || (Number(parsedLines[idx - 1].timeSec || 0) + 3.0));
           const gapBefore = idx === 0 ? newT : (origT - prevOrigEnd) * bestScale;
           if (gapBefore >= 1.20 && newT >= 0.35 && newT < actualDur - 0.5) {
             const centerF = Math.round(newT * frameHz);
             const curOn = (centerF >= 0 && centerF < nAudio) ? vadOnset[centerF] : 0;
+            const winF = Math.max(2, Math.round(0.20 * frameHz));
             let peakF = centerF;
             let peakOn = curOn;
-            for (let df = -2; df <= 2; df++) {
+            for (let df = -winF; df <= winF; df++) {
               const f = centerF + df;
               if (f >= 0 && f < nAudio && vadOnset[f] > peakOn) {
                 peakOn = vadOnset[f];
@@ -3261,25 +4227,32 @@
               }
             }
             if (peakF !== centerF && peakOn >= 0.26 && peakOn >= curOn * 1.40) {
-              microDelta = +((peakF / frameHz) - newT).toFixed(2);
-              microDelta = Math.max(-0.20, Math.min(0.20, microDelta));
+              const microDelta = Math.max(-0.20, Math.min(0.20, +((peakF / frameHz) - newT).toFixed(2)));
               newT = Math.max(0, +(newT + microDelta).toFixed(2));
               if (newEnd < newT + 0.45) newEnd = +(newT + 0.45).toFixed(2);
             }
           }
         }
 
-        const out = { timeSec: newT, endTimeSec: newEnd, text: l.text, elasticOffsetSec: 0 };
-        if (Array.isArray(l.words)) {
-          out.words = l.words.map(w => ({
-            timeSec: Math.max(0, +(w.timeSec * bestScale + bestShift + microDelta).toFixed(3)),
+        const lineDelta = newT - origT;
+        if (lineDelta < minLineDelta) minLineDelta = lineDelta;
+        if (lineDelta > maxLineDelta) maxLineDelta = lineDelta;
+        deltaSum += lineDelta;
+
+        const out = { timeSec: newT, endTimeSec: newEnd, text: parsedLines[idx].text, elasticOffsetSec: 0 };
+        if (Array.isArray(parsedLines[idx].words)) {
+          const origSpan = Math.max(0.25, origEnd - origT);
+          const newSpan = Math.max(0.25, newEnd - newT);
+          const spanRatio = Math.max(0.65, Math.min(1.45, newSpan / origSpan));
+          out.words = parsedLines[idx].words.map(w => ({
+            timeSec: Math.max(0, +(newT + (Number(w.timeSec || origT) - origT) * spanRatio).toFixed(3)),
             text: w.text
           }));
         }
         return out;
       });
 
-      // Garantizar estricta monotonicidad tras cualquier micro-ajuste local
+      // Garantizar estricta monotonicidad tras cualquier ajuste elástico
       for (let i = 1; i < aligned.length; i++) {
         if (aligned[i].timeSec < aligned[i - 1].timeSec + 0.15) {
           aligned[i].timeSec = +(aligned[i - 1].timeSec + 0.15).toFixed(2);
@@ -3289,13 +4262,22 @@
         }
       }
 
+      const elasticSpreadSec = (Number.isFinite(minLineDelta) && Number.isFinite(maxLineDelta))
+        ? +(maxLineDelta - minLineDelta).toFixed(2)
+        : 0;
+      const effectiveShiftSec = usedElasticWarp
+        ? +(deltaSum / Math.max(1, aligned.length)).toFixed(2)
+        : +bestShift.toFixed(2);
+
       return {
-        shiftSec: +bestShift.toFixed(2),
+        shiftSec: effectiveShiftSec,
         scale: bestScale,
-        score: +bestScore.toFixed(4),
+        score: +finalScore.toFixed(4),
         scoreZero: +scoreZero.toFixed(4),
-        margin: +margin.toFixed(4),
+        margin: +finalMargin.toFixed(4),
         isVerifiedLock,
+        usedElasticWarp: Boolean(usedElasticWarp && elasticSpreadSec >= 0.45),
+        elasticSpreadSec,
         lines: aligned
       };
     }
@@ -3331,10 +4313,14 @@
       if (!prevEnv || !fullEnv || !prevEnv.envTotal || !fullEnv.envTotal) return null;
       const P_all = prevEnv.envTotal;
       const F = fullEnv.envTotal;
-      const trimStart = Math.min(8, Math.floor(P_all.length * 0.1));
-      const trimEnd = Math.max(trimStart + 30, P_all.length - 8);
-      const M = Math.min(200, trimEnd - trimStart);
-      if (M < 30 || F.length <= M + 5) return null;
+      const fHz = fullEnv.frameHz || 10;
+      const trimPad = Math.max(6, Math.round(0.8 * fHz));
+      const minWin = Math.max(25, Math.round(3.0 * fHz));
+      const maxWin = Math.max(120, Math.round(20.0 * fHz));
+      const trimStart = Math.min(trimPad, Math.floor(P_all.length * 0.1));
+      const trimEnd = Math.max(trimStart + minWin, P_all.length - trimPad);
+      const M = Math.min(maxWin, trimEnd - trimStart);
+      if (M < minWin || F.length <= M + 5) return null;
 
       let sumP = 0;
       for (let i = 0; i < M; i++) sumP += P_all[trimStart + i];
@@ -3365,10 +4351,11 @@
       };
 
       const maxStart = F.length - M - 1;
+      const coarseStep = Math.max(2, Math.round(0.20 * fHz));
       let bestFrame = 0;
       let bestR = -1;
       const scores = new Float32Array(maxStart + 1);
-      for (let f = 0; f <= maxStart; f += 2) {
+      for (let f = 0; f <= maxStart; f += coarseStep) {
         const r = corrAt(f);
         scores[f] = r;
         if (r > bestR) {
@@ -3376,7 +4363,8 @@
           bestFrame = f;
         }
       }
-      for (let df = -3; df <= 3; df++) {
+      const fineRad = coarseStep + 1;
+      for (let df = -fineRad; df <= fineRad; df++) {
         const f = bestFrame + df;
         if (f >= 0 && f <= maxStart) {
           const r = corrAt(f);
@@ -3388,9 +4376,10 @@
         }
       }
 
+      const sepFrames = Math.max(20, Math.round(2.5 * fHz));
       let secondR = -1;
-      for (let f = 0; f <= maxStart; f += 2) {
-        if (Math.abs(f - bestFrame) >= 25 && scores[f] > secondR) {
+      for (let f = 0; f <= maxStart; f += coarseStep) {
+        if (Math.abs(f - bestFrame) >= sepFrames && scores[f] > secondR) {
           secondR = scores[f];
         }
       }
@@ -3399,7 +4388,7 @@
       if (bestR >= 0.48 && ((bestR - secondR) >= minGap || bestR >= 0.90)) {
         let chosenFrame = bestFrame;
         if (bestR >= 0.90 && (bestR - secondR) < minGap) {
-          for (let f = 0; f <= maxStart; f += 2) {
+          for (let f = 0; f <= maxStart; f += coarseStep) {
             if (scores[f] >= bestR - 0.015) {
               chosenFrame = f;
               break;
@@ -3492,12 +4481,16 @@
           const vadShift = Number(champion.shiftSec) || 0;
           const vadScore = Number(champion.score) || 0;
           const vadMargin = Number(champion.margin) || 0;
+          const vadElastic = Boolean(champion.usedElasticWarp);
+          const vadSpread = Number(champion.elasticSpreadSec) || 0;
           outLines = champion.lines.map(l => ({
             ...l,
             _vocalVadVerified: isVadLock,
             _vocalVadShiftSec: vadShift,
             _vocalVadScore: vadScore,
-            _vocalVadMargin: vadMargin
+            _vocalVadMargin: vadMargin,
+            _vocalVadElastic: vadElastic,
+            _vocalVadSpreadSec: vadSpread
           }));
           chosenBest = champion.cand;
           chosenDur = dspEnvelope.actualDur || champion.cand.itemDur;
@@ -4474,15 +5467,18 @@
       const declaredDur = st.actualDur || st.expectedDur || st.dspEnvelope.actualDur || 195;
       const dspRes = this._computeDspAlignment(st.nativeLyricsRaw, declaredDur, st.dspEnvelope);
       const isVadLock = Boolean(dspRes && dspRes.isVerifiedLock);
+      const isElastic = Boolean(dspRes && dspRes.usedElasticWarp);
       const hasSignificantChange = dspRes && Array.isArray(dspRes.lines) && dspRes.lines.length >= 4 &&
-        (Math.abs(dspRes.shiftSec) >= (isVadLock ? 0.15 : 0.55) || Math.abs(dspRes.scale - 1.0) >= 0.015);
+        (isElastic || Math.abs(dspRes.shiftSec) >= (isVadLock ? 0.15 : 0.55) || Math.abs(dspRes.scale - 1.0) >= 0.015);
       const srcLines = hasSignificantChange ? dspRes.lines : st.nativeLyricsRaw;
       const verifiedLines = srcLines.map(l => ({
         ...l,
         _vocalVadVerified: isVadLock,
         _vocalVadShiftSec: hasSignificantChange ? (Number(dspRes.shiftSec) || 0) : 0,
         _vocalVadScore: Number(dspRes?.score) || 0,
-        _vocalVadMargin: Number(dspRes?.margin) || 0
+        _vocalVadMargin: Number(dspRes?.margin) || 0,
+        _vocalVadElastic: isElastic,
+        _vocalVadSpreadSec: Number(dspRes?.elasticSpreadSec) || 0
       }));
       st.nativeLyrics = verifiedLines;
       return verifiedLines.map(l => ({ ...l }));
@@ -4700,9 +5696,12 @@
           this._serverFallbackTimers.delete(key);
         }
         const vadShift = Number(cleanInit[0]._vocalVadShiftSec) || 0;
-        const readyLabel = Math.abs(vadShift) >= 0.55
-          ? `Sincro · ${vadShift > 0 ? '+' : ''}${vadShift.toFixed(1)}s`
-          : 'Sincro · Exacta';
+        const isElastic = Boolean(cleanInit[0]._vocalVadElastic && (Number(cleanInit[0]._vocalVadSpreadSec) || 0) >= 0.8);
+        const readyLabel = isElastic
+          ? 'Sincro · Elástica'
+          : (Math.abs(vadShift) >= 0.55
+              ? `Sincro · ${vadShift > 0 ? '+' : ''}${vadShift.toFixed(1)}s`
+              : 'Sincro · Exacta');
         this.setKaraokeAiSyncStatus(key, readyLabel, 'ready');
         return;
       }
@@ -4742,7 +5741,9 @@
                     _vocalVadVerified: Boolean(aligned.isVerifiedLock),
                     _vocalVadShiftSec: Number(aligned.shiftSec) || 0,
                     _vocalVadScore: Number(aligned.score) || 0,
-                    _vocalVadMargin: Number(aligned.margin) || 0
+                    _vocalVadMargin: Number(aligned.margin) || 0,
+                    _vocalVadElastic: Boolean(aligned.usedElasticWarp),
+                    _vocalVadSpreadSec: Number(aligned.elasticSpreadSec) || 0
                   }));
                 }
               }
@@ -4751,9 +5752,12 @@
                 this._refreshCurrentLyrics(track, key, env.actualDur || effDur);
                 if (vadLines[0]._vocalVadVerified === true) {
                   const sh = Number(vadLines[0]._vocalVadShiftSec) || 0;
-                  const readyLabel = Math.abs(sh) >= 0.55
-                    ? `Sincro · ${sh > 0 ? '+' : ''}${sh.toFixed(1)}s`
-                    : 'Sincro · Exacta';
+                  const isEl = Boolean(vadLines[0]._vocalVadElastic && (Number(vadLines[0]._vocalVadSpreadSec) || 0) >= 0.8);
+                  const readyLabel = isEl
+                    ? 'Sincro · Elástica'
+                    : (Math.abs(sh) >= 0.55
+                        ? `Sincro · ${sh > 0 ? '+' : ''}${sh.toFixed(1)}s`
+                        : 'Sincro · Exacta');
                   this.setKaraokeAiSyncStatus(key, readyLabel, 'ready');
                   return;
                 }
@@ -7026,9 +8030,10 @@
           hasWhisperVerifiedCache = false;
         }
 
-        // PASO 3.5 (MOTOR RÁPIDO VOCAL-ONSET VAD < 30ms): Alinear LRC contra el audio real antes de decidir si hace falta Whisper
+        // PASO 3.5 (MOTOR RÁPIDO VOCAL-ONSET VAD ELÁSTICO < 60ms): Alinear LRC tramo a tramo contra el audio real antes de decidir si hace falta Whisper
         let hasVocalVadLock = Boolean(hasRealLyrics && !isPlainUnaligned && baseLines[0]?._vocalVadVerified === true);
         let vadShiftSec = Number(baseLines[0]?._vocalVadShiftSec) || 0;
+        let vadIsElastic = Boolean(baseLines[0]?._vocalVadElastic && (Number(baseLines[0]?._vocalVadSpreadSec) || 0) >= 0.8);
         if (hasRealLyrics && !isPlainUnaligned && !hasWhisperVerifiedCache && karaokeDspEnvelope && this.karaokeService) {
           if (!hasVocalVadLock || forceReanalyze) {
             const stKar = this.karaokeService.trackCalibrationState?.get(key);
@@ -7044,7 +8049,9 @@
                   _vocalVadVerified: Boolean(vadRes.isVerifiedLock),
                   _vocalVadShiftSec: Number(vadRes.shiftSec) || 0,
                   _vocalVadScore: Number(vadRes.score) || 0,
-                  _vocalVadMargin: Number(vadRes.margin) || 0
+                  _vocalVadMargin: Number(vadRes.margin) || 0,
+                  _vocalVadElastic: Boolean(vadRes.usedElasticWarp),
+                  _vocalVadSpreadSec: Number(vadRes.elasticSpreadSec) || 0
                 }));
               }
             }
@@ -7052,6 +8059,7 @@
               baseLines = vadLines;
               hasVocalVadLock = Boolean(vadLines[0]?._vocalVadVerified === true);
               vadShiftSec = Number(vadLines[0]?._vocalVadShiftSec) || 0;
+              vadIsElastic = Boolean(vadLines[0]?._vocalVadElastic && (Number(vadLines[0]?._vocalVadSpreadSec) || 0) >= 0.8);
               // Compartir bloqueo Vocal-VAD exacto con Karaoke en vivo
               this.karaokeService.cache.set(key, vadLines.map(l => ({ ...l })));
               if (this.karaokeService.currentTrackKey === key) {
@@ -7060,9 +8068,11 @@
                 this.karaokeService.renderLinesToDom({ skipSingStarNotify: true });
               }
               if (hasVocalVadLock) {
-                const vadLabel = Math.abs(vadShiftSec) >= 0.55
-                  ? `Sincro · ${vadShiftSec > 0 ? '+' : ''}${vadShiftSec.toFixed(1)}s`
-                  : 'Sincro · Exacta';
+                const vadLabel = vadIsElastic
+                  ? 'Sincro · Elástica'
+                  : (Math.abs(vadShiftSec) >= 0.55
+                      ? `Sincro · ${vadShiftSec > 0 ? '+' : ''}${vadShiftSec.toFixed(1)}s`
+                      : 'Sincro · Exacta');
                 this.karaokeService.setKaraokeAiSyncStatus(key, vadLabel, 'ready');
               }
             }
@@ -7093,7 +8103,8 @@
           isAudioTranscribed: hasWhisperVerifiedCache,
           isWhisperVerified: hasWhisperVerifiedCache,
           isVocalVadLocked: hasVocalVadLock,
-          vadShiftSec
+          vadShiftSec,
+          vadIsElastic
         };
         this._putStudioAnalysisCache(key, studioData);
         this._applyStudioAnalysisToStage(studioData, Number(this.karaokeService?.timeOffsetSec || 0), false);
@@ -7150,12 +8161,16 @@
         } else {
           const readyLabel = hasWhisperVerifiedCache
             ? 'Sincro IA · 10ms'
-            : (Math.abs(vadShiftSec) >= 0.55 ? `Sincro · ${vadShiftSec > 0 ? '+' : ''}${vadShiftSec.toFixed(1)}s` : 'Sincro · Exacta');
+            : (vadIsElastic
+                ? 'Sincro · Elástica'
+                : (Math.abs(vadShiftSec) >= 0.55 ? `Sincro · ${vadShiftSec > 0 ? '+' : ''}${vadShiftSec.toFixed(1)}s` : 'Sincro · Exacta'));
           this._setSyncStatusChip(readyLabel, 'ready');
           if (studioData.hasDspMelody) {
-            const subMsg = Math.abs(vadShiftSec) >= 0.55
-              ? `Desfase corregido (${vadShiftSec > 0 ? '+' : ''}${vadShiftSec.toFixed(1)}s) en Karaoke y SingStar`
-              : 'Letra, sílabas y melodía MPM sincronizadas al audio real';
+            const subMsg = vadIsElastic
+              ? 'Sincronización elástica por tramos aplicada a Karaoke y SingStar'
+              : (Math.abs(vadShiftSec) >= 0.55
+                  ? `Desfase corregido (${vadShiftSec > 0 ? '+' : ''}${vadShiftSec.toFixed(1)}s) en Karaoke y SingStar`
+                  : 'Letra, sílabas y melodía MPM sincronizadas al audio real');
             this._spawnPopup('SINCRONIZACIÓN EXACTA', subMsg, '#34d399', 1350);
           }
         }
@@ -7177,7 +8192,7 @@
         return this._whisperWorker;
       }
       try {
-        const worker = new Worker('./whisper_worker.js?v=87.0', { type: 'module' });
+        const worker = new Worker('./whisper_worker.js?v=88.0', { type: 'module' });
         this._whisperWorkerCallbacks = new Map();
         this._whisperWorkerSeq = 0;
 
@@ -11877,7 +12892,7 @@
 
         if (msg.event === 'onReady') {
           this._sendYtBridgeCommand('unMute', []);
-          this._sendYtBridgeCommand('setVolume', [95]);
+          this._sendYtBridgeCommand('setVolume', [Math.round(this._getMasterVolume() * 100)]);
           if (this.activeSourceType === 'yt_bridge' && !this._ytBridgePaused) {
             this._sendYtBridgeCommand('playVideo', []);
           } else if (this._ytGameplayActive && !this._ytGameplayPaused) {
@@ -12033,7 +13048,7 @@
             this._sendYtBridgeCommand('addEventListener', ['onReady']);
             this._sendYtBridgeCommand('addEventListener', ['onStateChange']);
             this._sendYtBridgeCommand('unMute', []);
-            this._sendYtBridgeCommand('setVolume', [95]);
+            this._sendYtBridgeCommand('setVolume', [Math.round(this._getMasterVolume() * 100)]);
             this._sendYtBridgeCommand('playVideo', []);
           }, { once: true });
         }
@@ -12746,21 +13761,63 @@
         window.DiscoverHomeApp.syncVideoclipIfActive(track);
       }
 
-      const attachBackgroundDspAndBlobUpgrade = (_audioUrlUsed = '', preloadOpts = {}) => {
-        this.preloadFullTrackInBackground(track, preloadOpts).then(async (blob) => {
+      if (this._activeServerRaceCtrl) {
+        try { this._activeServerRaceCtrl.abort(); } catch (_) {}
+        this._activeServerRaceCtrl = null;
+      }
+
+      // Descarga silenciosa del Blob SOLO para análisis DSP Vocal-VAD / SingStar y caché de seek futuro.
+      // REGLA DE ORO: JAMÁS reemplaza fullAudio.src ni mata yt_bridge a mitad de reproducción (0 cortes, 0 cambios de timbre ni saltos de volumen).
+      const attachBackgroundDspBlobOnly = (activeStreamUrl = '', preloadOpts = {}) => {
+        const fetchMatchingBlob = async () => {
+          if (preloadOpts && preloadOpts.existingResp) {
+            try {
+              const matchedVid = preloadOpts.existingResp.headers?.get?.('X-Video-Id');
+              if (matchedVid && !track.videoId) track.videoId = decodeURIComponent(matchedVid);
+              const durHdr = Number(preloadOpts.existingResp.headers?.get?.('X-Audio-Duration')) || 0;
+              if (durHdr > 45) track.durationSec = durHdr;
+              const b = await preloadOpts.existingResp.blob();
+              if (b && b.size >= 60000) return b;
+            } catch (_) {}
+          }
+          if (activeStreamUrl && /^(?:https?:\/\/|\/)/i.test(activeStreamUrl)) {
+            const ctrl = new AbortController();
+            const tid = setTimeout(() => ctrl.abort(), 18000);
+            try {
+              const resp = await fetch(activeStreamUrl, { signal: ctrl.signal });
+              clearTimeout(tid);
+              if (resp && resp.ok) {
+                const cType = String(resp.headers.get('content-type') || '').toLowerCase();
+                if (!cType.includes('text/html') && !cType.includes('application/json')) {
+                  const matchedVid = resp.headers.get('X-Video-Id');
+                  if (matchedVid && !track.videoId) track.videoId = decodeURIComponent(matchedVid);
+                  const durHdr = Number(resp.headers.get('X-Audio-Duration')) || 0;
+                  if (durHdr > 45) track.durationSec = durHdr;
+                  const exactBlob = await resp.blob();
+                  if (exactBlob && exactBlob.size >= 60000) return exactBlob;
+                }
+              }
+            } catch (_) {
+              clearTimeout(tid);
+            }
+          }
+          // Solo si el stream directo falló CORS/red o no había URL directa (p.ej. yt_bridge), descargar respaldo emparejado
+          return this.preloadFullTrackInBackground(track, preloadOpts);
+        };
+
+        fetchMatchingBlob().then((blob) => {
           if (reqId !== this._playRequestId || !blob || blob.size < 60000) return;
           this.fullTrackBlob = blob;
+          this._storeFullBlobInGlobalCache(track, blob);
           if (this.karaokeService) {
             this.karaokeService.recalibrateForActualAudio(track, this.getTrackFullDurationSec(track), blob).catch(() => {});
           }
-          // Actualizar silenciosamente a Blob local para que cualquier clic futuro en frases sea <5ms sin cortes Range
-          const curPlaying = this.isPlaying();
-          const curSeek = this.pendingUserSeekSec !== null
-            ? this.pendingUserSeekSec
-            : ((this._seekGuard && Date.now() < this._seekGuard.untilMs)
-                ? this._seekGuard.targetSec
-                : (this.activeSourceType === 'yt_bridge' ? null : (Number(this.fullAudio.currentTime) || 0)));
-          await this._upgradeFullAudioToLocalBlob(blob, curSeek, curPlaying, reqId);
+          // Si el usuario solicitó explícitamente un seek pendiente que requirió Blob local, ejecutarlo únicamente entonces
+          if (this.pendingUserSeekSec !== null && this.activeSourceType === 'full' && !this._fullAudioIsLocalBlob) {
+            const targetSeek = this.pendingUserSeekSec;
+            this.pendingUserSeekSec = null;
+            this._upgradeFullAudioToLocalBlob(blob, targetSeek, this.isPlaying(), reqId).catch(() => {});
+          }
         }).catch(() => {});
       };
 
@@ -12798,7 +13855,7 @@
             this._setLoadingHintVisible(false);
             this._updatePlayerMetadataUI(track);
             this._startListenTracker();
-            attachBackgroundDspAndBlobUpgrade(commUrl);
+            attachBackgroundDspBlobOnly(commUrl);
             return true;
           }
         }
@@ -12815,7 +13872,7 @@
 
       const directStreamUrl = (!isCommTrack) ? this._getDirectFullStreamUrl(track) : '';
 
-      // 3. Si tiene URL directa en GitHub Releases (Catálogo Top), reproducir el MP3 de estudio completo desde 0:00 + Blob upgrade silencioso
+      // 3. Si tiene URL directa en GitHub Releases (Catálogo Top), reproducir el MP3 de estudio completo desde 0:00 sin cortes posteriores
       if (directStreamUrl) {
         this._setLoadingHintVisible(true);
         this._currentFullAudioTrackId = String(track.id || '');
@@ -12841,7 +13898,7 @@
           this._setLoadingHintVisible(false);
           this._updatePlayerMetadataUI(track);
           this._startListenTracker();
-          attachBackgroundDspAndBlobUpgrade(usedUrl);
+          attachBackgroundDspBlobOnly(usedUrl);
           if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
             window.DiscoverHomeApp.syncActiveVideoclipPlayback('play');
           }
@@ -12849,10 +13906,9 @@
         }
       }
 
-      // 4. Streaming directo de pista COMPLETA desde 0:00 (SIN previews de 30s):
-      //    Compite en paralelo el stream progresivo del servidor (/api/v1/audio/extract),
-      //    la URL progresiva SoundCloud, la descarga Blob en cliente y un arranque rápido
-      //    vía YouTube Bridge (cutoff 1.6s) mientras el Blob completo sigue descargando detrás.
+      // 4. Carrera limpia de fuente única (NINGÚN competidor toca this.fullAudio hasta ganar Promise.any):
+      //    Compiten stream del servidor (/api/v1/audio/extract), SoundCloud progresivo, Blob cliente
+      //    y respaldo YouTube Bridge (cutoff 3.4s) para evitar cortes o cambios de sonido a mitad de canción.
       this._setLoadingHintVisible(true);
       this._currentFullAudioTrackId = String(track.id || '');
       if (desiredStartSec > 0) {
@@ -12891,11 +13947,24 @@
             : Promise.resolve(''));
 
       const progressiveExtractUrl = this._buildServerExtractStreamUrl(track);
+      const srvRaceCtrl = new AbortController();
+      this._activeServerRaceCtrl = srvRaceCtrl;
       const serverStreamRace = progressiveExtractUrl
         ? (async () => {
-            const ok = await this._startChannelWithFadeIn(this.fullAudio, progressiveExtractUrl, 'full', reqId, desiredStartSec, 110);
-            if (!ok) throw new Error('server_stream_failed');
-            return { mode: 'server_stream' };
+            const tid = setTimeout(() => srvRaceCtrl.abort(), 14000);
+            try {
+              const resp = await fetch(progressiveExtractUrl, { signal: srvRaceCtrl.signal });
+              clearTimeout(tid);
+              if (!resp || !resp.ok) throw new Error('server_stream_http');
+              const cType = String(resp.headers.get('content-type') || '').toLowerCase();
+              if (!cType.startsWith('audio/') && !cType.includes('octet-stream')) {
+                throw new Error('server_stream_ctype');
+              }
+              return { mode: 'server_stream', url: progressiveExtractUrl, resp };
+            } catch (err) {
+              clearTimeout(tid);
+              throw err;
+            }
           })()
         : Promise.reject(new Error('no_server_url'));
 
@@ -12933,15 +14002,22 @@
         const vid = await fastVidPromise;
         if (!vid || reqId !== this._playRequestId) throw new Error('no_yt_vid');
         await new Promise((resolve) => {
-          fastBridgeTid = setTimeout(resolve, 1600);
+          fastBridgeTid = setTimeout(resolve, 3400);
         });
         if (reqId !== this._playRequestId) throw new Error('stale_req');
         return { mode: 'yt_bridge', videoId: vid };
       })();
 
+      let winner = null;
       try {
-        const winner = await Promise.any([serverStreamRace, soundCloudProgRace, clientBlobRace, ytBridgeFastStarter]);
-        if (reqId !== this._playRequestId) return false;
+        winner = await Promise.any([serverStreamRace, soundCloudProgRace, clientBlobRace, ytBridgeFastStarter]);
+        if (reqId !== this._playRequestId) {
+          try { srvRaceCtrl.abort(); } catch (_) {}
+          return false;
+        }
+        if (winner && winner.mode !== 'server_stream') {
+          try { srvRaceCtrl.abort(); } catch (_) {}
+        }
 
         if (winner && winner.mode === 'blob' && winner.blob) {
           this.fullTrackBlob = winner.blob;
@@ -12982,7 +14058,7 @@
             this._setLoadingHintVisible(false);
             this._updatePlayerMetadataUI(track);
             this._startListenTracker();
-            attachBackgroundDspAndBlobUpgrade(winner.url, { excludeServer: false });
+            attachBackgroundDspBlobOnly(winner.url, { excludeServer: false });
             if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
               window.DiscoverHomeApp.syncActiveVideoclipPlayback('play');
             }
@@ -12990,26 +14066,31 @@
           }
         }
 
-        if (winner && winner.mode === 'server_stream') {
-          this.fullTrackReady = true;
-          this._fullAudioIsLocalBlob = false;
-          this.isLoadingTrack = false;
-          this._setLoadingHintVisible(false);
-          this._updatePlayerMetadataUI(track);
-          this._startListenTracker();
-          attachBackgroundDspAndBlobUpgrade(progressiveExtractUrl, { excludeServer: false });
-          const targetSeek = this.pendingUserSeekSec !== null ? this.pendingUserSeekSec : (desiredStartSec > 0 ? desiredStartSec : null);
-          if (targetSeek !== null && targetSeek > 0 && Math.abs((Number(this.fullAudio.currentTime) || 0) - targetSeek) > 2.5) {
-            this.pendingUserSeekSec = targetSeek;
-            this._seekGuard = { targetSec: targetSeek, untilMs: Date.now() + 8000 };
-            this._ensureFullBlobUpgradeAndSeek(track, targetSeek, reqId);
-          } else if (this.pendingUserSeekSec !== null) {
-            this.pendingUserSeekSec = null;
+        if (winner && winner.mode === 'server_stream' && winner.url) {
+          const effectiveStart = this.pendingUserSeekSec !== null ? this.pendingUserSeekSec : desiredStartSec;
+          const startedSrv = await this._startChannelWithFadeIn(this.fullAudio, winner.url, 'full', reqId, effectiveStart, 110);
+          if (reqId !== this._playRequestId) return false;
+          if (startedSrv) {
+            this.fullTrackReady = true;
+            this._fullAudioIsLocalBlob = false;
+            this.isLoadingTrack = false;
+            this._setLoadingHintVisible(false);
+            this._updatePlayerMetadataUI(track);
+            this._startListenTracker();
+            attachBackgroundDspBlobOnly(winner.url, { excludeServer: false, existingResp: winner.resp });
+            const targetSeek = this.pendingUserSeekSec !== null ? this.pendingUserSeekSec : (desiredStartSec > 0 ? desiredStartSec : null);
+            if (targetSeek !== null && targetSeek > 0 && Math.abs((Number(this.fullAudio.currentTime) || 0) - targetSeek) > 2.5) {
+              this.pendingUserSeekSec = targetSeek;
+              this._seekGuard = { targetSec: targetSeek, untilMs: Date.now() + 8000 };
+            } else if (this.pendingUserSeekSec !== null) {
+              this.pendingUserSeekSec = null;
+            }
+            if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
+              window.DiscoverHomeApp.syncActiveVideoclipPlayback('play');
+            }
+            return true;
           }
-          if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
-            window.DiscoverHomeApp.syncActiveVideoclipPlayback('play');
-          }
-          return true;
+          try { srvRaceCtrl.abort(); } catch (_) {}
         }
 
         if (winner && winner.mode === 'yt_bridge' && winner.videoId) {
@@ -13021,21 +14102,26 @@
             if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
               window.DiscoverHomeApp.syncActiveVideoclipPlayback('play');
             }
-            attachBackgroundDspAndBlobUpgrade('', { excludeServer: false });
+            // Descargar solo el audio del MISMO videoId para DSP/SingStar sin interrumpir ni cortar yt_bridge
+            attachBackgroundDspBlobOnly('', { excludeServer: false, videoIdOnly: winner.videoId });
             return true;
           }
         }
       } catch (_) {
+        try { srvRaceCtrl.abort(); } catch (__) {}
       } finally {
         if (fastBridgeTid) {
           clearTimeout(fastBridgeTid);
           fastBridgeTid = null;
         }
+        if (this._activeServerRaceCtrl === srvRaceCtrl && (!winner || winner.mode !== 'server_stream')) {
+          this._activeServerRaceCtrl = null;
+        }
       }
 
       if (reqId !== this._playRequestId) return false;
 
-      // 5. Respaldo inmediato vía YouTube Bridge si existe videoId + descarga completa en segundo plano
+      // 5. Respaldo inmediato vía YouTube Bridge si existe videoId + descarga DSP emparejada en segundo plano (sin cortes)
       const ytFallbackVid = this._extractTrackYoutubeId(track) || (await Promise.race([
         fastVidPromise,
         new Promise(r => setTimeout(() => r(''), 1200))
@@ -13047,7 +14133,7 @@
         if (this._startYtAudioBridge(ytFallbackVid, bridgeStart, reqId)) {
           this._updatePlayerMetadataUI(track);
           this._startListenTracker();
-          attachBackgroundDspAndBlobUpgrade('', { excludeServer: false });
+          attachBackgroundDspBlobOnly('', { excludeServer: false, videoIdOnly: ytFallbackVid });
           return true;
         }
       }
@@ -13539,13 +14625,16 @@
 
     async preloadFullTrackInBackground(track, options = {}) {
       if (!track) return null;
-      const existing = this._getCachedFullBlobForTrack(track);
+      const videoIdOnly = String(options && options.videoIdOnly || '').trim();
+      const existing = !videoIdOnly ? this._getCachedFullBlobForTrack(track) : null;
       if (existing && existing.size >= 80000) return existing;
 
       const excludeServer = Boolean(options && options.excludeServer);
       if (!this._inflightFullPreloads) this._inflightFullPreloads = new Map();
       const baseKey = String(track.id || `${track.title}__${track.artist}`);
-      const key = excludeServer ? `${baseKey}__nosrv` : baseKey;
+      const key = videoIdOnly
+        ? `${baseKey}__vid_${videoIdOnly}`
+        : (excludeServer ? `${baseKey}__nosrv` : baseKey);
       if (this._inflightFullPreloads.has(key)) {
         return this._inflightFullPreloads.get(key);
       }
@@ -13569,7 +14658,8 @@
           // 1. Rama Servidor (/api/v1/audio/extract) con timeout amplio (16s) para permitir extracción en frío de pistas completas
           if (!excludeServer) {
             const serverRaceTask = (async () => {
-              const extractUrl = this._buildServerExtractStreamUrl(track);
+              const targetTrack = videoIdOnly ? { ...track, videoId: videoIdOnly } : track;
+              const extractUrl = this._buildServerExtractStreamUrl(targetTrack);
               const ctrl = new AbortController();
               const tid = setTimeout(() => ctrl.abort(), 16000);
               let resp = null;
@@ -13599,7 +14689,7 @@
           }
 
           // 2. Rama CDN Directo con resolución exacta de Release Tag (3 al 9)
-          const directUrl = this._getDirectFullStreamUrl(track);
+          const directUrl = !videoIdOnly ? this._getDirectFullStreamUrl(track) : '';
           if (directUrl) {
             const directRaceTask = (async () => {
               const ctrl = new AbortController();
@@ -13636,17 +14726,22 @@
             raceCompetitors.push(directRaceTask);
           }
 
-          // 3. Rama SoundCloud Cliente directo (~200ms desde CDN progresivo):
-          if (!directUrl && typeof window.searchSoundCloudFullClient === 'function' && typeof window.downloadSoundCloudFullTrackClient === 'function') {
+          // 3. Rama SoundCloud Cliente directo (~200ms desde CDN progresivo) con guardia de duración (<=12s)
+          if (!videoIdOnly && !directUrl && typeof window.searchSoundCloudFullClient === 'function' && typeof window.downloadSoundCloudFullTrackClient === 'function') {
             const clientScTask = (async () => {
               const scList = await window.searchSoundCloudFullClient(cleanTitle, cleanArtist, 12);
               if (!Array.isArray(scList) || scList.length === 0) throw new Error('No SC candidates');
+              const expectedTrackDur = Number(track.durationSec || track.duration || 0);
               for (const cand of scList.slice(0, 3)) {
                 if ((cand.authenticityScore || 0) < 62) break;
+                const candDur = Number(cand.durationSec || 0);
+                if (expectedTrackDur > 50 && candDur > 40 && Math.abs(candDur - expectedTrackDur) > 12) continue;
                 const scDl = await window.downloadSoundCloudFullTrackClient(cand._scRawTrack || cand.scTrackId);
                 if (scDl && scDl.blob && scDl.blob.size >= 100000) {
-                  if (scDl.durationSec && scDl.durationSec > 45 && (!track.durationSec || track.durationSec < 45)) {
-                    track.durationSec = scDl.durationSec;
+                  const dlDur = Number(scDl.durationSec || candDur || 0);
+                  if (expectedTrackDur > 50 && dlDur > 40 && Math.abs(dlDur - expectedTrackDur) > 12) continue;
+                  if (dlDur > 45 && (!track.durationSec || track.durationSec < 45)) {
+                    track.durationSec = dlDur;
                   }
                   return scDl.blob;
                 }
@@ -13660,21 +14755,25 @@
           if (!directUrl && typeof window.extractYouTubeFullAudioViaNotubeClient === 'function') {
             const clientYtTask = (async () => {
               const vidsToTry = [];
-              const initialVid = this._extractTrackYoutubeId(track);
-              if (initialVid) vidsToTry.push(initialVid);
-              if (typeof window.searchYouTubeOfficialClient === 'function') {
-                const ytCands = await window.searchYouTubeOfficialClient(
-                  cleanTitle,
-                  cleanArtist,
-                  Number(track.durationSec) || 0
-                ).catch(() => []);
-                if (Array.isArray(ytCands)) {
-                  for (const c of ytCands.slice(0, 3)) {
-                    if (c && c.videoId && !vidsToTry.includes(c.videoId)) {
-                      vidsToTry.push(c.videoId);
-                      if (!track.videoId) track.videoId = c.videoId;
-                      if (c.durationSec > 45 && (!track.durationSec || track.durationSec < 45)) {
-                        track.durationSec = c.durationSec;
+              if (videoIdOnly) {
+                vidsToTry.push(videoIdOnly);
+              } else {
+                const initialVid = this._extractTrackYoutubeId(track);
+                if (initialVid) vidsToTry.push(initialVid);
+                if (typeof window.searchYouTubeOfficialClient === 'function') {
+                  const ytCands = await window.searchYouTubeOfficialClient(
+                    cleanTitle,
+                    cleanArtist,
+                    Number(track.durationSec) || 0
+                  ).catch(() => []);
+                  if (Array.isArray(ytCands)) {
+                    for (const c of ytCands.slice(0, 3)) {
+                      if (c && c.videoId && !vidsToTry.includes(c.videoId)) {
+                        vidsToTry.push(c.videoId);
+                        if (!track.videoId) track.videoId = c.videoId;
+                        if (c.durationSec > 45 && (!track.durationSec || track.durationSec < 45)) {
+                          track.durationSec = c.durationSec;
+                        }
                       }
                     }
                   }
@@ -13692,7 +14791,7 @@
           }
 
           // 5. Rama Audius Cliente directo (pista completa >= 50s)
-          if (!directUrl && typeof window.searchAndDownloadAudiusFullClient === 'function') {
+          if (!videoIdOnly && !directUrl && typeof window.searchAndDownloadAudiusFullClient === 'function') {
             const clientAudiusTask = (async () => {
               const auRes = await window.searchAndDownloadAudiusFullClient(cleanTitle, cleanArtist);
               if (auRes && auRes.blob && auRes.blob.size >= 140000) {
@@ -14294,6 +15393,10 @@
     }
 
     _stopBothChannelsImmediate() {
+      if (this._activeServerRaceCtrl) {
+        try { this._activeServerRaceCtrl.abort(); } catch (_) {}
+        this._activeServerRaceCtrl = null;
+      }
       try { this.previewAudio.pause(); } catch (_) {}
       try { this.fullAudio.pause(); } catch (_) {}
       this._stopYtAudioBridge();
