@@ -25,7 +25,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./style.css?v=89.0">
+  <link rel="stylesheet" href="./style.css?v=90.0">
   <script>
     // ===================================================
     // SISTEMA DE INTERNACIONALIZACIÓN (i18n: ES / EN)
@@ -5212,13 +5212,13 @@
       </div>
     </div>
 
-    <!-- ESCENARIO PROFESIONAL SINGSTAR PRO A PANTALLA COMPLETA (DISEÑO MINIMALISTA Y LIMPIO) -->
+    <!-- ESCENARIO PROFESIONAL SINGSTAR PRO A PANTALLA COMPLETA (DISEÑO BROADCAST STUDIO) -->
     <div id="singstarFullscreenModal" class="singstar-fs-overlay">
-      <!-- 1. Barra Superior Minimalista en una sola fila -->
+      <!-- 1. Cabecera Limpia con Título Amplio y Marcador Compacto -->
       <div class="singstar-fs-topbar">
         <div class="singstar-fs-brand-cluster">
           <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.closeSingStarStudio()" class="singstar-fs-icon-btn" title="Salir de SingStar">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
           </button>
           <div class="singstar-fs-song-meta">
             <img id="ssProCoverImg" src="./app_logo.png" onerror="this.onerror=null; this.src='./app_logo.png';" class="singstar-fs-cover" alt="">
@@ -5230,41 +5230,44 @@
         </div>
 
         <div class="singstar-fs-header-right">
-          <div class="singstar-fs-score-pill">
-            <span id="ssProComboBadge" class="np-singstar-combo-badge" style="font-size:10.5px; padding:2px 7px;">x1</span>
-            <span id="ssProScoreVal" class="np-singstar-score-val" style="font-size:13.5px;">0 PTS</span>
+          <div class="singstar-fs-score-pill" title="Puntuación vocal en directo">
+            <span id="ssProComboBadge" class="np-singstar-combo-badge singstar-fs-combo-chip">x1</span>
+            <span id="ssProScoreVal" class="np-singstar-score-val singstar-fs-score-num">0</span>
           </div>
           <button id="ssProSettingsBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleSingStarStudioSettings()" class="singstar-fs-icon-btn" title="Ajustes de Estudio Vocal">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
           </button>
-          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openSingStarSummary()" class="singstar-fs-tool-pill gold" style="padding:5px 11px; font-size:11px;">
-            <span>Evaluar</span>
+          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openSingStarSummary()" class="singstar-fs-eval-btn" title="Ver evaluación vocal">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+            <span class="singstar-fs-eval-label">Evaluar</span>
           </button>
         </div>
       </div>
 
-      <!-- 2. Barra Compacta de Afinador Vocal en una sola fila -->
+      <!-- 2. Banda Limpia de Afinador Vocal en 2 Zonas (Cero Texto Aplastado) -->
       <div class="singstar-fs-telemetry-bar">
-        <div class="singstar-fs-note-badge" onclick="window.SingStarVocalEngine && window.SingStarVocalEngine._ensureMicrophoneActive(true)" style="cursor:pointer;" title="Toca para activar o calibrar tu micrófono">
+        <div class="singstar-fs-note-badge" onclick="window.SingStarVocalEngine && window.SingStarVocalEngine._ensureMicrophoneActive(true)" title="Toca para activar o calibrar tu micrófono">
           <span id="ssProMicDot" class="singstar-fs-mic-dot"></span>
           <span id="ssProLiveNote" class="singstar-fs-note-main">--</span>
           <span id="ssProLiveHz" class="singstar-fs-note-hz">0 Hz</span>
           <span id="ssProMicLevelTrack" class="singstar-fs-mic-meter" aria-hidden="true"><span id="ssProMicLevelFill" class="singstar-fs-mic-meter-fill"></span><span id="ssProMicGateMark" class="singstar-fs-mic-gate-mark"></span></span>
         </div>
 
-        <span id="ssProMicStatus" onclick="window.SingStarVocalEngine && window.SingStarVocalEngine._ensureMicrophoneActive(true)" class="np-singstar-pitch-status" style="font-size:10.5px; padding:3px 10px; border-radius:999px; background:rgba(255,255,255,0.04); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer;" title="Toca para solicitar permiso o activar el micrófono">CANTA AHORA</span>
-
-        <span id="ssProSyncStatusChip" class="singstar-fs-sync-chip hidden" title="Estado de sincronización silábica"></span>
+        <span id="ssProMicStatus" onclick="window.SingStarVocalEngine && window.SingStarVocalEngine._ensureMicrophoneActive(true)" class="np-singstar-pitch-status singstar-fs-mic-status" title="Toca para activar o calibrar el micrófono">CANTA</span>
 
         <div class="singstar-fs-target-badge" title="Nota objetivo de la sílaba actual">
-          <span>Meta:</span>
+          <span class="singstar-fs-target-kicker">META</span>
           <span id="ssProTargetNote" class="singstar-fs-target-note">--</span>
+          <span id="ssProTargetHz" class="singstar-fs-target-hz"></span>
         </div>
       </div>
 
-      <!-- 3. Escenario Principal Despejado (Pentagrama Cromático Monotónico + Sílabas) -->
+      <!-- 3. Escenario Principal Broadcast con Fondo Ambiental Difuminado y Pentagrama Dinámico -->
       <div class="singstar-fs-stage-body">
         <div class="singstar-fs-canvas-container">
+          <div id="ssProStageBg" class="singstar-fs-stage-bg" aria-hidden="true"></div>
+          <div class="singstar-fs-stage-vignette" aria-hidden="true"></div>
+          <span id="ssProSyncStatusChip" class="singstar-fs-sync-chip hidden" title="Estado de sincronización con el audio real"></span>
           <canvas id="singstarProCanvas" width="960" height="460"></canvas>
         </div>
 
@@ -5273,12 +5276,12 @@
           <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
             <div style="min-width:0; flex:1;">
               <div style="display:flex; align-items:center; gap:6px;">
-                <span style="font-size:10px; font-weight:900; color:#38bdf8; text-transform:uppercase; letter-spacing:0.06em;">Sincronización Vocal Silábica</span>
-                <span id="ssPrepProgressPct" style="font-size:10px; font-weight:900; color:#fde047;">0%</span>
+                <span style="font-size:10px; font-weight:800; color:#38bdf8; text-transform:uppercase; letter-spacing:0.06em;">Sincronización Vocal</span>
+                <span id="ssPrepProgressPct" style="font-size:10px; font-weight:800; color:#fde047;">0%</span>
               </div>
-              <div id="ssPrepProgressDetail" style="font-size:11px; color:#d4d4d8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Analizando voz y sílabas exactas...</div>
+              <div id="ssPrepProgressDetail" style="font-size:11px; color:#cbd5e1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Analizando voz y sílabas exactas...</div>
             </div>
-            <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.skipSingStarPrepWait()" class="singstar-fs-tool-pill" style="padding:4px 9px; font-size:10px;">Cantar Ya</button>
+            <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.skipSingStarPrepWait()" class="singstar-fs-tool-pill" style="padding:4px 10px; font-size:10.5px;">Cantar Ya</button>
           </div>
           <div class="singstar-progress-bar-outer">
             <div id="ssPrepProgressBar" class="singstar-progress-bar-inner"></div>
@@ -5294,13 +5297,13 @@
           </div>
         </div>
 
-        <!-- MODAL DE AJUSTES DE ESTUDIO VOCAL (Oculto por defecto para mantener la pantalla limpia) -->
+        <!-- MODAL DE AJUSTES DE ESTUDIO VOCAL -->
         <div id="singstarStudioSettingsView" class="singstar-fs-modal-view hidden" onclick="if(event.target===this) window.DiscoverHomeApp && window.DiscoverHomeApp.toggleSingStarStudioSettings(false)">
           <div class="singstar-studio-card" onclick="event.stopPropagation();">
             <div style="display:flex; align-items:center; justify-content:space-between;">
               <div>
                 <div style="font-size:10px; font-weight:800; color:#38bdf8; letter-spacing:0.08em; text-transform:uppercase;">CONFIGURACIÓN VOCAL</div>
-                <h3 style="font-size:16px; font-weight:900; color:#ffffff; margin:1px 0 0;">Ajustes de Estudio SingStar</h3>
+                <h3 style="font-size:16px; font-weight:800; color:#ffffff; margin:1px 0 0;">Ajustes de Estudio SingStar</h3>
               </div>
               <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleSingStarStudioSettings(false)" class="singstar-fs-icon-btn" style="width:30px; height:30px;" title="Cerrar">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
@@ -5310,8 +5313,8 @@
             <div class="singstar-mic-sens-row">
               <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
                 <div>
-                  <div style="font-size:12px; font-weight:800; color:#ffffff;">Sensibilidad del Micrófono</div>
-                  <div style="font-size:10.5px; color:#9ca3af;">Bájala si entra sonido del altavoz · Súbela si cantas suave</div>
+                  <div style="font-size:12px; font-weight:700; color:#ffffff;">Sensibilidad del Micrófono</div>
+                  <div style="font-size:10.5px; color:#94a3b8;">Bájala si entra altavoz · Súbela si cantas suave</div>
                 </div>
                 <span id="ssProMicSensVal" style="font-family:monospace; font-size:11px; font-weight:800; color:#fde047;">100%</span>
               </div>
@@ -5323,8 +5326,8 @@
 
             <div class="singstar-settings-row">
               <div>
-                <div style="font-size:12px; font-weight:800; color:#ffffff;">Registro de Octava</div>
-                <div style="font-size:10.5px; color:#9ca3af;">Adapta la altura sin invertir graves y agudos</div>
+                <div style="font-size:12px; font-weight:700; color:#ffffff;">Registro de Octava</div>
+                <div style="font-size:10.5px; color:#94a3b8;">Adapta la altura sin invertir graves y agudos</div>
               </div>
               <button id="ssProOctaveBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.cycleSingStarOctaveRegister()" class="singstar-fs-tool-pill">
                 <span id="ssProOctaveLabel">Registro: Auto</span>
@@ -5333,8 +5336,8 @@
 
             <div class="singstar-settings-row">
               <div>
-                <div style="font-size:12px; font-weight:800; color:#ffffff;">Atenuar Voz Original</div>
-                <div style="font-size:10.5px; color:#9ca3af;">Reduce la voz del cantante en la pista</div>
+                <div style="font-size:12px; font-weight:700; color:#ffffff;">Atenuar Voz Original</div>
+                <div style="font-size:10.5px; color:#94a3b8;">Reduce la voz del cantante en la pista</div>
               </div>
               <button id="ssProVocalRedBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleSingStarVocalReducer()" class="singstar-fs-tool-pill">
                 <span id="ssProVocalRedLabel">Atenuar Voz: OFF</span>
@@ -5343,8 +5346,8 @@
 
             <div class="singstar-settings-row">
               <div>
-                <div style="font-size:12px; font-weight:800; color:#ffffff;">Tono Guía Audible</div>
-                <div style="font-size:10.5px; color:#9ca3af;">Escucha la nota exacta de cada sílaba</div>
+                <div style="font-size:12px; font-weight:700; color:#ffffff;">Tono Guía Audible</div>
+                <div style="font-size:10.5px; color:#94a3b8;">Escucha la nota exacta de cada sílaba</div>
               </div>
               <button id="ssProToneGuideBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleSingStarAudibleToneGuide()" class="singstar-fs-tool-pill">
                 <span id="ssProToneGuideLabel">Tono Guía: OFF</span>
@@ -5353,8 +5356,8 @@
 
             <div class="singstar-settings-row">
               <div>
-                <div style="font-size:12px; font-weight:800; color:#ffffff;">Fuente de Voz</div>
-                <div style="font-size:10.5px; color:#9ca3af;">Micrófono real o piloto de demostración</div>
+                <div style="font-size:12px; font-weight:700; color:#ffffff;">Fuente de Voz</div>
+                <div style="font-size:10.5px; color:#94a3b8;">Micrófono real o piloto de demostración</div>
               </div>
               <button id="ssProDemoModeBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleSingStarVoiceGuide()" class="singstar-fs-tool-pill">
                 <span id="ssProDemoModeLabel">Entrada: Mic Real</span>
@@ -5362,7 +5365,10 @@
             </div>
 
             <div class="singstar-settings-row">
-              <div style="font-size:12px; font-weight:800; color:#ffffff;">Sincronización de Sílabas</div>
+              <div>
+                <div style="font-size:12px; font-weight:700; color:#ffffff;">Sincronización de Sílabas</div>
+                <div style="font-size:10px; color:#94a3b8;">O mantén pulsada la frase en el teleprompter</div>
+              </div>
               <div style="display:flex; align-items:center; gap:5px;">
                 <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.adjustKaraokeOffset(-0.25)" class="singstar-fs-tool-pill" style="padding:4px 8px;">-0.25s</button>
                 <button id="ssProOffsetBadge" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.resetKaraokeOffset()" class="singstar-fs-tool-pill" style="padding:4px 8px; min-width:44px;">0.0s</button>
@@ -5387,13 +5393,13 @@
           <div class="singstar-studio-card">
             <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
               <div>
-                <div style="font-size:10px; font-weight:900; letter-spacing:0.1em; color:#fde047; text-transform:uppercase;">MOTOR VOCAL OFFLINE</div>
-                <h3 style="font-size:16px; font-weight:900; color:#ffffff; margin:2px 0 0;">Whisper ONNX + Alineador Silábico</h3>
+                <div style="font-size:10px; font-weight:800; letter-spacing:0.1em; color:#fde047; text-transform:uppercase;">MOTOR VOCAL OFFLINE</div>
+                <h3 style="font-size:16px; font-weight:800; color:#ffffff; margin:2px 0 0;">Whisper ONNX + Alineador Silábico</h3>
               </div>
               <span id="ssPackStatusBadge" class="singstar-fs-tool-pill" style="font-size:9.5px; padding:3px 8px;">ACTIVO</span>
             </div>
-            <p style="font-size:11.5px; line-height:1.4; color:#d4d4d8; margin:0;">
-              Motor neuronal Whisper ONNX integrado + alineación forzada a 10 ms (Viterbi-DTW y F0 YIN-CMND) para transcribir y sincronizar cada sílaba directamente desde el audio real.
+            <p style="font-size:11.5px; line-height:1.45; color:#cbd5e1; margin:0;">
+              Motor neuronal Whisper ONNX integrado + alineación forzada a 10 ms (ataques vocálicos 100 Hz y melodía MPM) para sincronizar cada sílaba directamente con el audio real.
             </p>
             <div class="singstar-step-list">
               <div id="ssPackMod1" class="singstar-step-item">
@@ -5401,7 +5407,7 @@
                 <span style="font-family:monospace; font-size:10px; color:#fde047;">LOCAL</span>
               </div>
               <div id="ssPackMod2" class="singstar-step-item">
-                <span>2. Alineador Forzado Silábico Viterbi-DTW (10 ms)</span>
+                <span>2. Alineador Forzado Silábico + Ataque Vocal (10 ms)</span>
                 <span style="font-family:monospace; font-size:10px; color:#fde047;">100 Hz</span>
               </div>
               <div id="ssPackMod3" class="singstar-step-item">
@@ -5437,8 +5443,8 @@
             <div style="display:flex; align-items:center; gap:14px; justify-content:center;">
               <div id="ssFsRankBadge" class="np-singstar-rank-circle" style="width:60px; height:60px; font-size:26px;">S</div>
               <div style="text-align:left;">
-                <div id="ssFsRankTitle" style="font-size:16px; font-weight:900; color:#fde047;">LEYENDA DEL ESCENARIO</div>
-                <div id="ssFsRankSub" style="font-size:12px; color:#d4d4d8; font-weight:700;">Puntuación Vocal: 0 pts</div>
+                <div id="ssFsRankTitle" style="font-size:16px; font-weight:800; color:#fde047;">LEYENDA DEL ESCENARIO</div>
+                <div id="ssFsRankSub" style="font-size:12px; color:#cbd5e1; font-weight:700;">Puntuación Vocal: 0 pts</div>
               </div>
             </div>
             <div class="np-singstar-stats-grid" style="width:100%; margin:4px 0;">
@@ -5467,29 +5473,28 @@
         </div>
       </div>
 
-      <!-- 4. Dock Inferior Limpio: Teleprompter de Sílabas + Transporte en una sola línea -->
+      <!-- 4. Dock Inferior Broadcast: Teleprompter Protagonista + Transporte Limpio -->
       <div class="singstar-fs-bottom-dock">
-        <div class="singstar-fs-teleprompter" title="Toca para saltar a esta frase · Mantén pulsado para sincronizar aquí">
+        <div class="singstar-fs-teleprompter" title="Toca para saltar · Mantén pulsado para sincronizar esta frase">
           <div id="ssProTeleprompterCurrent" class="singstar-fs-lyric-current">Canta siguiendo las barras de tono</div>
           <div id="ssProTeleprompterNext" class="singstar-fs-lyric-next"></div>
-          <div class="singstar-fs-teleprompter-hint">Mantén pulsada la frase para sincronizarla al instante</div>
         </div>
         <div class="singstar-fs-transport-row">
           <button id="ssProPlayPauseBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.togglePlayPauseMini()" class="singstar-fs-play-circle" title="Pausar / Reproducir">
             <span id="ssProPlayPauseLabel" style="display:inline-flex;align-items:center;justify-content:center;"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg></span>
           </button>
-          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.restartCurrentSongInSingStar()" class="singstar-fs-icon-btn" style="width:32px; height:32px;" title="Reiniciar canción desde 0:00">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.restartCurrentSongInSingStar()" class="singstar-fs-icon-btn singstar-fs-sm-btn" title="Reiniciar canción desde 0:00">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
           </button>
           <div class="singstar-fs-scrub-group">
             <span id="ssProCurTime" class="singstar-fs-time-lbl">0:00</span>
             <input id="ssProScrubSlider" type="range" min="0" max="100" step="0.1" value="0" oninput="window.DiscoverHomeApp && window.DiscoverHomeApp.onNowPlayingScrub(this.value)" class="np-scrubber-slider" style="flex:1;">
             <span id="ssProDurTime" class="singstar-fs-time-lbl">3:15</span>
           </div>
-          <button id="ssProQuickVocalBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleSingStarVocalReducer()" class="singstar-fs-tool-pill" style="padding:4px 9px; font-size:10px;" title="Atenuar la voz original del cantante">
+          <button id="ssProQuickVocalBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleSingStarVocalReducer()" class="singstar-fs-tool-pill singstar-fs-dock-pill" title="Atenuar la voz original del cantante">
             <span id="ssProQuickVocalLbl">Karaoke</span>
           </button>
-          <button id="ssProQuickToneBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleSingStarAudibleToneGuide()" class="singstar-fs-tool-pill" style="padding:4px 9px; font-size:10px;" title="Escuchar el tono guía de cada sílaba">
+          <button id="ssProQuickToneBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleSingStarAudibleToneGuide()" class="singstar-fs-tool-pill singstar-fs-dock-pill" title="Escuchar el tono guía de cada sílaba">
             <span id="ssProQuickToneLbl">Guía</span>
           </button>
         </div>
@@ -5615,7 +5620,7 @@
   <script defer src="./songs/comm_camilo_sesto/chart.js"></script>
   <script defer src="./songs/renacer/chart.js"></script>
   <script src="./songs/catalog_top.js?v=80.0"></script>
-  <script src="./discover_home.js?v=89.0"></script>
+  <script src="./discover_home.js?v=90.0"></script>
   <script>
     let engine = null;
     let currentActiveBeatmap = null;

@@ -228,7 +228,7 @@ self.onmessage = async (event) => {
       const opts = {
         task: 'transcribe',
         return_timestamps: 'word',
-        max_new_tokens: Math.min(180, Math.max(88, Math.round(winDur * 7.5))),
+        max_new_tokens: Math.min(148, Math.max(68, Math.round(winDur * 5.8))),
         no_repeat_ngram_size: 5,
         repetition_penalty: 1.12
       };
@@ -282,14 +282,20 @@ self.onmessage = async (event) => {
       let collapsedDtw = false;
       if (opts.return_timestamps === 'word' && hasDtwTimestampCollapse(out)) {
         collapsedDtw = true;
-        try {
-          const segOpts = { ...opts, return_timestamps: true };
-          const segOut = await pipe(audioArr, segOpts);
-          if (segOut && Array.isArray(segOut.chunks) && segOut.chunks.length > 0 && !hasDtwTimestampCollapse(segOut)) {
-            out = segOut;
-            collapsedDtw = false;
-          }
-        } catch (_) {}
+        const rawFallbackClean = normalizeWordClean(out?.text || '');
+        const rawFallbackWords = (!rawFallbackClean || HALLUCINATION_PHRASE_RE.test(rawFallbackClean))
+          ? []
+          : rawFallbackClean.split(/\s+/).filter(t => t.length >= 2 && !HALLUCINATION_WORD_RE.test(t));
+        if (rawFallbackWords.length >= 4) {
+          try {
+            const segOpts = { ...opts, return_timestamps: true };
+            const segOut = await pipe(audioArr, segOpts);
+            if (segOut && Array.isArray(segOut.chunks) && segOut.chunks.length > 0 && !hasDtwTimestampCollapse(segOut)) {
+              out = segOut;
+              collapsedDtw = false;
+            }
+          } catch (_) {}
+        }
       }
 
       if (isCanceled(trackKey, reqId)) {
