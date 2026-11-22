@@ -541,7 +541,7 @@ class MainActivity : AppCompatActivity() {
 
         setContentView(webView)
         webView.clearCache(true)
-        webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html?v=92.0")
+        webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html?v=93.0")
         hideSystemUI()
     }
 
@@ -1146,7 +1146,7 @@ class MainActivity : AppCompatActivity() {
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
         webView.evaluateJavascript(
-            "if (window.SingStarVocalEngine && window.SingStarVocalEngine.isActive && window.DiscoverHomeApp) { window.DiscoverHomeApp.closeSingStarStudio(); } else if (typeof engine !== 'undefined' && engine && engine.isPaused) { resumeGame(); } else if (typeof engine !== 'undefined' && engine && engine.isRunning) { openPauseModal(); } else if (typeof exitToSearch === 'function') { exitToSearch(); }",
+            "if (window.SingStarVocalEngine && window.SingStarVocalEngine.isActive && window.DiscoverHomeApp) { window.DiscoverHomeApp.closeSingStarStudio(); } else if (window.SpotifySuite && window.SpotifySuite.handleBackPress && window.SpotifySuite.handleBackPress()) { } else if (typeof engine !== 'undefined' && engine && engine.isPaused) { resumeGame(); } else if (typeof engine !== 'undefined' && engine && engine.isRunning) { openPauseModal(); } else if (typeof exitToSearch === 'function') { exitToSearch(); }",
             null
         )
     }
@@ -1224,7 +1224,7 @@ class MainActivity : AppCompatActivity() {
                     pInfo.versionCode
                 }
             } catch (e: Exception) {
-                54
+                89
             }
         }
 

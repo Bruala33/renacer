@@ -7048,57 +7048,19 @@
       this._syncSubtoolsDom();
 
       try {
-        if (!this._fxBoundAudioEl && next) {
-          const AudioCtx = window.AudioContext || window.webkitAudioContext;
-          if (!AudioCtx) return;
-          this._fxAudioCtx = new AudioCtx();
-          const srcNode = this._fxAudioCtx.createMediaElementSource(audioEl);
-
-          const dryGain = this._fxAudioCtx.createGain();
-          const karGain = this._fxAudioCtx.createGain();
-
-          const lowPassBass = this._fxAudioCtx.createBiquadFilter();
-          lowPassBass.type = 'lowpass';
-          lowPassBass.frequency.value = 175;
-          const bassGain = this._fxAudioCtx.createGain();
-          bassGain.gain.value = 1.15;
-
-          const splitter = this._fxAudioCtx.createChannelSplitter(2);
-          const merger = this._fxAudioCtx.createChannelMerger(2);
-          const invR = this._fxAudioCtx.createGain();
-          invR.gain.value = -0.82;
-          const invL = this._fxAudioCtx.createGain();
-          invL.gain.value = -0.82;
-
-          srcNode.connect(dryGain);
-          dryGain.connect(this._fxAudioCtx.destination);
-
-          srcNode.connect(lowPassBass);
-          lowPassBass.connect(bassGain);
-          bassGain.connect(karGain);
-
-          srcNode.connect(splitter);
-          splitter.connect(merger, 0, 0);
-          splitter.connect(invR, 1);
-          invR.connect(merger, 0, 0);
-          splitter.connect(merger, 1, 1);
-          splitter.connect(invL, 0);
-          invL.connect(merger, 0, 1);
-
-          merger.connect(karGain);
-          karGain.connect(this._fxAudioCtx.destination);
-
+        const bus = (this.audioEngine && typeof this.audioEngine.ensureMasterFxBus === 'function')
+          ? await this.audioEngine.ensureMasterFxBus(audioEl)
+          : null;
+        if (bus && bus.dryGain && bus.karGain) {
           this._fxBoundAudioEl = audioEl;
-          this._fxDryGain = dryGain;
-          this._fxKarGain = karGain;
-        }
-
-        if (this._fxAudioCtx && this._fxAudioCtx.state === 'suspended') {
-          await this._fxAudioCtx.resume().catch(() => {});
-        }
-        if (this._fxDryGain && this._fxKarGain) {
-          this._fxDryGain.gain.value = next ? 0.18 : 1.0;
-          this._fxKarGain.gain.value = next ? 0.96 : 0.0;
+          this._fxAudioCtx = bus.ctx;
+          this._fxDryGain = bus.dryGain;
+          this._fxKarGain = bus.karGain;
+          if (bus.ctx && bus.ctx.state === 'suspended') {
+            await bus.ctx.resume().catch(() => {});
+          }
+          bus.dryGain.gain.value = next ? 0.18 : 1.0;
+          bus.karGain.gain.value = next ? 0.96 : 0.0;
         }
         if (next && this.isActive) {
           this._spawnPopup('ATENUADOR VOCAL ACTIVO', 'Canal central vocal reducido en vivo', '#34d399', 1100);
@@ -14556,6 +14518,18 @@
       this.smartShuffleEnabled = false;
       this.wasPlayingBeforeGame = false;
 
+      // Preferencias de reproductor estilo Spotify (persistentes)
+      this.repeatMode = 'off'; // 'off' | 'all' | 'one'
+      this.playbackRate = 1.0;
+      this.crossfadeSec = 0;
+      this.autoplayEnabled = true;
+      this.eqEnabled = false;
+      this.eqPreset = 'flat';
+      this.eqBands = [0, 0, 0, 0, 0]; // 60Hz, 230Hz, 910Hz, 3.6kHz, 14kHz
+      this._masterFxBus = null;
+      this._crossfadeTriggeredReqId = -1;
+      this._loadPlayerAudioPrefs();
+
       // Pre-fetch cache para las siguientes tarjetas del mazo (0ms swipe como TikTok)
       this.prewarmedPreviewMap = new Map();
       this.fullTrackInflightMap = new Map();
@@ -14570,6 +14544,235 @@
       this._initMediaSession();
       this._initMiniPlayerSwipeDownGesture();
       this._initPersistentYtBridgePlayer();
+    }
+
+    _loadPlayerAudioPrefs() {
+      try {
+        const raw = localStorage.getItem('piano_community_audio_prefs_v1');
+        if (!raw) return;
+        const p = JSON.parse(raw);
+        if (p && typeof p === 'object') {
+          if (['off', 'all', 'one'].includes(p.repeatMode)) this.repeatMode = p.repeatMode;
+          if (Number.isFinite(Number(p.playbackRate))) {
+            this.playbackRate = Math.max(0.75, Math.min(1.5, Number(p.playbackRate)));
+          }
+          if (Number.isFinite(Number(p.crossfadeSec))) {
+            this.crossfadeSec = Math.max(0, Math.min(8, Math.round(Number(p.crossfadeSec))));
+          }
+          if (typeof p.autoplayEnabled === 'boolean') this.autoplayEnabled = p.autoplayEnabled;
+          if (typeof p.eqEnabled === 'boolean') this.eqEnabled = p.eqEnabled;
+          if (typeof p.eqPreset === 'string') this.eqPreset = p.eqPreset;
+          if (Array.isArray(p.eqBands) && p.eqBands.length === 5) {
+            this.eqBands = p.eqBands.map(v => Math.max(-12, Math.min(12, Number(v) || 0)));
+          }
+        }
+      } catch (_) {}
+    }
+
+    _savePlayerAudioPrefs() {
+      try {
+        localStorage.setItem('piano_community_audio_prefs_v1', JSON.stringify({
+          repeatMode: this.repeatMode,
+          playbackRate: this.playbackRate,
+          crossfadeSec: this.crossfadeSec,
+          autoplayEnabled: this.autoplayEnabled,
+          eqEnabled: this.eqEnabled,
+          eqPreset: this.eqPreset,
+          eqBands: this.eqBands
+        }));
+      } catch (_) {}
+    }
+
+    _isAudioElSafeForWebAudioFx(audioEl) {
+      if (!audioEl) return false;
+      const src = String(audioEl.currentSrc || audioEl.src || '').trim();
+      if (!src) return false;
+      if (src.startsWith('blob:') || src.startsWith('data:')) return true;
+      try {
+        const parsed = new URL(src, window.location.href);
+        return parsed.origin === window.location.origin;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    async ensureMasterFxBus(audioEl = this.fullAudio) {
+      if (!audioEl) return null;
+      if (this._masterFxBus && this._masterFxBus.audioEl === audioEl) {
+        if (this._masterFxBus.ctx && this._masterFxBus.ctx.state === 'suspended') {
+          await this._masterFxBus.ctx.resume().catch(() => {});
+        }
+        return this._masterFxBus;
+      }
+      if (!this._isAudioElSafeForWebAudioFx(audioEl)) return null;
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return null;
+
+      try {
+        const ctx = new AudioCtx();
+        const srcNode = ctx.createMediaElementSource(audioEl);
+        const freqs = [60, 230, 910, 3600, 14000];
+        const eqFilters = freqs.map((freq, idx) => {
+          const f = ctx.createBiquadFilter();
+          f.type = idx === 0 ? 'lowshelf' : (idx === freqs.length - 1 ? 'highshelf' : 'peaking');
+          f.frequency.value = freq;
+          f.Q.value = idx === 0 || idx === freqs.length - 1 ? 0.8 : 1.05;
+          f.gain.value = this.eqEnabled ? (Number(this.eqBands[idx]) || 0) : 0;
+          return f;
+        });
+
+        let prevNode = srcNode;
+        for (const f of eqFilters) {
+          prevNode.connect(f);
+          prevNode = f;
+        }
+        const postEqNode = prevNode;
+
+        const dryGain = ctx.createGain();
+        dryGain.gain.value = 1.0;
+        const karGain = ctx.createGain();
+        karGain.gain.value = 0.0;
+
+        const lowPassBass = ctx.createBiquadFilter();
+        lowPassBass.type = 'lowpass';
+        lowPassBass.frequency.value = 175;
+        const bassGain = ctx.createGain();
+        bassGain.gain.value = 1.15;
+
+        const splitter = ctx.createChannelSplitter(2);
+        const merger = ctx.createChannelMerger(2);
+        const invR = ctx.createGain();
+        invR.gain.value = -0.82;
+        const invL = ctx.createGain();
+        invL.gain.value = -0.82;
+
+        postEqNode.connect(dryGain);
+        dryGain.connect(ctx.destination);
+
+        postEqNode.connect(lowPassBass);
+        lowPassBass.connect(bassGain);
+        bassGain.connect(karGain);
+
+        postEqNode.connect(splitter);
+        splitter.connect(merger, 0, 0);
+        splitter.connect(invR, 1);
+        invR.connect(merger, 0, 0);
+        splitter.connect(merger, 1, 1);
+        splitter.connect(invL, 0);
+        invL.connect(merger, 0, 1);
+
+        merger.connect(karGain);
+        karGain.connect(ctx.destination);
+
+        this._masterFxBus = { audioEl, ctx, srcNode, eqFilters, postEqNode, dryGain, karGain };
+        if (ctx.state === 'suspended') {
+          await ctx.resume().catch(() => {});
+        }
+        return this._masterFxBus;
+      } catch (_) {
+        return null;
+      }
+    }
+
+    async applyEqualizerSettings(opts = {}) {
+      if (typeof opts.enabled === 'boolean') this.eqEnabled = opts.enabled;
+      if (typeof opts.preset === 'string') this.eqPreset = opts.preset;
+      if (Array.isArray(opts.bands) && opts.bands.length === 5) {
+        this.eqBands = opts.bands.map(v => Math.max(-12, Math.min(12, Number(v) || 0)));
+      }
+      this._savePlayerAudioPrefs();
+
+      const hasActiveEq = this.eqEnabled && this.eqBands.some(v => Math.abs(v) >= 0.25);
+      if (this._masterFxBus && Array.isArray(this._masterFxBus.eqFilters)) {
+        const now = this._masterFxBus.ctx ? this._masterFxBus.ctx.currentTime : 0;
+        this._masterFxBus.eqFilters.forEach((filter, idx) => {
+          const targetGain = this.eqEnabled ? (Number(this.eqBands[idx]) || 0) : 0;
+          try {
+            filter.gain.setTargetAtTime(targetGain, now, 0.04);
+          } catch (_) {
+            filter.gain.value = targetGain;
+          }
+        });
+      } else if (hasActiveEq && this.activeSourceType === 'full') {
+        if (this._isAudioElSafeForWebAudioFx(this.fullAudio)) {
+          await this.ensureMasterFxBus(this.fullAudio);
+        } else if (!this._fullAudioIsLocalBlob && this.currentTrack) {
+          this._ensureFullBlobUpgradeAndSeek(this.currentTrack, this.getCurrentSongTimeSec(), this._playRequestId);
+        }
+      }
+      if (window.SpotifySuite && typeof window.SpotifySuite.syncNowPlayingBadges === 'function') {
+        window.SpotifySuite.syncNowPlayingBadges();
+      }
+    }
+
+    setPlaybackRate(rate = 1.0) {
+      const clamped = Math.max(0.75, Math.min(1.5, Number(rate) || 1.0));
+      if (this.activeSourceType === 'yt_bridge' && !this._ytBridgePaused && this._ytBridgePlayerState === 1) {
+        this._ytBridgeBaseSec = this.getCurrentSongTimeSec();
+        this._ytBridgeStartWallMs = performance.now();
+      }
+      this.playbackRate = clamped;
+      this._savePlayerAudioPrefs();
+      this._applyPlaybackRateToChannels();
+      if (window.SpotifySuite && typeof window.SpotifySuite.syncNowPlayingBadges === 'function') {
+        window.SpotifySuite.syncNowPlayingBadges();
+      }
+    }
+
+    _applyPlaybackRateToChannels() {
+      const r = this.playbackRate || 1.0;
+      for (const el of [this.fullAudio, this.previewAudio]) {
+        if (!el) continue;
+        try {
+          el.preservesPitch = true;
+          el.webkitPreservesPitch = true;
+          el.playbackRate = r;
+        } catch (_) {}
+      }
+      if (this.activeSourceType === 'yt_bridge') {
+        this._sendYtBridgeCommand('setPlaybackRate', [r]);
+      }
+    }
+
+    setCrossfadeSec(sec = 0) {
+      this.crossfadeSec = Math.max(0, Math.min(8, Math.round(Number(sec) || 0)));
+      this._savePlayerAudioPrefs();
+      if (window.SpotifySuite && typeof window.SpotifySuite.syncNowPlayingBadges === 'function') {
+        window.SpotifySuite.syncNowPlayingBadges();
+      }
+    }
+
+    setAutoplayEnabled(enabled = true) {
+      this.autoplayEnabled = Boolean(enabled);
+      this._savePlayerAudioPrefs();
+    }
+
+    setRepeatMode(mode = 'off') {
+      if (!['off', 'all', 'one'].includes(mode)) mode = 'off';
+      this.repeatMode = mode;
+      this._savePlayerAudioPrefs();
+      this._syncRepeatButtonUI();
+    }
+
+    cycleRepeatMode() {
+      const order = ['off', 'all', 'one'];
+      const next = order[(order.indexOf(this.repeatMode) + 1) % order.length];
+      this.setRepeatMode(next);
+      return next;
+    }
+
+    _syncRepeatButtonUI() {
+      const btn = document.getElementById('npRepeatBtn');
+      const badge = document.getElementById('npRepeatOneBadge');
+      if (btn) {
+        btn.classList.toggle('active', this.repeatMode !== 'off');
+        btn.title = this.repeatMode === 'one'
+          ? 'Repetir esta canción'
+          : (this.repeatMode === 'all' ? 'Repetir cola' : 'Repetición desactivada');
+      }
+      if (badge) {
+        badge.classList.toggle('hidden', this.repeatMode !== 'one');
+      }
     }
 
     _getMasterVolume() {
@@ -14784,6 +14987,9 @@
             this._sendYtBridgeCommand('addEventListener', ['onStateChange']);
             this._sendYtBridgeCommand('unMute', []);
             this._sendYtBridgeCommand('setVolume', [Math.round(this._getMasterVolume() * 100)]);
+            if (this.playbackRate && Math.abs(this.playbackRate - 1.0) > 0.01) {
+              this._sendYtBridgeCommand('setPlaybackRate', [this.playbackRate]);
+            }
             this._sendYtBridgeCommand('playVideo', []);
           }, { once: true });
         }
@@ -15005,7 +15211,7 @@
         if (this._ytBridgePlayerState !== 1) {
           return this._ytBridgeBaseSec || 0;
         }
-        const elapsed = Math.max(0, Math.min(1.2, (performance.now() - this._ytBridgeStartWallMs) / 1000));
+        const elapsed = Math.max(0, Math.min(1.8, ((performance.now() - this._ytBridgeStartWallMs) / 1000) * (this.playbackRate || 1.0)));
         const fullDur = this.getTrackFullDurationSec(this.currentTrack);
         return Math.min(fullDur, (this._ytBridgeBaseSec || 0) + elapsed);
       }
@@ -15040,6 +15246,14 @@
         }
         if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
           window.DiscoverHomeApp.syncActiveVideoclipPlayback('tick');
+        }
+        // Crossfade automático estilo Spotify al acercarse el final de la pista
+        if (this.crossfadeSec > 0 && this.repeatMode !== 'one' && this.activeSourceType === 'full' && fullDur > 45 && this._crossfadeTriggeredReqId !== this._playRequestId) {
+          const remaining = fullDur - curSongSec;
+          if (remaining > 0.4 && remaining <= this.crossfadeSec && (!this._lastSeekWallMs || (performance.now() - this._lastSeekWallMs) > 2500)) {
+            this._crossfadeTriggeredReqId = this._playRequestId;
+            this._triggerCrossfadeToNext(remaining);
+          }
         }
       };
 
@@ -15124,7 +15338,7 @@
             if (window.SingStarVocalEngine && window.SingStarVocalEngine.isActive && window.SingStarVocalEngine.score >= 150) {
               window.SingStarVocalEngine.openSummaryOverlay();
             }
-            this.nextTrack();
+            this.handleTrackEnded();
           }
         }
       }, 50);
@@ -15134,8 +15348,8 @@
         this.isPlayingFlag = false;
         this._syncPlayPauseIcons(false);
         this._setLoadingHintVisible(false);
-        if (this.queue.length > 1 && (!this._lastSeekWallMs || (performance.now() - this._lastSeekWallMs) > 2000)) {
-          this.nextTrack();
+        if (!this._lastSeekWallMs || (performance.now() - this._lastSeekWallMs) > 2000) {
+          this.handleTrackEnded();
         }
       });
 
@@ -15144,9 +15358,86 @@
           if (window.SingStarVocalEngine && window.SingStarVocalEngine.isActive && window.SingStarVocalEngine.score >= 150) {
             window.SingStarVocalEngine.openSummaryOverlay();
           }
-          this.nextTrack();
+          this.handleTrackEnded();
         }
       });
+    }
+
+    _triggerCrossfadeToNext(remainingSec = 3) {
+      const fadeMs = Math.max(600, Math.min(4500, Math.round(Math.min(remainingSec, this.crossfadeSec) * 650)));
+      const reqId = this._playRequestId;
+      const el = this.fullAudio;
+      if (!el || el.paused) return;
+      const startVol = Number(el.volume) || this._getMasterVolume();
+      const steps = 10;
+      const stepMs = Math.max(45, Math.round(fadeMs / steps));
+      let s = 0;
+      const timer = setInterval(() => {
+        s++;
+        if (reqId !== this._playRequestId || el.paused) {
+          clearInterval(timer);
+          return;
+        }
+        el.volume = Math.max(0.02, startVol * (1 - s / steps));
+        if (s >= steps) {
+          clearInterval(timer);
+          if (reqId === this._playRequestId) {
+            this.handleTrackEnded({ fromCrossfade: true });
+          }
+        }
+      }, stepMs);
+    }
+
+    async handleTrackEnded(opts = {}) {
+      if (window.SpotifySuite && typeof window.SpotifySuite.consumeEndOfTrackSleepTimer === 'function') {
+        if (window.SpotifySuite.consumeEndOfTrackSleepTimer()) {
+          this._stopBothChannelsImmediate();
+          return;
+        }
+      }
+
+      if (this.repeatMode === 'one' && this.currentTrack) {
+        this._crossfadeTriggeredReqId = -1;
+        await this.seekToSeconds(0, { ensurePlay: true });
+        return;
+      }
+
+      const hasMoreInQueue = this.queue.length > 1 && (this.queueIndex < this.queue.length - 1 || this.repeatMode === 'all' || this.smartShuffleEnabled);
+      if (hasMoreInQueue) {
+        this.nextTrack({ fadeInMs: opts.fromCrossfade ? Math.min(2600, this.crossfadeSec * 450) : 260 });
+        return;
+      }
+
+      // Autoplay inteligente estilo Spotify cuando termina la cola y Repetición está desactivada
+      if (this.autoplayEnabled && this.currentTrack) {
+        const seed = this.currentTrack;
+        try {
+          const pool = (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.getAllCandidatePool === 'function')
+            ? window.DiscoverHomeApp.getAllCandidatePool()
+            : [];
+          const existingIds = new Set(this.queue.map(t => String(t?.id || '')));
+          let candidates = pool.filter(t => t && !existingIds.has(String(t.id)) && !this.dnaEngine.dislikes.has(String(t.id)));
+          if (candidates.length > 0) {
+            const seedVec = this.dnaEngine.encodeTrackVector(seed);
+            candidates.sort((a, b) =>
+              this.dnaEngine.cosineSimilarity(seedVec, this.dnaEngine.encodeTrackVector(b), true) -
+              this.dnaEngine.cosineSimilarity(seedVec, this.dnaEngine.encodeTrackVector(a), true)
+            );
+            const autoTracks = candidates.slice(0, 6);
+            this.queue.push(...autoTracks);
+            this.queueIndex = this.queue.length - autoTracks.length;
+            this.playTrack(this.queue[this.queueIndex], { syncQueue: false, fadeInMs: opts.fromCrossfade ? Math.min(2400, this.crossfadeSec * 400) : 260 });
+            this._renderQueueListInModal();
+            if (typeof window.showSuccessToast === 'function') {
+              window.showSuccessToast(`Autoplay: continuando con música similar a ${seed.title}`);
+            }
+            return;
+          }
+        } catch (_) {}
+      }
+
+      this.isPlayingFlag = false;
+      this._syncPlayPauseIcons(false);
     }
 
     async _ensureFullBlobUpgradeAndSeek(track, targetSec, reqId) {
@@ -15266,6 +15557,9 @@
       this.listenTimerInterval = setInterval(() => {
         if (!this.isPlaying() || !this.currentTrack) return;
         this.listenedSecondsOnCurrent += 1;
+        if (window.SpotifySuite && typeof window.SpotifySuite.recordListenSecond === 'function') {
+          window.SpotifySuite.recordListenSecond(this.currentTrack);
+        }
         if (this.listenedSecondsOnCurrent === 25 && this.dnaEngine) {
           this.dnaEngine.recordLongListen(this.currentTrack);
         }
@@ -15496,6 +15790,11 @@
       this._updatePlayerMetadataUI(track);
       this._updatePlayerProgressUI(desiredStartSec, fullDur);
       this._updateMediaSessionMetadata(track);
+      this._syncRepeatButtonUI();
+      this._crossfadeTriggeredReqId = -1;
+      if (window.SpotifySuite && typeof window.SpotifySuite.recordTrackStarted === 'function') {
+        window.SpotifySuite.recordTrackStarted(track);
+      }
 
       // Enriquecer portada/duración en segundo plano sin bloquear el arranque de audio
       if (!track.artworkUrl600 || !track.durationSec || track.durationSec < 45) {
@@ -16248,6 +16547,10 @@
         this.activeSourceType = channelType;
         this.isPlayingFlag = true;
         this._syncPlayPauseIcons(true);
+        this._applyPlaybackRateToChannels();
+        if (channelType === 'full' && this.eqEnabled && this.eqBands.some(v => Math.abs(v) >= 0.25) && this._isAudioElSafeForWebAudioFx(audioEl)) {
+          this.ensureMasterFxBus(audioEl).then(() => this.applyEqualizerSettings()).catch(() => {});
+        }
 
         const steps = 8;
         const stepMs = Math.max(15, Math.round(fadeInMs / steps));
@@ -17093,7 +17396,7 @@
       }
     }
 
-    nextTrack() {
+    nextTrack(opts = {}) {
       if (this.queue.length === 0) return;
       if (this.smartShuffleEnabled && this.queue.length > 2) {
         const candidates = this.queue.filter((_, idx) => idx !== this.queueIndex);
@@ -17105,7 +17408,7 @@
       }
       const next = this.queue[this.queueIndex];
       if (next) {
-        this.playTrack(next, { syncQueue: false });
+        this.playTrack(next, { syncQueue: false, fadeInMs: opts.fadeInMs || 260 });
         this._renderQueueListInModal();
       }
     }
@@ -17134,6 +17437,41 @@
         this.queueIndex = existsIdx !== -1 ? existsIdx : this.queue.length - 1;
         this.playTrack(track, { syncQueue: false });
       }
+      this._renderQueueListInModal();
+    }
+
+    playNextTrack(track) {
+      if (!track) return;
+      if (!this.currentTrack || this.queue.length === 0) {
+        this.enqueueTrack(track, true);
+        return;
+      }
+      const existingIdx = this.queue.findIndex(t => t && String(t.id) === String(track.id));
+      if (existingIdx === this.queueIndex) return;
+      if (existingIdx !== -1) {
+        this.queue.splice(existingIdx, 1);
+        if (existingIdx < this.queueIndex) this.queueIndex = Math.max(0, this.queueIndex - 1);
+      }
+      const insertAt = Math.min(this.queue.length, this.queueIndex + 1);
+      this.queue.splice(insertAt, 0, track);
+      this._renderQueueListInModal();
+    }
+
+    moveQueueItem(idx, delta) {
+      const target = idx + delta;
+      if (idx < 0 || idx >= this.queue.length || target < 0 || target >= this.queue.length) return;
+      const [moved] = this.queue.splice(idx, 1);
+      this.queue.splice(target, 0, moved);
+      if (this.queueIndex === idx) this.queueIndex = target;
+      else if (this.queueIndex === target) this.queueIndex = idx;
+      this._renderQueueListInModal();
+    }
+
+    clearUpcomingQueue() {
+      if (this.queue.length <= 1) return;
+      const cur = this.queue[this.queueIndex] || this.currentTrack;
+      this.queue = cur ? [cur] : [];
+      this.queueIndex = cur ? 0 : -1;
       this._renderQueueListInModal();
     }
 
@@ -17237,7 +17575,7 @@
       try {
         navigator.mediaSession.setPositionState({
           duration: Math.max(1, dur),
-          playbackRate: 1.0,
+          playbackRate: this.playbackRate || 1.0,
           position: Math.max(0, Math.min(dur, cur))
         });
       } catch (_) {}
@@ -17327,29 +17665,51 @@
     _renderQueueListInModal() {
       const cont = document.getElementById('npQueueListContainer');
       const countBadge = document.getElementById('npQueueCountBadge');
-      if (countBadge) countBadge.textContent = String(this.queue.length);
+      const dockCountBadge = document.getElementById('npDockQueueCount');
+      const total = this.queue.length;
+      if (countBadge) countBadge.textContent = String(total);
+      if (dockCountBadge) {
+        dockCountBadge.textContent = String(total);
+        dockCountBadge.classList.toggle('hidden', total <= 0);
+      }
       if (!cont) return;
 
-      if (this.queue.length === 0) {
-        cont.innerHTML = `<div class="p-3 text-center text-xs text-gray-400">La cola está vacía.</div>`;
+      if (total === 0) {
+        cont.innerHTML = `<div class="p-3 text-center text-xs text-gray-400">La cola está vacía. Añade canciones desde el menú ⋯</div>`;
         return;
       }
 
-      cont.innerHTML = this.queue.slice(0, 40).map((tr, idx) => {
+      const slice = this.queue.slice(0, 45);
+      cont.innerHTML = slice.map((tr, idx) => {
         const isCurrent = idx === this.queueIndex;
         const thumb = getBestTrackCover(tr);
+        const canUp = idx > 0;
+        const canDown = idx < slice.length - 1;
         return `
-          <div onclick="window.DiscoverHomeApp.playQueueIndex(${idx})" class="flex items-center justify-between gap-2.5 p-2 rounded-xl border ${isCurrent ? 'bg-[#d4af37]/15 border-[#d4af37]/60' : 'bg-white/5 border-white/5 hover:bg-white/10'} cursor-pointer transition">
+          <div onclick="window.DiscoverHomeApp.playQueueIndex(${idx})" class="np-queue-item-row ${isCurrent ? 'is-current' : ''}">
             <div class="flex items-center gap-2.5 min-w-0 flex-1">
-              <img src="${thumb}" onerror="this.src='./app_logo.png'" class="w-9 h-9 rounded-lg object-cover flex-shrink-0" alt="">
+              <div class="relative flex-shrink-0">
+                <img src="${thumb}" onerror="this.src='./app_logo.png'" class="w-9 h-9 rounded-lg object-cover" alt="">
+                ${isCurrent ? `<span class="np-queue-now-dot" title="Sonando ahora"></span>` : ''}
+              </div>
               <div class="min-w-0 flex-1">
-                <p class="text-xs font-bold text-white truncate">${escapeHtmlSafe(tr.title || 'Canción')}</p>
-                <p class="text-[11px] text-gray-400 truncate">${escapeHtmlSafe(tr.artist || 'Artista')}</p>
+                <p class="text-xs font-bold ${isCurrent ? 'text-[#f3d791]' : 'text-white'} truncate">${escapeHtmlSafe(tr.title || 'Canción')}</p>
+                <p class="text-[11px] text-gray-400 truncate">${isCurrent ? 'Sonando ahora · ' : ''}${escapeHtmlSafe(tr.artist || 'Artista')}</p>
               </div>
             </div>
-            <button type="button" onclick="event.stopPropagation(); window.DiscoverHomeApp.removeTrackFromQueue(${idx})" class="w-7 h-7 rounded-full flex items-center justify-center text-gray-400 hover:text-white cursor-pointer" title="Quitar de la cola">
-              ${SVG_ICONS.closeSmall}
-            </button>
+            <div class="flex items-center gap-0.5 flex-shrink-0" onclick="event.stopPropagation();">
+              ${!isCurrent ? `
+                <button type="button" ${canUp ? '' : 'disabled'} onclick="window.DiscoverHomeApp.moveQueueItem(${idx}, -1)" class="np-queue-mini-btn ${canUp ? '' : 'opacity-25'}" title="Subir en la cola">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><polyline points="18 15 12 9 6 15"/></svg>
+                </button>
+                <button type="button" ${canDown ? '' : 'disabled'} onclick="window.DiscoverHomeApp.moveQueueItem(${idx}, 1)" class="np-queue-mini-btn ${canDown ? '' : 'opacity-25'}" title="Bajar en la cola">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+              ` : ''}
+              <button type="button" onclick="window.DiscoverHomeApp.removeTrackFromQueue(${idx})" class="np-queue-mini-btn hover:text-rose-300" title="Quitar de la cola">
+                ${SVG_ICONS.closeSmall}
+              </button>
+            </div>
           </div>
         `;
       }).join('');
@@ -17550,6 +17910,10 @@
       requestAnimationFrame(() => {
         this.refreshCarousels();
         this.renderLiveTopPlaylistsGrid();
+        dualStreamEngine._syncRepeatButtonUI();
+        if (window.SpotifySuite && typeof window.SpotifySuite.init === 'function') {
+          window.SpotifySuite.init();
+        }
       });
     },
 
@@ -18993,6 +19357,13 @@
           </button>
         ` : ''}
 
+        <button type="button" class="sp-opt-row" onclick="window.DiscoverHomeApp.handleTrackOptionAction('play_next')">
+          <span class="sp-opt-icon gold">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
+          </span>
+          <span class="sp-opt-label">Reproducir a continuación</span>
+        </button>
+
         <button type="button" class="sp-opt-row" onclick="window.DiscoverHomeApp.handleTrackOptionAction('add_to_queue')">
           <span class="sp-opt-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
@@ -19007,9 +19378,37 @@
           <span class="sp-opt-label">Ir a la cola</span>
         </button>
 
+        <button type="button" class="sp-opt-row" onclick="window.DiscoverHomeApp.handleTrackOptionAction('go_to_artist')">
+          <span class="sp-opt-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </span>
+          <span class="sp-opt-label">Ir al artista · ${escapeHtmlSafe(norm.artist || 'Artista')}</span>
+        </button>
+
         <button type="button" class="sp-opt-row" onclick="window.DiscoverHomeApp.handleTrackOptionAction('start_radio')">
           <span class="sp-opt-icon">${SVG_ICONS.radio}</span>
           <span class="sp-opt-label">Iniciar Radio de la canción</span>
+        </button>
+
+        <button type="button" class="sp-opt-row" onclick="window.DiscoverHomeApp.handleTrackOptionAction('share_card')">
+          <span class="sp-opt-icon gold">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          </span>
+          <span class="sp-opt-label">Crear Tarjeta para Compartir</span>
+        </button>
+
+        <button type="button" class="sp-opt-row" onclick="window.DiscoverHomeApp.handleTrackOptionAction('audio_studio')">
+          <span class="sp-opt-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+          </span>
+          <span class="sp-opt-label">Ecualizador, Velocidad y Crossfade</span>
+        </button>
+
+        <button type="button" class="sp-opt-row" onclick="window.DiscoverHomeApp.handleTrackOptionAction('sleep_timer')">
+          <span class="sp-opt-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          </span>
+          <span class="sp-opt-label">Temporizador de sueño</span>
         </button>
 
         <button type="button" class="sp-opt-row" onclick="window.DiscoverHomeApp.handleTrackOptionAction('exclude_taste')">
@@ -19109,6 +19508,11 @@
         if (typeof ctx.origIdx === 'number') {
           await this.removeTrackFromOpenedSheet(ctx.origIdx);
         }
+      } else if (action === 'play_next') {
+        dualStreamEngine.playNextTrack(tr);
+        if (typeof window.showSuccessToast === 'function') {
+          window.showSuccessToast(`Sonará a continuación: ${tr.title}`);
+        }
       } else if (action === 'add_to_queue') {
         dualStreamEngine.enqueueTrack(tr, false);
         if (typeof window.showSuccessToast === 'function') {
@@ -19120,8 +19524,16 @@
         if (drawer && drawer.classList.contains('hidden')) {
           this.toggleQueueDrawerInModal();
         }
+      } else if (action === 'go_to_artist') {
+        this.openArtistProfile(tr.artist || '', tr);
       } else if (action === 'start_radio') {
         this.startRadioFromTrack(tr);
+      } else if (action === 'share_card') {
+        this.openShareCard(tr);
+      } else if (action === 'audio_studio') {
+        this.openAudioStudio();
+      } else if (action === 'sleep_timer') {
+        this.openSleepTimer();
       } else if (action === 'exclude_taste') {
         dnaEngine.recordPass(tr);
         dnaEngine.putTrackOnCooldown(tr);
@@ -19321,6 +19733,9 @@
     async refreshCarousels() {
       this._usedCarouselSigs = new Set();
       this._globalCarouselArtistCounts = new Map();
+      if (window.SpotifySuite && typeof window.SpotifySuite.renderRecentlyPlayedCarousel === 'function') {
+        window.SpotifySuite.renderRecentlyPlayedCarousel();
+      }
       this._renderDailyMixCarousel();
       this._renderBecauseYouLikedCarousel();
       this._renderWeeklyDiscoveryCarousel();
@@ -19647,6 +20062,9 @@
     },
 
     _getCarouselArrayByType(listType) {
+      if (listType === 'recent' && window.SpotifySuite && typeof window.SpotifySuite.getRecentTracks === 'function') {
+        return window.SpotifySuite.getRecentTracks();
+      }
       if (listType === 'dailymix') return this._dailyMixList;
       if (listType === 'because') return this._becauseLikedList;
       if (listType === 'weekly') return this._weeklyDiscoveryList;
@@ -20544,6 +20962,10 @@
         karaokeService.loadAndRenderTrackLyrics(tr, dualStreamEngine.getRealDurationSec(tr)).catch(() => {});
       }
       dualStreamEngine._renderQueueListInModal();
+      dualStreamEngine._syncRepeatButtonUI();
+      if (window.SpotifySuite && typeof window.SpotifySuite.syncNowPlayingBadges === 'function') {
+        window.SpotifySuite.syncNowPlayingBadges();
+      }
     },
 
     closeNowPlayingModal() {
@@ -20830,13 +21252,33 @@
       if (btn) {
         btn.classList.toggle('active', dualStreamEngine.smartShuffleEnabled);
       }
+      if (typeof window.showSuccessToast === 'function') {
+        window.showSuccessToast(dualStreamEngine.smartShuffleEnabled ? 'Modo Aleatorio Inteligente activado' : 'Modo Aleatorio desactivado');
+      }
+    },
+
+    cycleRepeatMode() {
+      const next = dualStreamEngine.cycleRepeatMode();
+      if (typeof window.showSuccessToast === 'function') {
+        const msg = next === 'one'
+          ? 'Repetir esta canción'
+          : (next === 'all' ? 'Repetir toda la cola' : 'Repetición desactivada');
+        window.showSuccessToast(msg);
+      }
     },
 
     toggleQueueDrawerInModal() {
       const drawer = document.getElementById('npQueueDrawerSection');
       if (!drawer) return;
       drawer.classList.toggle('hidden');
+      const dockBtn = document.getElementById('npDockQueueBtn');
+      if (dockBtn) dockBtn.classList.toggle('active', !drawer.classList.contains('hidden'));
       dualStreamEngine._renderQueueListInModal();
+      if (!drawer.classList.contains('hidden')) {
+        setTimeout(() => {
+          try { drawer.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (_) {}
+        }, 40);
+      }
     },
 
     playQueueIndex(idx) {
@@ -20844,6 +21286,42 @@
       dualStreamEngine.queueIndex = idx;
       dualStreamEngine.playTrack(dualStreamEngine.queue[idx], { syncQueue: false });
       dualStreamEngine._renderQueueListInModal();
+    },
+
+    moveQueueItem(idx, delta) {
+      dualStreamEngine.moveQueueItem(idx, delta);
+    },
+
+    clearUpcomingQueue() {
+      dualStreamEngine.clearUpcomingQueue();
+      if (typeof window.showSuccessToast === 'function') {
+        window.showSuccessToast('Cola siguiente vaciada');
+      }
+    },
+
+    async saveQueueAsPlaylist() {
+      if (!dualStreamEngine.queue || dualStreamEngine.queue.length === 0) return;
+      const defaultTitle = `Mi Cola · ${new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}`;
+      const title = (typeof window.prompt === 'function' ? window.prompt('Nombre para guardar esta cola como Playlist:', defaultTitle) : defaultTitle);
+      if (!title || !String(title).trim()) return;
+      try {
+        if (typeof window.IndexedDBStorage !== 'undefined' && typeof window.IndexedDBStorage.savePlaylist === 'function') {
+          const cleanTracks = dualStreamEngine.queue.map(t => this._normalizeTrackForVaultStorage(t));
+          const newPl = {
+            id: `pl_queue_${Date.now()}`,
+            title: String(title).trim(),
+            createdAt: Date.now(),
+            tracks: cleanTracks
+          };
+          await window.IndexedDBStorage.savePlaylist(newPl);
+          if (typeof window.updateLibraryVaultBadges === 'function') window.updateLibraryVaultBadges();
+          if (typeof window.renderPlaylistsSubtab === 'function') window.renderPlaylistsSubtab();
+          this.refreshCarousels();
+          if (typeof window.showSuccessToast === 'function') {
+            window.showSuccessToast(`Playlist "${newPl.title}" guardada (${cleanTracks.length} pistas)`);
+          }
+        }
+      } catch (_) {}
     },
 
     removeTrackFromQueue(idx) {
@@ -20876,6 +21354,55 @@
 
     getAudioEngine() {
       return dualStreamEngine;
+    },
+
+    getDnaEngine() {
+      return dnaEngine;
+    },
+
+    getKaraokeService() {
+      return karaokeService;
+    },
+
+    getGraphService() {
+      return graphService;
+    },
+
+    getBestTrackCover(track) {
+      return getBestTrackCover(track);
+    },
+
+    openAudioStudio() {
+      if (window.SpotifySuite && typeof window.SpotifySuite.openAudioStudio === 'function') {
+        window.SpotifySuite.openAudioStudio();
+      }
+    },
+
+    openSleepTimer() {
+      if (window.SpotifySuite && typeof window.SpotifySuite.openSleepTimer === 'function') {
+        window.SpotifySuite.openSleepTimer();
+      }
+    },
+
+    openArtistProfile(artistName = '', seedTrack = null) {
+      const targetArtist = artistName || (dualStreamEngine.currentTrack && dualStreamEngine.currentTrack.artist) || '';
+      const seed = seedTrack || dualStreamEngine.currentTrack || this.getActiveCrateTrack();
+      if (window.SpotifySuite && typeof window.SpotifySuite.openArtistProfile === 'function') {
+        window.SpotifySuite.openArtistProfile(targetArtist, seed);
+      }
+    },
+
+    openListeningStats() {
+      if (window.SpotifySuite && typeof window.SpotifySuite.openListeningStats === 'function') {
+        window.SpotifySuite.openListeningStats();
+      }
+    },
+
+    openShareCard(track = null) {
+      const tr = track || dualStreamEngine.currentTrack || this.getActiveCrateTrack();
+      if (window.SpotifySuite && typeof window.SpotifySuite.openShareCard === 'function') {
+        window.SpotifySuite.openShareCard(tr);
+      }
     },
 
     renderCarousels() {

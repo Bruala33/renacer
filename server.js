@@ -1338,10 +1338,10 @@ app.get(['/health', '/api/v1/health', '/healthz'], (req, res) => {
 
 app.get(['/api/version', '/api/v1/version'], (req, res) => {
   res.json({
-    version_code: 87,
-    version_name: '8.7.0',
-    release_notes: 'Piano Community v8.7.0: Motor vocal Whisper ONNX integrado offline, mejoras en SingStar y sincronización actualizada.',
-    download_url: '/download/apk?v=87.0',
+    version_code: 89,
+    version_name: '8.9.0',
+    release_notes: 'Piano Community v8.9.0: Alineación vocal multi-ventana DTW, bloqueo exacto de stream y motor Whisper ONNX offline actualizado.',
+    download_url: '/download/apk?v=89.0',
   });
 });
 

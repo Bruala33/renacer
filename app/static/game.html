@@ -25,7 +25,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./style.css?v=92.0">
+  <link rel="stylesheet" href="./style.css?v=93.0">
   <script>
     // ===================================================
     // SISTEMA DE INTERNACIONALIZACIÓN (i18n: ES / EN)
@@ -123,7 +123,7 @@
         apk_download_btn: 'Descargar APK',
         apk_card_title: 'App Oficial Android (APK):',
         apk_card_desc: 'Instala la app oficial en tu móvil para jugar a pantalla completa, vibración háptica y con disponibilidad 100% offline.',
-        apk_card_btn: 'DESCARGAR APK ANDROID (v8.7)',
+        apk_card_btn: 'DESCARGAR APK ANDROID (v8.9)',
         settings_lang: 'Idioma / Language:',
         settings_note_speed: 'Velocidad de Notas:',
         settings_density: 'Densidad / Dificultad:',
@@ -149,7 +149,7 @@
         onboarding_placeholder: 'Nombre de Usuario (ej. Mozart99)...',
         onboarding_start: 'Guardar Cuenta y Empezar',
         onboarding_apk_hint: 'Recuerda que también puedes descargar la app nativa para Android en cualquier momento desde Ajustes.',
-        onboarding_apk_btn: 'Descargar App (APK Android)',
+        onboarding_apk_btn: 'Descargar App (APK Android v8.9)',
         add_fav: 'Añadir a Favoritos',
         remove_fav: 'Quitar de Favoritos',
         add_playlist: 'Añadir a Playlist',
@@ -429,7 +429,7 @@
         apk_download_btn: 'Download APK',
         apk_card_title: 'Official Android App (APK):',
         apk_card_desc: 'Install the official app on your mobile device for full-screen gameplay, haptic feedback, and 100% offline availability.',
-        apk_card_btn: 'DOWNLOAD ANDROID APK (v8.7)',
+        apk_card_btn: 'DOWNLOAD ANDROID APK (v8.9)',
         settings_lang: 'Language / Idioma:',
         settings_note_speed: 'Note Fall Speed:',
         settings_density: 'Map Density / Difficulty:',
@@ -455,7 +455,7 @@
         onboarding_placeholder: 'Your Nickname (e.g. Mozart99)...',
         onboarding_start: 'Save & Start',
         onboarding_apk_hint: 'Remember you can also download the native Android app at any time from Settings.',
-        onboarding_apk_btn: 'Download App (Android APK v8.7)',
+        onboarding_apk_btn: 'Download App (Android APK v8.9)',
         add_fav: 'Add to Favorites',
         remove_fav: 'Remove from Favorites',
         add_playlist: 'Add to Playlist',
@@ -1361,6 +1361,11 @@
               </button>
             </div>
             <div class="flex items-center gap-2">
+              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openListeningStats()" class="btn-tune-algorithm-icon" title="Tu Resumen Musical y Estadísticas">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+                </svg>
+              </button>
               <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openKaraokeForCurrent()" class="btn-tune-algorithm-icon" title="Ver letra en modo Karaoke">
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
@@ -1513,6 +1518,18 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-[#d4af37] flex-shrink-0"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
             <span data-i18n="slot_btn_daily_poker">Canción del Día</span>
           </button>
+        </div>
+
+        <!-- CARRUSEL: ESCUCHADO RECIENTEMENTE (ESTILO SPOTIFY) -->
+        <div id="recentlyPlayedSection" class="discover-carousel-section hidden">
+          <div class="discover-carousel-header">
+            <span class="discover-carousel-title">Escuchado recientemente</span>
+            <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openListeningStats()" class="discover-playlist-swipe-cta cursor-pointer" title="Ver tus estadísticas y artistas más escuchados">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              <span>Tu Resumen</span>
+            </button>
+          </div>
+          <div id="carouselRecentlyPlayed" class="discover-carousel-scroll"></div>
         </div>
 
         <!-- CARRUSEL DE TUS PLAYLISTS Y FAVORITOS (AL TOCAR ABRE TODAS LAS CANCIONES PARA ELEGIR) -->
@@ -1993,14 +2010,14 @@
                 </svg>
                 <span class="text-[#f3d791]" data-i18n="apk_card_title">App Oficial Android (APK):</span>
               </span>
-              <span class="vegas-console-pill">v8.7</span>
+              <span class="vegas-console-pill">v8.9</span>
             </div>
             <p class="text-[10px] text-[#cbb894] leading-tight" data-i18n="apk_card_desc">
               Instala la edicion Grand Piano Las Vegas en tu movil para jugar a pantalla completa, vibracion haptica y modo 100% offline.
             </p>
-            <a href="/download/apk?v=87.0" onclick="return window.downloadOfficialApk(event, this)" download="PianoCommunity.apk" class="w-full py-2.5 bg-gradient-to-b from-[#f3d791] via-[#d4a84f] to-[#9b6f23] hover:brightness-110 border border-[#fff6d6] text-[#1c1004] font-black rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg transition active:scale-95 cursor-pointer">
+            <a href="/download/apk?v=89.0" onclick="return window.downloadOfficialApk(event, this)" download="PianoCommunity.apk" class="w-full py-2.5 bg-gradient-to-b from-[#f3d791] via-[#d4a84f] to-[#9b6f23] hover:brightness-110 border border-[#fff6d6] text-[#1c1004] font-black rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg transition active:scale-95 cursor-pointer">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              <span data-i18n="apk_card_btn">DESCARGAR APK ANDROID (v8.7)</span>
+              <span data-i18n="apk_card_btn">DESCARGAR APK ANDROID (v8.9)</span>
             </a>
           </div>
 
@@ -2580,9 +2597,9 @@
           <p data-i18n="onboarding_apk_hint" class="text-[10px] text-amber-300/90 leading-tight">
             Recuerda que también puedes descargar la app nativa para Android en cualquier momento desde <b>Ajustes</b>.
           </p>
-          <a href="/download/apk?v=87.0" onclick="return window.downloadOfficialApk(event, this)" download="PianoCommunity.apk" class="w-full py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/50 rounded-xl text-amber-300 text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer">
+          <a href="/download/apk?v=89.0" onclick="return window.downloadOfficialApk(event, this)" download="PianoCommunity.apk" class="w-full py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/50 rounded-xl text-amber-300 text-xs font-bold flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="text-amber-400"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            <span data-i18n="onboarding_apk_btn">Descargar App (APK Android v8.7)</span>
+            <span data-i18n="onboarding_apk_btn">Descargar App (APK Android v8.9)</span>
           </a>
         </div>
       </div>
@@ -2596,7 +2613,7 @@
         </div>
         <div>
           <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wider uppercase bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">Nueva Version</span>
-          <h3 id="appUpdateTitle" class="text-sm font-black text-white mt-1.5">Piano Community v8.7.0</h3>
+          <h3 id="appUpdateTitle" class="text-sm font-black text-white mt-1.5">Piano Community v8.9.0</h3>
           <p id="appUpdateNotes" class="text-[11px] text-gray-300 mt-2 leading-relaxed text-left bg-black/50 p-2.5 rounded-xl border border-white/10">
             Nuevas mejoras de audio, corrección de claves y sincronización comunitaria persistente.
           </p>
@@ -5140,10 +5157,18 @@
           </div>
         </div>
 
-        <!-- Información de la Pista -->
-        <div class="np-track-meta-block text-center space-y-1 px-2 w-full">
-          <h2 id="npTrackTitle" class="text-lg font-black text-white leading-tight truncate">Selecciona una canción</h2>
-          <p id="npTrackArtist" class="text-sm font-medium text-gray-400 truncate">Artista</p>
+        <!-- Información de la Pista (Título + Artista pulsable + Me Gusta estilo Spotify) -->
+        <div class="np-track-meta-block np-track-meta-row px-1 w-full">
+          <div class="min-w-0 flex-1 text-left">
+            <h2 id="npTrackTitle" class="text-[18px] font-black text-white leading-tight truncate">Selecciona una canción</h2>
+            <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openArtistProfile()" class="np-artist-link" title="Ver perfil y canciones de este artista">
+              <span id="npTrackArtist" class="truncate">Artista</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" class="flex-shrink-0 opacity-65"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+          <button id="npLikeBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleLikeCurrentPlaying()" class="np-transport-btn np-meta-like-btn" title="Guardar en Tus Me Gusta">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          </button>
         </div>
 
         <!-- Barra de Progreso de Canción Completa -->
@@ -5160,9 +5185,9 @@
           </div>
         </div>
 
-        <!-- Controles Principales de Transporte -->
+        <!-- Controles Principales de Transporte (Aleatorio · Ant · Play · Sig · Repetir) -->
         <div class="np-transport-row">
-          <button id="npSmartShuffleBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleSmartShuffle()" class="np-transport-btn active" title="Aleatorio">
+          <button id="npSmartShuffleBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleSmartShuffle()" class="np-transport-btn" title="Aleatorio Inteligente">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
           </button>
           <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.prevTrackModal()" class="np-transport-btn" title="Anterior">
@@ -5174,8 +5199,9 @@
           <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.nextTrackMini()" class="np-transport-btn" title="Siguiente">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2.5"/></svg>
           </button>
-          <button id="npLikeBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleLikeCurrentPlaying()" class="np-transport-btn" title="Me Gusta">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          <button id="npRepeatBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.cycleRepeatMode()" class="np-transport-btn relative" title="Repetir">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+            <span id="npRepeatOneBadge" class="np-repeat-one-badge hidden">1</span>
           </button>
         </div>
 
@@ -5191,6 +5217,27 @@
           </button>
         </div>
 
+        <!-- Barra de Herramientas Studio (Sonido/EQ · Dormir · Tarjeta · Cola) -->
+        <div class="np-studio-dock w-full max-w-[340px]">
+          <button id="npDockAudioBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openAudioStudio()" class="np-dock-btn" title="Ecualizador 5 bandas, Velocidad y Crossfade">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+            <span id="npDockAudioLabel">Sonido</span>
+          </button>
+          <button id="npDockSleepBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openSleepTimer()" class="np-dock-btn" title="Temporizador de sueño">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            <span id="npDockSleepLabel">Dormir</span>
+          </button>
+          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openShareCard()" class="np-dock-btn" title="Crear tarjeta visual para compartir">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            <span>Tarjeta</span>
+          </button>
+          <button id="npDockQueueBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleNowPlayingQueueDrawer()" class="np-dock-btn" title="Ver y organizar la cola de reproducción">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            <span>Cola</span>
+            <span id="npDockQueueCount" class="np-dock-badge hidden">0</span>
+          </button>
+        </div>
+
         <!-- Acciones Extra: Guardar en Playlist / Opciones -->
         <div class="np-extra-actions-wrap crate-secondary-actions w-full max-w-[340px]">
           <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openAddToPlaylistFromNowPlaying()" class="crate-sec-btn">
@@ -5199,14 +5246,21 @@
           </button>
           <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openTrackOptionsSheetForPlayer()" class="crate-sec-btn">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
-            <span class="truncate">Opciones / Descargar</span>
+            <span class="truncate">Opciones / Radio</span>
           </button>
         </div>
 
-        <!-- Cola de Reproducción Desplegable -->
+        <!-- Cola de Reproducción Desplegable Mejorada -->
         <div id="npQueueDrawerSection" class="np-queue-drawer hidden">
-          <div class="flex items-center justify-between mb-1.5">
-            <span class="text-[11px] font-bold text-white">Siguiente en la cola</span>
+          <div class="flex items-center justify-between gap-2 mb-2 pb-1.5 border-b border-white/10">
+            <div class="flex items-center gap-1.5">
+              <span class="text-[11.5px] font-extrabold text-white">Cola de reproducción</span>
+              <span id="npQueueCountBadge" class="px-1.5 py-0.5 rounded-full text-[9.5px] font-mono font-bold bg-[#d4af37]/20 text-[#f3d791]">0</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.saveQueueAsPlaylist()" class="np-queue-hdr-btn gold" title="Guardar toda esta cola como una Playlist">Guardar</button>
+              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.clearUpcomingQueue()" class="np-queue-hdr-btn" title="Vaciar canciones siguientes">Limpiar</button>
+            </div>
           </div>
           <div id="npQueueListContainer" class="space-y-1"></div>
         </div>
@@ -5657,6 +5711,284 @@
       </div>
     </div>
 
+    <!-- 1. ESTUDIO DE SONIDO: ECUALIZADOR 5 BANDAS + VELOCIDAD + CROSSFADE + AUTOPLAY -->
+    <div id="audioStudioModal" class="sp-suite-overlay hidden" style="display:none;" onclick="if(event.target===this && window.SpotifySuite) window.SpotifySuite.closeAudioStudio()">
+      <div class="sp-suite-sheet" onclick="event.stopPropagation();">
+        <div class="sp-options-sheet-handle"></div>
+        <div class="sp-suite-header">
+          <div>
+            <div class="sp-suite-kicker">MOTOR DE SONIDO STUDIO</div>
+            <h3 class="sp-suite-title">Ecualizador y Reproducción</h3>
+          </div>
+          <button type="button" onclick="window.SpotifySuite && window.SpotifySuite.closeAudioStudio()" class="tube-amp-close-btn" title="Cerrar">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+
+        <div class="sp-suite-body">
+          <!-- Bloque 1: Ecualizador 5 Bandas -->
+          <div class="sp-suite-card">
+            <div class="flex items-center justify-between gap-2 mb-2.5">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-extrabold text-white">Ecualizador 5 Bandas</span>
+                <span id="audioStudioEqStatusPill" class="audio-studio-status-pill">Desactivado</span>
+              </div>
+              <label class="sp-toggle-switch" title="Activar o desactivar ecualizador">
+                <input id="audioStudioEqToggle" type="checkbox" onchange="window.SpotifySuite && window.SpotifySuite.toggleEqEnabled(this.checked)">
+                <span class="sp-toggle-slider"></span>
+              </label>
+            </div>
+
+            <!-- Presets Horizontales -->
+            <div class="eq-presets-strip">
+              <button type="button" data-preset="flat" onclick="window.SpotifySuite && window.SpotifySuite.applyEqPreset('flat')" class="eq-preset-chip">Plano</button>
+              <button type="button" data-preset="bass" onclick="window.SpotifySuite && window.SpotifySuite.applyEqPreset('bass')" class="eq-preset-chip">Bass Boost</button>
+              <button type="button" data-preset="vocal" onclick="window.SpotifySuite && window.SpotifySuite.applyEqPreset('vocal')" class="eq-preset-chip">Vocal</button>
+              <button type="button" data-preset="piano" onclick="window.SpotifySuite && window.SpotifySuite.applyEqPreset('piano')" class="eq-preset-chip">Piano</button>
+              <button type="button" data-preset="pop" onclick="window.SpotifySuite && window.SpotifySuite.applyEqPreset('pop')" class="eq-preset-chip">Pop</button>
+              <button type="button" data-preset="rock" onclick="window.SpotifySuite && window.SpotifySuite.applyEqPreset('rock')" class="eq-preset-chip">Rock</button>
+              <button type="button" data-preset="electronic" onclick="window.SpotifySuite && window.SpotifySuite.applyEqPreset('electronic')" class="eq-preset-chip">Electrónica</button>
+              <button type="button" data-preset="night" onclick="window.SpotifySuite && window.SpotifySuite.applyEqPreset('night')" class="eq-preset-chip">Noche</button>
+            </div>
+
+            <div id="audioStudioEqControlsWrap" class="eq-controls-wrap">
+              <!-- Curva de Respuesta de Frecuencia SVG en Tiempo Real -->
+              <div class="eq-curve-stage">
+                <svg viewBox="0 0 320 88" class="w-full h-full" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="eqGoldAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#d4af37" stop-opacity="0.38"/>
+                      <stop offset="100%" stop-color="#d4af37" stop-opacity="0.02"/>
+                    </linearGradient>
+                  </defs>
+                  <line x1="16" y1="44" x2="304" y2="44" stroke="rgba(255,255,255,0.12)" stroke-dasharray="3 4" stroke-width="1"/>
+                  <path id="eqCurveFillPath" d="M 22 44 L 298 44 L 298 88 L 22 88 Z" fill="url(#eqGoldAreaGrad)"/>
+                  <path id="eqCurveStrokePath" d="M 22 44 L 298 44" fill="none" stroke="#f3d791" stroke-width="2.5" stroke-linecap="round"/>
+                  <g id="eqCurveDotsGroup"></g>
+                </svg>
+              </div>
+
+              <!-- 5 Bandas Deslizables -->
+              <div class="eq-bands-grid">
+                <div class="eq-band-col">
+                  <span id="eqBandVal_0" class="eq-band-db">0 dB</span>
+                  <input id="eqBandSlider_0" type="range" min="-12" max="12" step="0.5" value="0" oninput="window.SpotifySuite && window.SpotifySuite.onEqBandInput(0, this.value)" class="eq-range-v">
+                  <span class="eq-band-hz">60Hz</span>
+                </div>
+                <div class="eq-band-col">
+                  <span id="eqBandVal_1" class="eq-band-db">0 dB</span>
+                  <input id="eqBandSlider_1" type="range" min="-12" max="12" step="0.5" value="0" oninput="window.SpotifySuite && window.SpotifySuite.onEqBandInput(1, this.value)" class="eq-range-v">
+                  <span class="eq-band-hz">230Hz</span>
+                </div>
+                <div class="eq-band-col">
+                  <span id="eqBandVal_2" class="eq-band-db">0 dB</span>
+                  <input id="eqBandSlider_2" type="range" min="-12" max="12" step="0.5" value="0" oninput="window.SpotifySuite && window.SpotifySuite.onEqBandInput(2, this.value)" class="eq-range-v">
+                  <span class="eq-band-hz">910Hz</span>
+                </div>
+                <div class="eq-band-col">
+                  <span id="eqBandVal_3" class="eq-band-db">0 dB</span>
+                  <input id="eqBandSlider_3" type="range" min="-12" max="12" step="0.5" value="0" oninput="window.SpotifySuite && window.SpotifySuite.onEqBandInput(3, this.value)" class="eq-range-v">
+                  <span class="eq-band-hz">3.6k</span>
+                </div>
+                <div class="eq-band-col">
+                  <span id="eqBandVal_4" class="eq-band-db">0 dB</span>
+                  <input id="eqBandSlider_4" type="range" min="-12" max="12" step="0.5" value="0" oninput="window.SpotifySuite && window.SpotifySuite.onEqBandInput(4, this.value)" class="eq-range-v">
+                  <span class="eq-band-hz">14k</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bloque 2: Velocidad de Reproducción -->
+          <div class="sp-suite-card">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-extrabold text-white">Velocidad de reproducción</span>
+              <span class="text-[10.5px] text-zinc-400">Conserva el tono original</span>
+            </div>
+            <div class="speed-pills-row">
+              <button type="button" data-rate="0.75" onclick="window.SpotifySuite && window.SpotifySuite.setPlaybackRate(0.75)" class="speed-pill-btn">0.75x</button>
+              <button type="button" data-rate="0.9" onclick="window.SpotifySuite && window.SpotifySuite.setPlaybackRate(0.9)" class="speed-pill-btn">0.9x</button>
+              <button type="button" data-rate="1" onclick="window.SpotifySuite && window.SpotifySuite.setPlaybackRate(1.0)" class="speed-pill-btn active">1.0x</button>
+              <button type="button" data-rate="1.15" onclick="window.SpotifySuite && window.SpotifySuite.setPlaybackRate(1.15)" class="speed-pill-btn">1.15x</button>
+              <button type="button" data-rate="1.25" onclick="window.SpotifySuite && window.SpotifySuite.setPlaybackRate(1.25)" class="speed-pill-btn">1.25x</button>
+              <button type="button" data-rate="1.5" onclick="window.SpotifySuite && window.SpotifySuite.setPlaybackRate(1.5)" class="speed-pill-btn">1.5x</button>
+            </div>
+          </div>
+
+          <!-- Bloque 3: Crossfade y Autoplay -->
+          <div class="sp-suite-card space-y-3">
+            <div>
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-xs font-extrabold text-white">Crossfade entre canciones</span>
+                <span id="audioStudioCrossfadeVal" class="text-[11px] font-mono font-bold text-[#f3d791]">Desactivado</span>
+              </div>
+              <input id="audioStudioCrossfadeSlider" type="range" min="0" max="8" step="1" value="0" oninput="window.SpotifySuite && window.SpotifySuite.onCrossfadeInput(this.value)" class="tube-dial-slider">
+              <div class="flex justify-between text-[9.5px] text-zinc-500 mt-1">
+                <span>Off</span><span>2s</span><span>4s</span><span>6s</span><span>8s</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between pt-2.5 border-t border-white/10">
+              <div class="pr-3">
+                <div class="text-xs font-extrabold text-white">Autoplay inteligente</div>
+                <div class="text-[10.5px] text-zinc-400">Al acabar la cola, sigue sonando música similar</div>
+              </div>
+              <label class="sp-toggle-switch">
+                <input id="audioStudioAutoplayToggle" type="checkbox" checked onchange="window.SpotifySuite && window.SpotifySuite.toggleAutoplay(this.checked)">
+                <span class="sp-toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. TEMPORIZADOR DE SUEÑO (SLEEP TIMER) -->
+    <div id="sleepTimerModal" class="sp-suite-overlay hidden" style="display:none;" onclick="if(event.target===this && window.SpotifySuite) window.SpotifySuite.closeSleepTimer()">
+      <div class="sp-suite-sheet sp-suite-sheet-compact" onclick="event.stopPropagation();">
+        <div class="sp-options-sheet-handle"></div>
+        <div class="sp-suite-header">
+          <div>
+            <div class="sp-suite-kicker">DESCANSO MUSICAL</div>
+            <h3 class="sp-suite-title">Temporizador de sueño</h3>
+          </div>
+          <button type="button" onclick="window.SpotifySuite && window.SpotifySuite.closeSleepTimer()" class="tube-amp-close-btn" title="Cerrar">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+
+        <div class="sp-suite-body">
+          <div id="sleepTimerActiveBanner" class="sleep-active-banner hidden">
+            <div>
+              <div class="text-[10px] font-bold uppercase tracking-wider text-[#f3d791]">Temporizador activo</div>
+              <div id="sleepTimerActiveCountdown" class="text-lg font-mono font-black text-white">15:00</div>
+            </div>
+            <button id="sleepTimerCancelBtn" type="button" onclick="window.SpotifySuite && window.SpotifySuite.cancelSleepTimer(true)" class="px-3 py-1.5 rounded-full bg-rose-500/20 border border-rose-400/50 text-rose-200 text-xs font-bold cursor-pointer">Desactivar</button>
+          </div>
+
+          <div class="sleep-options-grid">
+            <button type="button" onclick="window.SpotifySuite && window.SpotifySuite.setSleepTimerMinutes(5)" class="sleep-option-btn">5 min</button>
+            <button type="button" onclick="window.SpotifySuite && window.SpotifySuite.setSleepTimerMinutes(15)" class="sleep-option-btn">15 min</button>
+            <button type="button" onclick="window.SpotifySuite && window.SpotifySuite.setSleepTimerMinutes(30)" class="sleep-option-btn">30 min</button>
+            <button type="button" onclick="window.SpotifySuite && window.SpotifySuite.setSleepTimerMinutes(45)" class="sleep-option-btn">45 min</button>
+            <button type="button" onclick="window.SpotifySuite && window.SpotifySuite.setSleepTimerMinutes(60)" class="sleep-option-btn">1 hora</button>
+            <button type="button" onclick="window.SpotifySuite && window.SpotifySuite.setSleepTimerEndOfTrack()" class="sleep-option-btn gold">Fin de canción</button>
+          </div>
+          <p class="text-[11px] text-zinc-400 text-center pt-1">El volumen bajará suavemente antes de pausarse.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. PERFIL DEL ARTISTA ("IR AL ARTISTA") -->
+    <div id="artistProfileModal" class="sp-suite-overlay hidden" style="display:none;" onclick="if(event.target===this && window.SpotifySuite) window.SpotifySuite.closeArtistProfile()">
+      <div class="sp-suite-sheet sp-suite-sheet-tall" onclick="event.stopPropagation();">
+        <div class="artist-sheet-hero">
+          <div id="artistSheetHeroBg" class="artist-sheet-hero-bg"></div>
+          <div class="artist-sheet-hero-scrim"></div>
+          <button type="button" onclick="window.SpotifySuite && window.SpotifySuite.closeArtistProfile()" class="artist-sheet-close-btn" title="Cerrar">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+          <div class="artist-sheet-hero-content">
+            <img id="artistSheetHeroImg" src="./app_logo.png" onerror="this.src='./app_logo.png'" class="artist-sheet-avatar" alt="">
+            <div class="min-w-0 flex-1">
+              <div class="sp-suite-kicker">PERFIL DE ARTISTA</div>
+              <h3 id="artistSheetName" class="text-xl font-black text-white leading-tight truncate">Artista</h3>
+              <p id="artistSheetSub" class="text-xs text-zinc-300 mt-0.5">Cargando canciones...</p>
+            </div>
+          </div>
+          <div class="artist-sheet-cta-row">
+            <button type="button" onclick="window.SpotifySuite && window.SpotifySuite.playAllArtistTracks(false)" class="artist-cta-primary">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+              <span>Reproducir</span>
+            </button>
+            <button type="button" onclick="window.SpotifySuite && window.SpotifySuite.playAllArtistTracks(true)" class="artist-cta-secondary">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/></svg>
+              <span>Aleatorio</span>
+            </button>
+            <button type="button" onclick="window.SpotifySuite && window.SpotifySuite.startArtistRadio()" class="artist-cta-secondary">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49"/></svg>
+              <span>Radio</span>
+            </button>
+          </div>
+        </div>
+        <div id="artistSheetTracksList" class="sp-suite-body space-y-1.5"></div>
+      </div>
+    </div>
+
+    <!-- 4. TU RESUMEN MUSICAL Y ESTADÍSTICAS (CÁPSULA SONORA ESTILO SPOTIFY WRAPPED) -->
+    <div id="listeningStatsModal" class="sp-suite-overlay hidden" style="display:none;" onclick="if(event.target===this && window.SpotifySuite) window.SpotifySuite.closeListeningStats()">
+      <div class="sp-suite-sheet sp-suite-sheet-tall" onclick="event.stopPropagation();">
+        <div class="sp-options-sheet-handle"></div>
+        <div class="sp-suite-header">
+          <div>
+            <div class="sp-suite-kicker">CÁPSULA SONORA PERSONAL</div>
+            <h3 class="sp-suite-title">Tu Resumen Musical</h3>
+          </div>
+          <button type="button" onclick="window.SpotifySuite && window.SpotifySuite.closeListeningStats()" class="tube-amp-close-btn" title="Cerrar">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div id="listeningStatsBody" class="sp-suite-body space-y-3"></div>
+      </div>
+    </div>
+
+    <!-- 5. TARJETA VISUAL PARA COMPARTIR CANCIÓN / LETRA -->
+    <div id="shareCardModal" class="sp-suite-overlay hidden" style="display:none;" onclick="if(event.target===this && window.SpotifySuite) window.SpotifySuite.closeShareCard()">
+      <div class="sp-suite-sheet sp-suite-sheet-tall" onclick="event.stopPropagation();">
+        <div class="sp-options-sheet-handle"></div>
+        <div class="sp-suite-header">
+          <div>
+            <div class="sp-suite-kicker">COMPARTIR HISTORIA</div>
+            <h3 class="sp-suite-title">Tarjeta Musical</h3>
+          </div>
+          <button type="button" onclick="window.SpotifySuite && window.SpotifySuite.closeShareCard()" class="tube-amp-close-btn" title="Cerrar">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+
+        <div class="sp-suite-body space-y-3">
+          <div class="share-card-preview-wrap">
+            <canvas id="shareCardPreviewCanvas" width="720" height="900" class="share-card-canvas"></canvas>
+          </div>
+
+          <div class="share-themes-row">
+            <button type="button" data-theme="gold" onclick="window.SpotifySuite && window.SpotifySuite.selectShareTheme('gold')" class="share-theme-pill active">
+              <span class="share-theme-dot" style="background:linear-gradient(135deg,#f3d791,#b8860b)"></span>
+              <span>Oro</span>
+            </button>
+            <button type="button" data-theme="midnight" onclick="window.SpotifySuite && window.SpotifySuite.selectShareTheme('midnight')" class="share-theme-pill">
+              <span class="share-theme-dot" style="background:linear-gradient(135deg,#38bdf8,#1e3a8a)"></span>
+              <span>Noche</span>
+            </button>
+            <button type="button" data-theme="crimson" onclick="window.SpotifySuite && window.SpotifySuite.selectShareTheme('crimson')" class="share-theme-pill">
+              <span class="share-theme-dot" style="background:linear-gradient(135deg,#fb7185,#881337)"></span>
+              <span>Carmesí</span>
+            </button>
+            <button type="button" data-theme="ivory" onclick="window.SpotifySuite && window.SpotifySuite.selectShareTheme('ivory')" class="share-theme-pill">
+              <span class="share-theme-dot" style="background:linear-gradient(135deg,#f5efe2,#c2a573)"></span>
+              <span>Marfil</span>
+            </button>
+          </div>
+
+          <div>
+            <input id="shareCardQuoteInput" type="text" maxlength="140" placeholder="Añade una frase o verso favorito (opcional)..." oninput="window.SpotifySuite && window.SpotifySuite.onShareQuoteInput(this.value)" class="share-quote-input">
+            <div id="shareCardLyricsPicker" class="share-lyrics-strip hidden"></div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 pt-1">
+            <button type="button" onclick="window.SpotifySuite && window.SpotifySuite.shareOrDownloadCard(true)" class="crate-sec-btn" style="height:44px;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span>Descargar PNG</span>
+            </button>
+            <button type="button" onclick="window.SpotifySuite && window.SpotifySuite.shareOrDownloadCard(false)" class="crate-play-piano-btn" style="height:44px;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+              <span>Compartir</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div> <!-- End of game-viewport -->
 
   <script src="./parsers.js?v=80.0"></script>
@@ -5666,7 +5998,8 @@
   <script defer src="./songs/comm_camilo_sesto/chart.js"></script>
   <script defer src="./songs/renacer/chart.js"></script>
   <script src="./songs/catalog_top.js?v=80.0"></script>
-  <script src="./discover_home.js?v=92.0"></script>
+  <script src="./discover_home.js?v=93.0"></script>
+  <script src="./spotify_suite.js?v=93.0"></script>
   <script>
     let engine = null;
     let currentActiveBeatmap = null;
@@ -7943,11 +8276,11 @@
       return DEFAULT_CLOUD_SERVER;
     }
 
-    // Codigo de version local actualizado a 87 (v8.7.0)
+    // Codigo de version local actualizado a 89 (v8.9.0)
     const CURRENT_APP_VERSION_CODE = (window.AndroidNative && typeof window.AndroidNative.getAppVersionCode === 'function')
-      ? Math.max(87, Number(window.AndroidNative.getAppVersionCode()) || 87)
-      : 87;
-    let appUpdateDownloadUrl = '/download/apk?v=87.0';
+      ? Math.max(89, Number(window.AndroidNative.getAppVersionCode()) || 89)
+      : 89;
+    let appUpdateDownloadUrl = '/download/apk?v=89.0';
 
     async function checkForAppUpdates() {
       // Aviso automatico de actualizacion desactivado para que nunca salte al abrir la app
@@ -7986,7 +8319,7 @@
                            host === 'appassets.androidplatform.net' ||
                            (window.location && window.location.protocol === 'file:');
       const base = isStaticOnly ? getApiBaseUrl() : '';
-      const targetUrl = `${base}/download/apk?v=87.0&local=1&t=${ts}`;
+      const targetUrl = `${base}/download/apk?v=89.0&local=1&t=${ts}`;
 
       if (window.AndroidNative && typeof window.AndroidNative.openBrowser === 'function') {
         const absUrl = targetUrl.startsWith('http') ? targetUrl : `${getApiBaseUrl()}${targetUrl}`;
