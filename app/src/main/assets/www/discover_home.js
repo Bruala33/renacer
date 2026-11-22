@@ -5959,10 +5959,11 @@
       this._fxDryGain = null;
       this._fxKarGain = null;
 
-      // Contorno melódico monotónico, cintas vocales ancladas al audio real (0ms desfase) y armonía/tonalidad en vivo
+      // Contorno melódico vocal real (STFT Center-Vocal Isolation + Viterbi) y tonalidad musical
       this.currentTrackKey = '';
-      this.audioRibbons = []; // [{ id, startSec, endSec, midi, freqHz, kind:'melody'|'harmony', chordMask, isGolden, hitFrames, totalFrames, fillRatio, goldenAwarded }]
+      this.audioRibbons = []; // Reservado inactivo: SingStar puntúa y dibuja siempre sobre la letra real (pitchNotes)
       this.songKeyNameEs = '';
+      this.songKeyShortEs = '';
       this.songKeyPc = -1;
       this.songMode = '';
       this.songScaleMask = null; // Uint8Array(12)
@@ -5975,8 +5976,13 @@
       this.axisMaxMidi = 74; // RE5 (Arriba = Agudos)
       this.hasDspMelody = false;
       this.hasAcousticSyllables = false;
-      this.studioAnalysisCache = new Map(); // trackKey -> { dspContour, acousticLines, axisMinMidi, axisMaxMidi, centerMidi }
+      this.studioAnalysisCache = new Map(); // trackKey -> { dspContour, acousticLines, isFullySynced100, hasStftViterbiMelody, ... }
       this._prepToken = 0;
+      this.isWaitingFor100SyncGate = false;
+      this._gateWasPlayingOnEnter = false;
+      this._gateEntrySec = 0;
+      this._gateState = 'idle'; // 'idle' | 'loading' | 'ready' | 'error'
+      this._fft2048Tables = null;
 
       // Estado instantáneo de la voz del usuario (Estrictamente monotónico: más agudo = más arriba, más grave = más abajo)
       this.rawUserMidi = null;
@@ -5985,7 +5991,7 @@
       this.liveUserFreqHz = 0;
       this.liveUserRms = 0;
       this.liveNoteLabel = '--';
-      this.liveTargetKicker = 'TONO';
+      this.liveTargetKicker = 'META';
       this.liveTargetNoteLabel = '--';
       this.liveTargetNoteHz = '';
       this.liveStatusText = 'CANTA';
@@ -6456,6 +6462,83 @@
       return this.isActive;
     }
 
+    _setStudioGateMode(mode = 'hidden', opts = {}) {
+      this._gateState = mode;
+      const loadView = document.getElementById('singstarLoadingStudioView');
+      const readyBanner = document.getElementById('ssPrepReadyBanner');
+      const readySummary = document.getElementById('ssPrepReadySummary');
+      const errBanner = document.getElementById('ssPrepErrorBanner');
+      const errText = document.getElementById('ssPrepErrorText');
+      const loadActions = document.getElementById('ssPrepLoadingActions');
+      const readyActions = document.getElementById('ssPrepReadyActions');
+      const errActions = document.getElementById('ssPrepErrorActions');
+      const startCurBtn = document.getElementById('ssPrepStartCurrentBtn');
+
+      const fsModal = document.getElementById('singstarFullscreenModal');
+      if (mode === 'hidden') {
+        this.isWaitingFor100SyncGate = false;
+        if (loadView) loadView.classList.add('hidden');
+        if (fsModal) fsModal.classList.remove('gate-locked');
+        return;
+      }
+
+      this.isWaitingFor100SyncGate = true;
+      if (loadView) loadView.classList.remove('hidden');
+      if (fsModal) fsModal.classList.add('gate-locked');
+
+      if (readyBanner) readyBanner.classList.toggle('hidden', mode !== 'ready');
+      if (readyActions) readyActions.classList.toggle('hidden', mode !== 'ready');
+      if (errBanner) errBanner.classList.toggle('hidden', mode !== 'error');
+      if (errActions) errActions.classList.toggle('hidden', mode !== 'error');
+      if (loadActions) loadActions.classList.toggle('hidden', mode !== 'loading');
+
+      if (mode === 'ready') {
+        this._setStudioLoadingProgress(5, 100, opts.detail || 'Sincronización al 100% completada');
+        if (readySummary && opts.summary) readySummary.textContent = opts.summary;
+        const entrySec = Number.isFinite(opts.entrySec) ? opts.entrySec : (this._gateEntrySec || 0);
+        if (startCurBtn) {
+          if (entrySec >= 5) {
+            const m = Math.floor(entrySec / 60);
+            const s = Math.floor(entrySec % 60);
+            startCurBtn.textContent = `Continuar desde ${m}:${s < 10 ? '0' : ''}${s}`;
+            startCurBtn.classList.remove('hidden');
+          } else {
+            startCurBtn.classList.add('hidden');
+          }
+        }
+      } else if (mode === 'error') {
+        if (errText) errText.textContent = opts.error || 'No se pudo descargar o sincronizar el audio completo al 100%.';
+      }
+    }
+
+    startAfterGate(fromBeginning = true) {
+      if (this._gateState !== 'ready' && this.isWaitingFor100SyncGate) {
+        return false;
+      }
+      this._setStudioGateMode('hidden');
+      this.resetSessionStats();
+      this._lastTeleprompterLineIdx = -2;
+      this._lastTeleprompterSylIdx = -2;
+      if (this.audioEngine) {
+        if (fromBeginning && typeof this.audioEngine.seekToSeconds === 'function') {
+          this.audioEngine.seekToSeconds(0);
+        }
+        if (typeof this.audioEngine.play === 'function') {
+          try {
+            const p = this.audioEngine.play();
+            if (p && typeof p.catch === 'function') p.catch(() => {});
+          } catch (_) {}
+        }
+      }
+      this._spawnPopup(
+        'ESTUDIO SINGSTAR LISTO',
+        fromBeginning ? 'Empezando desde 0:00 · Letra y tono 100% sincronizados' : 'Letra y tono 100% sincronizados',
+        '#34d399',
+        1400
+      );
+      return true;
+    }
+
     async activate(forceReanalyze = false) {
       this.isActive = true;
       this._voicedConfirmStreak = 0;
@@ -6475,13 +6558,41 @@
         fsModal.classList.add('open');
       }
 
-      // Arrancar el bucle de renderizado 60fps de inmediato ANTES de cualquier operación asíncrona
-      // para que el pentagrama, el teleprompter y el reloj nunca se queden en negro ni bloqueados.
-      this._startRenderLoop();
-
       const tr = (this.audioEngine && this.audioEngine.currentTrack) ||
                  (this.karaokeService && this.karaokeService.currentTrack) ||
                  (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.getActiveCrateTrack === 'function' ? window.DiscoverHomeApp.getActiveCrateTrack() : null);
+
+      const trKey = tr ? (this.karaokeService ? this.karaokeService._makeKey(tr) : String(tr.id || tr.title || '')) : '';
+      const cached = (!forceReanalyze && trKey) ? this.studioAnalysisCache.get(trKey) : null;
+      const already100Ready = Boolean(
+        cached &&
+        cached.isFullySynced100 === true &&
+        cached.hasStftViterbiMelody === true &&
+        !cached.hasPlaceholderLyrics &&
+        !cached.hasUnalignedPlainLyrics &&
+        Array.isArray(cached.acousticLines) &&
+        cached.acousticLines.length >= 2
+      );
+
+      this._gateEntrySec = (this.audioEngine && typeof this.audioEngine.getCurrentSongTimeSec === 'function')
+        ? Math.max(0, Number(this.audioEngine.getCurrentSongTimeSec()) || 0)
+        : 0;
+      this._gateWasPlayingOnEnter = Boolean(this.audioEngine && typeof this.audioEngine.isPlaying === 'function' && this.audioEngine.isPlaying());
+
+      // PUERTA OBLIGATORIA 100%: si la pista no está sincronizada al 100% (letra + tono vocal),
+      // pausar la canción de inmediato y bloquear el escenario hasta completar los 4 pasos al 100%.
+      if (!already100Ready && tr) {
+        if (this._gateWasPlayingOnEnter && this.audioEngine && typeof this.audioEngine.pause === 'function') {
+          try { this.audioEngine.pause(); } catch (_) {}
+        }
+        this._setStudioGateMode('loading');
+        this._setStudioLoadingProgress(1, 5, 'Preparando sincronización completa (0% -> 100%)...');
+      } else {
+        this._setStudioGateMode('hidden');
+      }
+
+      // Arrancar el bucle de renderizado 60fps de inmediato
+      this._startRenderLoop();
 
       if (tr) {
         this._seedImmediateStageForTrack(tr);
@@ -6499,6 +6610,8 @@
     deactivate() {
       this.isActive = false;
       this.isPreparingSong = false;
+      this.isWaitingFor100SyncGate = false;
+      this._gateState = 'idle';
       this._activePrepKey = '';
       this._prepToken++;
       this._lastRawWebMicFreq = 0;
@@ -6522,7 +6635,7 @@
       if (loadView) loadView.classList.add('hidden');
       const fsModal = document.getElementById('singstarFullscreenModal');
       if (fsModal) {
-        fsModal.classList.remove('open', 'fever-mode');
+        fsModal.classList.remove('open', 'fever-mode', 'gate-locked');
         fsModal.classList.add('hidden');
       }
       this._syncStageClasses();
@@ -6543,11 +6656,9 @@
     }
 
     skipPrepWait() {
-      this.isPreparingSong = false;
-      const loadView = document.getElementById('singstarLoadingStudioView');
-      if (loadView) loadView.classList.add('hidden');
-      if (this.audioEngine && !this.audioEngine.isPlaying()) {
-        this.audioEngine.play().catch(() => {});
+      // No se permite saltar la sincronización antes del 100%: solo arranca si ya alcanzó 100% listo
+      if (this._gateState === 'ready') {
+        this.startAfterGate(true);
       }
     }
 
@@ -6575,6 +6686,10 @@
         this.karaokeService.removeWhisperAlignedCacheEntry(tr);
       }
       this._cancelWhisperWorkerTasks();
+      if (this.audioEngine && typeof this.audioEngine.pause === 'function') {
+        try { this.audioEngine.pause(); } catch (_) {}
+      }
+      this._setStudioGateMode('loading');
       await this._prepareTrackInStudio(tr, true);
     }
 
@@ -7425,13 +7540,13 @@
     }
 
     /**
-     * Pipeline de estudio unificado no bloqueante (Karaoke + SingStar):
-     * 1) Si Karaoke ya está alineando esta misma canción con Whisper, se acopla sin cancelar ni duplicar.
-     * 2) Decodifica el audio en UNA SOLA PASADA compartida (DSP 100 Hz YIN + vowelFlux + mono 16 kHz).
-     * 3) Verifica caché Whisper v2 (con validación de duración de audio). Si NO está verificado con Whisper,
-     *    lanza SIEMPRE alineación forzada Whisper (2 etapas: Hough global/slope + LCS DP palabra a palabra
-     *    + sílabas 10 ms) sobre CUALQUIER pista (LRC externo, texto plano o sin letra) y actualiza tanto
-     *    Karaoke como SingStar en vivo.
+     * Pipeline de estudio obligatorio al 100% (SingStar Vocal Studio):
+     * Bloquea el escenario y pausa la canción hasta completar el 100% de los 4 pasos:
+     * 1) Descarga y decodificación única del audio maestro completo (0 -> 28%).
+     * 2) Obtención y sincronización 100% de la letra con la voz real (Vocal-Onset VAD rígido de alta confianza
+     *    o alineación completa Whisper palabra por palabra esperada hasta el 100%, 28 -> 65%).
+     * 3) Aislamiento vocal STFT Mid-Side + Salience armónica + Viterbi sobre las frases reales de la letra (65 -> 88%).
+     * 4) Calibración final de cada sílaba y tono vocal al 100%, caché verificada y desbloqueo limpio (88 -> 100%).
      */
     async _prepareTrackInStudio(track, forceReanalyze = false) {
       if (!track) return;
@@ -7440,15 +7555,25 @@
 
       this._seedImmediateStageForTrack(track);
 
-      const loadView = document.getElementById('singstarLoadingStudioView');
       const packView = document.getElementById('singstarPackInstallerView');
       const sumView = document.getElementById('singstarFsSummaryView');
       if (packView) packView.classList.add('hidden');
       if (sumView) sumView.classList.add('hidden');
 
+      // Si esta pista YA fue sincronizada al 100% con melodía vocal STFT+Viterbi, entrada instantánea
       if (!forceReanalyze && this.studioAnalysisCache.has(key)) {
         const cached = this.studioAnalysisCache.get(key);
-        if (cached && !cached.hasPlaceholderLyrics && !cached.hasUnalignedPlainLyrics && (cached.isWhisperVerified || cached.isVocalVadLocked) && cached.hasDspMelody) {
+        if (
+          cached &&
+          cached.isFullySynced100 === true &&
+          cached.hasStftViterbiMelody === true &&
+          !cached.hasPlaceholderLyrics &&
+          !cached.hasUnalignedPlainLyrics &&
+          (cached.isWhisperVerified || cached.isVocalVadLocked) &&
+          cached.hasDspMelody &&
+          Array.isArray(cached.acousticLines) &&
+          cached.acousticLines.length >= 2
+        ) {
           this._applyStudioAnalysisToStage(cached, userOff, false);
           const sh = Number(cached.isWhisperVerified ? cached.shiftSec : cached.vadShiftSec) || 0;
           const lbl = cached.isWhisperVerified
@@ -7457,61 +7582,71 @@
                 : (Math.abs(sh) >= 0.55 ? `Sincro · ${sh > 0 ? '+' : ''}${sh.toFixed(1)}s` : 'Sincro · Exacta'))
             : (Math.abs(sh) >= 0.55 ? `Sincro · ${sh > 0 ? '+' : ''}${sh.toFixed(1)}s` : 'Sincro · Exacta');
           this._setSyncStatusChip(lbl, 'ready');
-          if (loadView) loadView.classList.add('hidden');
+          this._setStudioGateMode('hidden');
           return;
         }
-      }
-
-      // ACOPLAMIENTO SIN REINICIO: Si Karaoke ya lanzó Whisper para esta misma canción, acoplarse en vivo
-      // Y extraer en segundo plano la curva melódica MPM real para que el pentagrama nunca use notas cromáticas falsas.
-      if (!forceReanalyze && this.isActiveWhisperFor(key)) {
-        if (loadView) loadView.classList.add('hidden');
-        let hasMelodyAlready = false;
-        if (this.studioAnalysisCache.has(key)) {
-          const c = this.studioAnalysisCache.get(key);
-          hasMelodyAlready = Boolean(c && c.hasDspMelody);
-          this._applyStudioAnalysisToStage(c, userOff, false);
-        } else if (this._activeDecodedTrackKey === key && this._activeDecodedBundle?.vocalDspProfile) {
-          const karLines = this.karaokeService?.cache?.get(key) || this.karaokeService?.currentLyrics || [];
-          if (!this._isPlaceholderLyrics(karLines) && !this._isUnalignedPlainLyrics(karLines)) {
-            const aligned = this._alignSyllablesWithVocalProfile(key, karLines, this._activeDecodedBundle.vocalDspProfile, this._activeDecodedBundle.actualDurSec || 195);
-            const sData = {
-              track,
-              key,
-              actualDurSec: this._activeDecodedBundle.actualDurSec || 195,
-              dspContour: this._activeDecodedBundle.vocalDspProfile,
-              acousticLines: aligned,
-              hasDspMelody: Boolean(this._activeDecodedBundle.vocalDspProfile.voicedCount >= 10),
-              hasAcousticSyllables: true,
-              hasPlaceholderLyrics: false,
-              hasUnalignedPlainLyrics: false,
-              isAudioTranscribed: false,
-              isWhisperVerified: false,
-              isVocalVadLocked: Boolean(karLines[0]?._vocalVadVerified)
-            };
-            hasMelodyAlready = sData.hasDspMelody;
-            this._putStudioAnalysisCache(key, sData);
-            this._applyStudioAnalysisToStage(sData, userOff, false);
-          }
-        }
-        const karSt = this.karaokeService?._aiSyncStatusMap?.get(key);
-        this._setSyncStatusChip(karSt?.label || 'Sincro · Verificando...', karSt?.state || 'working');
-        if (!hasMelodyAlready && typeof this._attachBackgroundDspMelodyForActiveStage === 'function') {
-          this._attachBackgroundDspMelodyForActiveStage(track, key).catch(() => {});
-        }
-        return;
       }
 
       const token = ++this._prepToken;
       this._activePrepKey = key;
       this.isPreparingSong = true;
 
+      // Asegurar pausa y puerta bloqueante durante toda la preparación hasta el 100%
+      if (this.audioEngine && typeof this.audioEngine.isPlaying === 'function' && this.audioEngine.isPlaying()) {
+        if (typeof this.audioEngine.pause === 'function') {
+          try { this.audioEngine.pause(); } catch (_) {}
+        }
+      }
+      this._setStudioGateMode('loading');
+
       try {
         const actualDurSecHint = this.audioEngine ? (this.audioEngine.getRealDurationSec(track) || 195) : 195;
         const rawVidTrack = String(track.videoId || track.id || '').replace(/^magic_yt_|^yt_/, '').trim();
         const vidTrack = /^[A-Za-z0-9_-]{11}$/.test(rawVidTrack) ? rawVidTrack : '';
 
-        // PASO 1: Comprobar si existe letra verificada v4, LRC externo o texto plano
+        // =========================================================================
+        // PASO 1 (0% -> 28%): AUDIO MAESTRO COMPLETO + DECODIFICACIÓN ÚNICA + STFT
+        // =========================================================================
+        this._setStudioLoadingProgress(1, 8, 'Obteniendo audio completo de la canción...');
+        this._setSyncStatusChip('Cargando audio...', 'working');
+        let audioBlob = null;
+        if (this.audioEngine) {
+          if (this.audioEngine.currentTrack && this.karaokeService?._makeKey(this.audioEngine.currentTrack) === key && this.audioEngine.fullTrackBlob && this.audioEngine.fullTrackBlob.size >= 50000) {
+            audioBlob = this.audioEngine.fullTrackBlob;
+          } else if (typeof this.audioEngine._getCachedFullBlobForTrack === 'function') {
+            audioBlob = this.audioEngine._getCachedFullBlobForTrack(track);
+          }
+          if ((!audioBlob || audioBlob.size < 50000) && typeof this.audioEngine.getOrAwaitExactPlayingBlob === 'function') {
+            try {
+              audioBlob = await this.audioEngine.getOrAwaitExactPlayingBlob(track, 20000);
+            } catch (_) {}
+          }
+          const hasLockedDirectStream = Boolean(
+            this.audioEngine.currentTrack &&
+            this.karaokeService?._makeKey(this.audioEngine.currentTrack) === key &&
+            this.audioEngine._activeDirectStreamUrl
+          );
+          if ((!audioBlob || audioBlob.size < 50000) && !hasLockedDirectStream && typeof this.audioEngine.preloadFullTrackInBackground === 'function') {
+            try {
+              audioBlob = await Promise.race([
+                this.audioEngine.preloadFullTrackInBackground(track),
+                new Promise(r => setTimeout(() => r(null), 20000))
+              ]);
+            } catch (_) {}
+          }
+        }
+        if (token !== this._prepToken) return;
+
+        if (!audioBlob || audioBlob.size < 40000) {
+          this._setSyncStatusChip('Audio no disponible', 'error');
+          this._setStudioGateMode('error', {
+            error: 'No se pudo descargar el audio completo de esta canción para sincronizarla al 100%. Comprueba tu conexión e inténtalo de nuevo.'
+          });
+          return;
+        }
+
+        // Buscar letra mientras preparamos decodificación
+        this._setStudioLoadingProgress(1, 16, 'Decodificando audio maestro y espectro vocal STFT...');
         let baseLines = [];
         let builtInEntry = null;
         let hasWhisperVerifiedCache = false;
@@ -7528,12 +7663,9 @@
           } else if (builtInEntry && builtInEntry.syncedLyrics) {
             baseLines = this.karaokeService.parseLrc(builtInEntry.syncedLyrics, { track });
           } else {
-            if (loadView) loadView.classList.remove('hidden');
-            this._setStudioLoadingProgress(1, 12, 'Buscando letra y sincronización de la canción...');
-            this._setSyncStatusChip('Buscando letra...', 'working');
             const fetched = await Promise.race([
               this.karaokeService.fetchLyricsForTrack(track, actualDurSecHint).catch(() => []),
-              new Promise(r => setTimeout(() => r([]), 4200))
+              new Promise(r => setTimeout(() => r([]), 5000))
             ]);
             if (Array.isArray(fetched) && !this._isPlaceholderLyrics(fetched)) {
               baseLines = fetched.map(l => ({ ...l }));
@@ -7543,91 +7675,32 @@
         }
         if (token !== this._prepToken) return;
 
-        const hasRealLyrics = !this._isPlaceholderLyrics(baseLines);
-        const isPlainUnaligned = hasRealLyrics && this._isUnalignedPlainLyrics(baseLines);
-
-        if (hasRealLyrics && !isPlainUnaligned) {
-          const quickAligned = (hasWhisperVerifiedCache && baseLines[0]?.singstarSyllables)
-            ? baseLines
-            : this._alignSyllablesWithVocalProfile(key, baseLines, null, actualDurSecHint);
-          this._applyStudioAnalysisToStage({
-            track,
-            key,
-            dspContour: null,
-            acousticLines: quickAligned,
-            hasDspMelody: false,
-            hasAcousticSyllables: true,
-            hasPlaceholderLyrics: false,
-            hasUnalignedPlainLyrics: false,
-            isWhisperVerified: hasWhisperVerifiedCache,
-            isVocalVadLocked: Boolean(baseLines[0]?._vocalVadVerified)
-          }, Number(this.karaokeService?.timeOffsetSec || 0), false);
-          if (loadView && !forceReanalyze) {
-            loadView.classList.add('hidden');
-          }
-        } else if (loadView) {
-          loadView.classList.remove('hidden');
-          this._setStudioLoadingProgress(1, 18, isPlainUnaligned
-            ? 'Letra sin tiempos detectada · Preparando alineación con audio real...'
-            : 'Aislando voz y preparando transcripción automática...');
-        }
-
-        // PASO 2: Obtener el Blob EXACTO del audio en reproducción (jamás sustituir SoundCloud por YouTube)
-        this._setStudioLoadingProgress(2, 26, 'Cargando flujo de audio maestro para análisis vocal...');
-        this._setSyncStatusChip('Cargando audio...', 'working');
-        let audioBlob = null;
-        if (this.audioEngine) {
-          if (this.audioEngine.currentTrack && this.karaokeService?._makeKey(this.audioEngine.currentTrack) === key && this.audioEngine.fullTrackBlob && this.audioEngine.fullTrackBlob.size >= 50000) {
-            audioBlob = this.audioEngine.fullTrackBlob;
-          } else if (typeof this.audioEngine._getCachedFullBlobForTrack === 'function') {
-            audioBlob = this.audioEngine._getCachedFullBlobForTrack(track);
-          }
-          if ((!audioBlob || audioBlob.size < 50000) && typeof this.audioEngine.getOrAwaitExactPlayingBlob === 'function') {
-            try {
-              audioBlob = await this.audioEngine.getOrAwaitExactPlayingBlob(track, 16000);
-            } catch (_) {}
-          }
-          const hasLockedDirectStream = Boolean(
-            this.audioEngine.currentTrack &&
-            this.karaokeService?._makeKey(this.audioEngine.currentTrack) === key &&
-            this.audioEngine._activeDirectStreamUrl
-          );
-          if ((!audioBlob || audioBlob.size < 50000) && !hasLockedDirectStream && typeof this.audioEngine.preloadFullTrackInBackground === 'function') {
-            try {
-              audioBlob = await Promise.race([
-                this.audioEngine.preloadFullTrackInBackground(track),
-                new Promise(r => setTimeout(() => r(null), 16000))
-              ]);
-            } catch (_) {}
-          }
-        }
-        if (token !== this._prepToken) return;
-
-        // PASO 3: Decodificación única compartida + DSP MPM 25Hz + Envolvente Vocal-VAD (sin mono16k salvo si hace falta Whisper)
-        let actualDurSec = actualDurSecHint;
-        let vocalDspProfile = null;
-        let mono16k = null;
-        let karaokeDspEnvelope = null;
+        let hasRealLyrics = !this._isPlaceholderLyrics(baseLines);
+        let isPlainUnaligned = hasRealLyrics && this._isUnalignedPlainLyrics(baseLines);
         const preloadMono16k = Boolean(forceReanalyze || !hasRealLyrics || isPlainUnaligned);
 
-        if (audioBlob && audioBlob.size >= 40000) {
-          this._setStudioLoadingProgress(2, 42, 'Extrayendo curva vocal MPM y sincronización de fraseo...');
-          this._setSyncStatusChip('Analizando voz...', 'working');
-          const decoded = await this._decodeAudioBlobSinglePass(track, key, audioBlob, null, (pct, msg) => {
-            if (token === this._prepToken) {
-              this._setStudioLoadingProgress(pct < 75 ? 3 : 4, pct, msg);
-            }
-          }, { needPitchProfile: true, needMono16k: preloadMono16k });
-          if (token !== this._prepToken) return;
-          if (decoded) {
-            actualDurSec = decoded.actualDurSec || actualDurSecHint;
-            vocalDspProfile = decoded.vocalDspProfile;
-            mono16k = decoded.mono16k;
-            karaokeDspEnvelope = decoded.karaokeDspEnvelope;
+        const decoded = await this._decodeAudioBlobSinglePass(track, key, audioBlob, null, (pct, msg) => {
+          if (token === this._prepToken) {
+            const mapped = 16 + Math.round(Math.max(0, Math.min(100, pct)) * 0.12);
+            this._setStudioLoadingProgress(1, mapped, msg || 'Extrayendo espectro vocal STFT...');
           }
+        }, { needPitchProfile: true, needMono16k: preloadMono16k });
+        if (token !== this._prepToken) return;
+
+        if (!decoded || !decoded.vocalDspProfile) {
+          this._setSyncStatusChip('Error de audio', 'error');
+          this._setStudioGateMode('error', {
+            error: 'No se pudo analizar el flujo de audio de esta pista. Pulsa Reintentar o prueba con otra canción.'
+          });
+          return;
         }
 
-        // Revalidar compatibilidad de duración de cualquier caché v4 ahora que conocemos actualDurSec exacto
+        const actualDurSec = decoded.actualDurSec || actualDurSecHint;
+        const vocalDspProfile = decoded.vocalDspProfile;
+        let mono16k = decoded.mono16k;
+        const karaokeDspEnvelope = decoded.karaokeDspEnvelope;
+
+        // Revalidar caché v4 frente a duración real exacta
         if (hasWhisperVerifiedCache && builtInEntry && builtInEntry.isWhisperVerified) {
           const hitDur = Number(builtInEntry.audioDurSec || builtInEntry.duration || 0);
           if (actualDurSec >= 35 && hitDur >= 35 && Math.abs(hitDur - actualDurSec) > 3.5) {
@@ -7638,9 +7711,27 @@
           hasWhisperVerifiedCache = false;
         }
 
-        // PASO 3.5 (MOTOR RÁPIDO VOCAL-ONSET VAD RÍGIDO 1-2 DOF < 60ms):
-        // Bloquea al instante desfases uniformes/tempo real; si la pista es densa o tiene cortes por tramos,
-        // deja la letra intacta y delega a Whisper multi-ventana palabra por palabra.
+        // =========================================================================
+        // PASO 2 (28% -> 65%): SINCRONIZACIÓN AL 100% DE LA LETRA CON LA VOZ REAL
+        // =========================================================================
+        this._setStudioLoadingProgress(2, 30, 'Sincronizando letra con los ataques reales de la voz...');
+        this._setSyncStatusChip('Sincronizando letra...', 'working');
+
+        // Si Karaoke ya tenía Whisper en curso para esta misma canción, esperar a que termine al 100% sin duplicar
+        if (!forceReanalyze && this.isActiveWhisperFor(key) && this._activeWhisperPromise) {
+          this._setStudioLoadingProgress(2, 42, 'Esperando sincronización neuronal Whisper en curso (100%)...');
+          try { await this._activeWhisperPromise; } catch (_) {}
+          if (token !== this._prepToken) return;
+          const postKar = this.karaokeService?.cache?.get(key) || this.karaokeService?.currentLyrics || [];
+          if (!this._isPlaceholderLyrics(postKar) && !this._isUnalignedPlainLyrics(postKar)) {
+            baseLines = postKar.map(l => ({ ...l }));
+            hasRealLyrics = true;
+            isPlainUnaligned = false;
+            hasWhisperVerifiedCache = Boolean(this.karaokeService?.isWhisperVerifiedFor(key, actualDurSec));
+          }
+        }
+
+        // 2A: Vocal-Onset VAD rígido (1-2 DOF < 60ms) para desfases uniformes de alta confianza
         let hasVocalVadLock = Boolean(hasRealLyrics && !isPlainUnaligned && baseLines[0]?._vocalVadVerified === true);
         let vadShiftSec = Number(baseLines[0]?._vocalVadShiftSec) || 0;
         if (hasRealLyrics && !isPlainUnaligned && !hasWhisperVerifiedCache && karaokeDspEnvelope && this.karaokeService) {
@@ -7668,7 +7759,6 @@
               baseLines = vadLines;
               hasVocalVadLock = Boolean(vadLines[0]?._vocalVadVerified === true);
               vadShiftSec = Number(vadLines[0]?._vocalVadShiftSec) || 0;
-              // Compartir bloqueo Vocal-VAD exacto con Karaoke en vivo
               this.karaokeService.cache.set(key, vadLines.map(l => ({ ...l })));
               if (this.karaokeService.currentTrackKey === key) {
                 this.karaokeService.currentLyrics = vadLines.map(l => ({ ...l, elasticOffsetSec: 0 }));
@@ -7685,20 +7775,109 @@
           }
         }
 
-        // PASO 4: Preparar vista inmediata con las líneas sincronizadas o islas vocales
-        const initialLines = (hasRealLyrics && !isPlainUnaligned)
-          ? baseLines
-          : this._buildAcousticVocalIslandsLines(vocalDspProfile, actualDurSec);
+        // 2B: Si NO hay bloqueo verificado al 100% (falta letra, texto plano, mezcla densa/tramos o forceReanalyze),
+        // ESPERAR (await) a Whisper hasta completar al 100% ANTES de abrir SingStar.
+        const needsWhisper = Boolean(
+          forceReanalyze ||
+          (!hasWhisperVerifiedCache && (!hasRealLyrics || isPlainUnaligned || !hasVocalVadLock))
+        );
 
-        // PASO 5: Construir sílabas y notas objetivo con la curva vocal MPM
-        this._setStudioLoadingProgress(4, 92, 'Anclando sílabas y afinación MPM al audio real...');
-        const alignedLines = (hasWhisperVerifiedCache && initialLines[0]?.singstarSyllables)
-          ? initialLines
-          : this._alignSyllablesWithVocalProfile(key, initialLines, vocalDspProfile, actualDurSec);
+        let finalSyncedLines = baseLines;
+        let isWhisperVerifiedNow = hasWhisperVerifiedCache;
+        let finalIsPiecewise = Boolean((this.karaokeService?.whisperAlignedMeta?.get(key) || builtInEntry)?.isPiecewise);
+        let finalShiftSec = Number((this.karaokeService?.whisperAlignedMeta?.get(key) || builtInEntry)?.shiftSec) || vadShiftSec;
 
-        const verifiedMeta = this.karaokeService?.whisperAlignedMeta?.get(key) || builtInEntry || null;
-        const cachedIsPiecewise = Boolean(verifiedMeta && verifiedMeta.isPiecewise);
-        const cachedShiftSec = Number(verifiedMeta && verifiedMeta.shiftSec) || 0;
+        if (needsWhisper) {
+          if (!mono16k && audioBlob && audioBlob.size >= 40000) {
+            this._setStudioLoadingProgress(2, 34, 'Preparando pista vocal 16 kHz para alineación exacta...');
+            const dec16 = await this._decodeAudioBlobSinglePass(track, key, audioBlob, null, null, {
+              needPitchProfile: false,
+              needMono16k: true
+            });
+            if (token !== this._prepToken) return;
+            if (dec16 && dec16.mono16k) mono16k = dec16.mono16k;
+          }
+          if (mono16k || vidTrack) {
+            const detailInit = !hasRealLyrics
+              ? 'Transcribiendo letra completa directamente de la voz...'
+              : (isPlainUnaligned ? 'Alineando texto completo frase a frase con la voz...' : 'Verificando sincronización exacta palabra por palabra...');
+            this._setStudioLoadingProgress(2, 38, detailInit);
+            this._setSyncStatusChip('Sincronizando 100%...', 'working');
+            await this._transcribeTrackAudioWithWhisper(
+              track,
+              key,
+              mono16k,
+              vocalDspProfile,
+              null,
+              hasRealLyrics ? baseLines : [],
+              {
+                actualDurSec,
+                isPlainUnaligned,
+                allowBackground: true,
+                forceReanalyze,
+                onGateProgress: (frac, labelText) => {
+                  if (token === this._prepToken) {
+                    const p2 = 38 + Math.round(Math.max(0, Math.min(1, frac)) * 27);
+                    this._setStudioLoadingProgress(2, p2, labelText || 'Sincronizando letra con la voz real...');
+                  }
+                }
+              }
+            );
+            if (token !== this._prepToken) return;
+
+            const postStudio = this.studioAnalysisCache.get(key);
+            const postKar = this.karaokeService?.cache?.get(key) || this.karaokeService?.currentLyrics || [];
+            if (postStudio && Array.isArray(postStudio.acousticLines) && postStudio.acousticLines.length >= 2 && !this._isPlaceholderLyrics(postStudio.acousticLines)) {
+              finalSyncedLines = postStudio.acousticLines.map(l => ({ ...l }));
+              isWhisperVerifiedNow = Boolean(postStudio.isWhisperVerified || postStudio.isAudioTranscribed);
+              finalIsPiecewise = Boolean(postStudio.isPiecewise);
+              finalShiftSec = Number(postStudio.shiftSec) || 0;
+              hasRealLyrics = true;
+              isPlainUnaligned = false;
+            } else if (!this._isPlaceholderLyrics(postKar) && !this._isUnalignedPlainLyrics(postKar)) {
+              finalSyncedLines = postKar.map(l => ({ ...l }));
+              isWhisperVerifiedNow = Boolean(this.karaokeService?.isWhisperVerifiedFor(key, actualDurSec));
+              hasRealLyrics = true;
+              isPlainUnaligned = false;
+            }
+          }
+        }
+
+        if (!Array.isArray(finalSyncedLines) || finalSyncedLines.length < 2 || this._isPlaceholderLyrics(finalSyncedLines) || this._isUnalignedPlainLyrics(finalSyncedLines)) {
+          this._setSyncStatusChip('Sin letra sincronizable', 'error');
+          this._setStudioGateMode('error', {
+            error: 'No se encontró letra cantada sincronizable para esta pista (puede ser instrumental o sin voz clara). Prueba con otra canción.'
+          });
+          return;
+        }
+
+        this._setStudioLoadingProgress(2, 65, 'Letra sincronizada al 100% con el audio real');
+
+        // =========================================================================
+        // PASO 3 (65% -> 88%): AISLAMIENTO VOCAL + VITERBI SOBRE LAS FRASES REALES
+        // =========================================================================
+        this._setStudioLoadingProgress(3, 72, 'Aislando voz principal y calibrando tono exacto (Viterbi)...');
+        await new Promise(r => setTimeout(r, 0));
+        if (token !== this._prepToken) return;
+
+        // Alinear sílabas primero para tener ventanas de frase exactas, refinar melodía vocal con Viterbi
+        // estrictamente sobre los instantes cantados de la letra y re-anclar con el contorno vocal refinado.
+        const preAlignedLines = (isWhisperVerifiedNow && finalSyncedLines[0]?.singstarSyllables)
+          ? finalSyncedLines
+          : this._alignSyllablesWithVocalProfile(key, finalSyncedLines, vocalDspProfile, actualDurSec);
+
+        if (typeof this._refineVocalMelodyWithSyncedLyrics === 'function') {
+          this._refineVocalMelodyWithSyncedLyrics(vocalDspProfile, preAlignedLines);
+        }
+        this._setStudioLoadingProgress(3, 88, 'Melodía vocal real del cantante extraída al 100%');
+        await new Promise(r => setTimeout(r, 0));
+        if (token !== this._prepToken) return;
+
+        // =========================================================================
+        // PASO 4 (88% -> 100%): CALIBRACIÓN FINAL DE SÍLABAS Y DESBLOQUEO 100%
+        // =========================================================================
+        this._setStudioLoadingProgress(4, 94, 'Calibrando sílabas y notas exactas del cantante...');
+        const alignedLines = preAlignedLines;
 
         const studioData = {
           track,
@@ -7707,94 +7886,45 @@
           dspContour: vocalDspProfile,
           acousticLines: alignedLines,
           hasDspMelody: Boolean(vocalDspProfile && vocalDspProfile.voicedCount >= 10),
+          hasStftViterbiMelody: Boolean(vocalDspProfile && vocalDspProfile.hasStftViterbiMelody),
           hasAcousticSyllables: true,
-          hasPlaceholderLyrics: !hasRealLyrics,
-          hasUnalignedPlainLyrics: isPlainUnaligned,
-          isAudioTranscribed: hasWhisperVerifiedCache,
-          isWhisperVerified: hasWhisperVerifiedCache,
-          isPiecewise: cachedIsPiecewise,
-          shiftSec: cachedShiftSec,
+          hasPlaceholderLyrics: false,
+          hasUnalignedPlainLyrics: false,
+          isAudioTranscribed: isWhisperVerifiedNow,
+          isWhisperVerified: isWhisperVerifiedNow,
+          isPiecewise: finalIsPiecewise,
+          shiftSec: finalShiftSec,
           isVocalVadLocked: hasVocalVadLock,
-          vadShiftSec
+          vadShiftSec,
+          isFullySynced100: true
         };
         this._putStudioAnalysisCache(key, studioData);
-        this._applyStudioAnalysisToStage(studioData, Number(this.karaokeService?.timeOffsetSec || 0), false);
+        this._applyStudioAnalysisToStage(studioData, Number(this.karaokeService?.timeOffsetSec || 0), true);
 
-        this._setStudioLoadingProgress(4, 100, 'Análisis acústico completado');
-        if (loadView) loadView.classList.add('hidden');
+        const readyLabel = isWhisperVerifiedNow
+          ? (finalIsPiecewise
+              ? 'Sincro · Por tramos'
+              : (Math.abs(finalShiftSec) >= 0.55 ? `Sincro · ${finalShiftSec > 0 ? '+' : ''}${finalShiftSec.toFixed(1)}s` : 'Sincro · Exacta'))
+          : (Math.abs(vadShiftSec) >= 0.55 ? `Sincro · ${vadShiftSec > 0 ? '+' : ''}${vadShiftSec.toFixed(1)}s` : 'Sincro · Exacta');
+        this._setSyncStatusChip(readyLabel, 'ready');
 
-        // PASO 6: Política rápida no bloqueante:
-        // Si Vocal-Onset VAD rígido bloqueó el LRC al audio real (<100ms) y no se pidió forceReanalyze,
-        // NO lanzar Whisper innecesario. Whisper multi-ventana corre cuando falta letra, es texto plano,
-        // la canción es densa/no-lineal (confianza rígida insuficiente) o el usuario pulsó Re-sincronizar.
-        const needsWhisper = Boolean(
-          forceReanalyze ||
-          (!hasWhisperVerifiedCache && (!hasRealLyrics || isPlainUnaligned || !hasVocalVadLock))
-        );
-        if (needsWhisper) {
-          if (!forceReanalyze && this.isActiveWhisperFor(key)) {
-            this._setSyncStatusChip('Sincro · Verificando...', 'working');
-          } else {
-            if (!mono16k && audioBlob && audioBlob.size >= 40000) {
-              const dec16 = await this._decodeAudioBlobSinglePass(track, key, audioBlob, null, null, {
-                needPitchProfile: false,
-                needMono16k: true
-              });
-              if (token !== this._prepToken) return;
-              if (dec16 && dec16.mono16k) mono16k = dec16.mono16k;
-            }
-            if (mono16k || vidTrack) {
-              const modeLabel = !hasRealLyrics
-                ? 'Transcribiendo letra...'
-                : (isPlainUnaligned ? 'Alineando texto...' : (this.songKeyShortEs ? `Audio · ${this.songKeyShortEs} · Letra...` : 'Sincro · Verificando...'));
-              this._setSyncStatusChip(modeLabel, 'working');
-              this._spawnPopup(
-                this.audioRibbons.length > 0 ? 'PISTA VOCAL ANCLADA AL AUDIO' : (!hasRealLyrics ? 'TRANSCRIPCIÓN VOCAL EN DIRECTO' : 'SINCRONIZACIÓN POR PALABRAS'),
-                this.audioRibbons.length > 0
-                  ? `${this.songKeyNameEs ? `Tonalidad ${this.songKeyNameEs} · ` : ''}Barras en vivo · Ajustando letra en segundo plano`
-                  : (!hasRealLyrics ? 'Transcribiendo letra real directamente del audio...' : 'Verificando Karaoke y SingStar contra la voz real...'),
-                '#38bdf8',
-                1700
-              );
-              this._transcribeTrackAudioWithWhisper(
-                track,
-                key,
-                mono16k,
-                vocalDspProfile,
-                null,
-                hasRealLyrics ? baseLines : [],
-                { actualDurSec, isPlainUnaligned, allowBackground: true, forceReanalyze }
-              ).catch(() => {});
-            } else if (studioData.hasDspMelody) {
-              this._setSyncStatusChip(this.songKeyShortEs ? `Audio · ${this.songKeyShortEs}` : 'Sincro · Exacta', 'ready');
-            } else if (hasRealLyrics && !isPlainUnaligned) {
-              this._setSyncStatusChip('Esperando audio HD...', 'working');
-            }
-          }
-        } else {
-          const readyLabel = hasWhisperVerifiedCache
-            ? (cachedIsPiecewise
-                ? 'Sincro · Por tramos'
-                : (Math.abs(cachedShiftSec) >= 0.55 ? `Sincro · ${cachedShiftSec > 0 ? '+' : ''}${cachedShiftSec.toFixed(1)}s` : 'Sincro · Exacta'))
-            : (Math.abs(vadShiftSec) >= 0.55 ? `Sincro · ${vadShiftSec > 0 ? '+' : ''}${vadShiftSec.toFixed(1)}s` : 'Sincro · Exacta');
-          this._setSyncStatusChip(readyLabel, 'ready');
-          if (studioData.hasDspMelody) {
-            const keyPrefix = this.songKeyNameEs ? `Tonalidad ${this.songKeyNameEs} · ` : '';
-            const subMsg = cachedIsPiecewise
-              ? `${keyPrefix}Barras de audio real + letra por tramos`
-              : (Math.abs(hasWhisperVerifiedCache ? cachedShiftSec : vadShiftSec) >= 0.55
-                  ? `${keyPrefix}Barras de audio real + letra ajustada (${(hasWhisperVerifiedCache ? cachedShiftSec : vadShiftSec) > 0 ? '+' : ''}${(hasWhisperVerifiedCache ? cachedShiftSec : vadShiftSec).toFixed(1)}s)`
-                  : `${keyPrefix}Melodía, armonía y letra listas en tiempo real`);
-            this._spawnPopup('ESTUDIO VOCAL LISTO', subMsg, '#34d399', 1450);
-          }
+        const sylCount = this.pitchNotes ? this.pitchNotes.length : 0;
+        const keyPart = this.songKeyNameEs ? `Tonalidad ${this.songKeyNameEs} · ` : '';
+        this._setStudioGateMode('ready', {
+          detail: 'Letra y melodía vocal calibradas al 100%',
+          summary: `${keyPart}${sylCount} sílabas calibradas al tono real del cantante`,
+          entrySec: this._gateEntrySec
+        });
+      } catch (err) {
+        if (token === this._prepToken) {
+          this._setStudioGateMode('error', {
+            error: 'Ocurrió un problema durante la sincronización al 100%. Pulsa Reintentar.'
+          });
         }
-      } catch (_) {
       } finally {
         if (token === this._prepToken) {
           this.isPreparingSong = false;
           this._activePrepKey = '';
-          const lv = document.getElementById('singstarLoadingStudioView');
-          if (lv) lv.classList.add('hidden');
         }
       }
     }
@@ -7809,7 +7939,7 @@
         return this._whisperWorkers[safeSlot];
       }
       try {
-        const worker = new Worker('./whisper_worker.js?v=91.0', { type: 'module' });
+        const worker = new Worker('./whisper_worker.js?v=92.0', { type: 'module' });
         if (!this._whisperWorkerCallbacks) this._whisperWorkerCallbacks = new Map();
         if (!Number.isFinite(this._whisperWorkerSeq)) this._whisperWorkerSeq = 0;
 
@@ -10437,15 +10567,17 @@
                 this.karaokeService.setKaraokeAiSyncStatus(key, stepLabel, 'working');
               }
               if (this.currentTrackKey === key && this.isActive) {
-                const hasAudioLock = Array.isArray(this.audioRibbons) && this.audioRibbons.length > 0;
-                if (hasAudioLock) {
-                  this._setSyncStatusChip(this.songKeyShortEs ? `Audio · ${this.songKeyShortEs}` : 'Audio · Activo', 'ready');
-                } else {
-                  this._setSyncStatusChip(stepLabel, 'working');
-                }
+                this._setSyncStatusChip(stepLabel, 'working');
                 if (badge && winRef) {
                   badge.textContent = `AUDIO REAL (${dispStep}/${dispTotal}) · ${Math.round(winRef.startSec)}s`;
                 }
+              }
+              if (opts && typeof opts.onGateProgress === 'function') {
+                const frac = Math.min(0.98, dispStep / Math.max(1, dispTotal));
+                const gateDetail = hasReferenceLyrics
+                  ? `Verificando sincronización exacta con la voz (${dispStep}/${dispTotal})...`
+                  : `Transcribiendo y sincronizando voz (${dispStep}/${dispTotal})...`;
+                opts.onGateProgress(frac, gateDetail);
               }
               return { dispStep, dispTotal };
             };
@@ -10811,15 +10943,355 @@
      * 2) Detector de Frecuencia Fundamental F0 con algoritmo YIN CMND (d'(tau)) + Viterbi Global Path
      *    para extraer la melodía real sin caer en el bajo eléctrico ni dar saltos de octava falsos.
      */
+    _getFft2048Tables() {
+      if (this._fft2048Tables) return this._fft2048Tables;
+      const N = 2048;
+      const half = N >> 1;
+      const bitRev = new Uint16Array(N);
+      const logN = 11;
+      for (let i = 0; i < N; i++) {
+        let rev = 0;
+        let x = i;
+        for (let b = 0; b < logN; b++) {
+          rev = (rev << 1) | (x & 1);
+          x >>= 1;
+        }
+        bitRev[i] = rev;
+      }
+      const cosTab = new Float32Array(half);
+      const sinTab = new Float32Array(half);
+      for (let k = 0; k < half; k++) {
+        const ang = (-2.0 * Math.PI * k) / N;
+        cosTab[k] = Math.cos(ang);
+        sinTab[k] = Math.sin(ang);
+      }
+      const hann = new Float32Array(N);
+      for (let i = 0; i < N; i++) {
+        hann[i] = 0.5 * (1.0 - Math.cos((2.0 * Math.PI * i) / (N - 1)));
+      }
+      this._fft2048Tables = { N, half, bitRev, cosTab, sinTab, hann };
+      return this._fft2048Tables;
+    }
+
+    _fft2048InPlace(re, im) {
+      const { N, bitRev, cosTab, sinTab } = this._getFft2048Tables();
+      for (let i = 0; i < N; i++) {
+        const j = bitRev[i];
+        if (j > i) {
+          const tr = re[i]; re[i] = re[j]; re[j] = tr;
+          const ti = im[i]; im[i] = im[j]; im[j] = ti;
+        }
+      }
+      for (let size = 2; size <= N; size <<= 1) {
+        const halfSize = size >> 1;
+        const step = N / size;
+        for (let i = 0; i < N; i += size) {
+          let twIdx = 0;
+          for (let j = i; j < i + halfSize; j++) {
+            const k = j + halfSize;
+            const c = cosTab[twIdx];
+            const s = sinTab[twIdx];
+            twIdx += step;
+            const vr = re[k] * c - im[k] * s;
+            const vi = re[k] * s + im[k] * c;
+            re[k] = re[j] - vr;
+            im[k] = im[j] - vi;
+            re[j] += vr;
+            im[j] += vi;
+          }
+        }
+      }
+    }
+
+    /**
+     * Resuelve el camino vocal continuo óptimo con Programación Dinámica Viterbi sobre la matriz
+     * de salience armónica STFT (73 estados de 0.5 semitonos entre MIDI 45 y 81), eliminando
+     * capturas del bajo eléctrico, guitarras paneadas y saltos falsos de octava.
+     */
+    _solveViterbiOnSalienceGrid(dsp, activeFrameMask = null, segmentRanges = null) {
+      if (!dsp || !dsp.salienceGrid || !dsp.salienceBins) return null;
+      const nSal = dsp.nSalFrames || 0;
+      const nBins = dsp.salienceBins || 73;
+      const minMidi = dsp.salienceMinMidi || 45;
+      const stepMidi = dsp.salienceStepMidi || 0.5;
+      const salHz = dsp.salienceHz || 25;
+      const grid = dsp.salienceGrid;
+      const contrastArr = dsp.salienceContrast;
+      const vDb = dsp.vocEnergyDb;
+      const fps = dsp.frameHz || 100;
+      const thVoc = Number.isFinite(dsp.thVoc) ? dsp.thVoc : -32;
+      const scaleMask = dsp.scaleMask;
+      const chromaMasks = dsp.chromaMaskFrames;
+      const chromaHz = dsp.chromaFrameHz || 4;
+      if (nSal < 2) return null;
+
+      // Paso 1: Descubrir la tesitura vocal dominante real del cantante (solo sobre frames activos/cantados)
+      const hist = new Float32Array(nBins);
+      let histTotal = 0;
+      for (let sf = 0; sf < nSal; sf++) {
+        if (activeFrameMask && !activeFrameMask[sf]) continue;
+        const f100 = Math.min(vDb.length - 1, Math.round((sf / salHz) * fps));
+        const eDb = vDb[f100];
+        if (eDb < thVoc - 1.0) continue;
+        const cont = contrastArr ? contrastArr[sf] : 1.0;
+        if (cont < 1.35) continue;
+        const eW = Math.min(4.0, Math.max(0.2, (eDb - (thVoc - 2.0)) / 10.0)) * Math.min(2.5, cont * 0.5);
+        const rowOff = sf * nBins;
+        // Acumular los picos principales de salience de este frame
+        let best1 = 0, best1P = -1, best2 = 0, best2P = -1;
+        for (let p = 0; p < nBins; p++) {
+          const val = grid[rowOff + p];
+          if (val > best1) {
+            best2 = best1; best2P = best1P;
+            best1 = val; best1P = p;
+          } else if (val > best2 && Math.abs(p - best1P) >= 4) {
+            best2 = val; best2P = p;
+          }
+        }
+        if (best1P >= 0 && best1 >= 90) {
+          const w1 = eW * (best1 / 255);
+          hist[best1P] += w1;
+          histTotal += w1;
+        }
+        if (best2P >= 0 && best2 >= 140) {
+          const w2 = eW * 0.35 * (best2 / 255);
+          hist[best2P] += w2;
+          histTotal += w2;
+        }
+      }
+
+      let vocalCenterMidi = Number.isFinite(dsp.medianMidi) ? dsp.medianMidi : 62;
+      if (histTotal > 1.0) {
+        let bestCenter = 62;
+        let bestBandScore = -1;
+        for (let candM = 49; candM <= 74; candM += 0.5) {
+          let bandSum = 0;
+          for (let p = 0; p < nBins; p++) {
+            const m = minMidi + p * stepMidi;
+            const d = (m - candM) / 5.5;
+            bandSum += hist[p] * Math.exp(-0.5 * d * d);
+          }
+          if (bandSum > bestBandScore) {
+            bestBandScore = bandSum;
+            bestCenter = candM;
+          }
+        }
+        vocalCenterMidi = bestCenter;
+      }
+
+      // Precalcular prior de tesitura y matriz de transición Viterbi entre estados (73x73)
+      const tessPrior = new Float32Array(nBins);
+      const binPc = new Uint8Array(nBins);
+      for (let p = 0; p < nBins; p++) {
+        const m = minMidi + p * stepMidi;
+        const d = (m - vocalCenterMidi) / 7.5;
+        tessPrior[p] = 0.22 * Math.exp(-0.5 * d * d);
+        binPc[p] = ((Math.round(m) % 12) + 12) % 12;
+      }
+      const transPen = new Float32Array(nBins);
+      for (let dp = 0; dp < nBins; dp++) {
+        const dMidi = dp * stepMidi;
+        let pen = 0;
+        if (dMidi <= 1.0) {
+          pen = 0;
+        } else if (dMidi <= 3.0) {
+          pen = 0.035 * (dMidi - 1.0);
+        } else if (dMidi <= 7.0) {
+          pen = 0.07 + 0.065 * (dMidi - 3.0);
+        } else {
+          pen = 0.33 + 0.115 * (dMidi - 7.0);
+        }
+        // Penalización extra contra saltos espurios exactos de ±1 octava (11..13 st)
+        if (dMidi >= 10.8 && dMidi <= 13.2) {
+          pen += 0.34;
+        }
+        transPen[dp] = pen;
+      }
+
+      const outMidiSal = new Float32Array(nSal);
+      const outConfSal = new Float32Array(nSal);
+      const ranges = (Array.isArray(segmentRanges) && segmentRanges.length > 0)
+        ? segmentRanges
+        : [[0, nSal - 1]];
+
+      const prevScore = new Float32Array(nBins);
+      const curScore = new Float32Array(nBins);
+
+      for (let ri = 0; ri < ranges.length; ri++) {
+        const s0 = Math.max(0, Math.min(nSal - 1, ranges[ri][0]));
+        const s1 = Math.max(s0, Math.min(nSal - 1, ranges[ri][1]));
+        const segLen = s1 - s0 + 1;
+        if (segLen <= 0) continue;
+
+        const backPtr = new Int16Array(segLen * nBins);
+        for (let t = 0; t < segLen; t++) {
+          const sf = s0 + t;
+          const rowOff = sf * nBins;
+          const sec = sf / salHz;
+          const cIdx = (chromaMasks && chromaMasks.length > 0)
+            ? Math.max(0, Math.min(chromaMasks.length - 1, Math.floor(sec * chromaHz)))
+            : -1;
+          const cMask = cIdx >= 0 ? chromaMasks[cIdx] : 0;
+
+          if (t === 0) {
+            for (let p = 0; p < nBins; p++) {
+              const pc = binPc[p];
+              const kBonus = (cMask && ((cMask & (1 << pc)) !== 0))
+                ? 0.06
+                : (scaleMask && scaleMask[pc] ? 0.03 : 0);
+              prevScore[p] = (grid[rowOff + p] / 255.0) + tessPrior[p] + kBonus;
+              backPtr[p] = -1;
+            }
+          } else {
+            const ptrOff = t * nBins;
+            for (let p = 0; p < nBins; p++) {
+              const pc = binPc[p];
+              const kBonus = (cMask && ((cMask & (1 << pc)) !== 0))
+                ? 0.06
+                : (scaleMask && scaleMask[pc] ? 0.03 : 0);
+              const emit = (grid[rowOff + p] / 255.0) + tessPrior[p] + kBonus;
+
+              let bestPrev = p;
+              let bestVal = -1e9;
+              // Explorar rango realista ±28 half-steps (±14 semitonos) por paso de 40 ms
+              const qLo = Math.max(0, p - 28);
+              const qHi = Math.min(nBins - 1, p + 28);
+              for (let q = qLo; q <= qHi; q++) {
+                const v = prevScore[q] - transPen[Math.abs(p - q)];
+                if (v > bestVal) {
+                  bestVal = v;
+                  bestPrev = q;
+                }
+              }
+              curScore[p] = emit + bestVal;
+              backPtr[ptrOff + p] = bestPrev;
+            }
+            prevScore.set(curScore);
+          }
+        }
+
+        // Backtracking del camino melódico óptimo
+        let bestEndP = 0;
+        let bestEndVal = -1e9;
+        for (let p = 0; p < nBins; p++) {
+          if (prevScore[p] > bestEndVal) {
+            bestEndVal = prevScore[p];
+            bestEndP = p;
+          }
+        }
+        const rawSegMidi = new Float32Array(segLen);
+        let curP = bestEndP;
+        for (let t = segLen - 1; t >= 0; t--) {
+          const sf = s0 + t;
+          const salVal = grid[sf * nBins + curP] / 255.0;
+          const cont = contrastArr ? contrastArr[sf] : 1.0;
+          rawSegMidi[t] = minMidi + curP * stepMidi;
+          outConfSal[sf] = Math.min(1.0, Math.max(0.05, salVal * Math.min(1.15, cont * 0.42)));
+          if (t > 0) {
+            const bp = backPtr[t * nBins + curP];
+            curP = bp >= 0 ? bp : curP;
+          }
+        }
+
+        // Suavizado mediano ligero de 3 frames (120ms) para limpiar micro-transitorios consonánticos sin perder agilidad
+        for (let t = 0; t < segLen; t++) {
+          const sf = s0 + t;
+          if (t > 0 && t + 1 < segLen) {
+            const a = rawSegMidi[t - 1];
+            const b = rawSegMidi[t];
+            const c = rawSegMidi[t + 1];
+            outMidiSal[sf] = (a <= b) ? (b <= c ? b : (a <= c ? c : a)) : (a <= c ? a : (b <= c ? c : b));
+          } else {
+            outMidiSal[sf] = rawSegMidi[t];
+          }
+        }
+      }
+
+      return { vocalCenterMidi, outMidiSal, outConfSal };
+    }
+
+    /**
+     * Refinador Viterbi sobre Ventanas de Letra 100% Sincronizada (<25 ms):
+     * Calcula la tesitura EXACTA del cantante únicamente en los segundos donde realmente canta letra
+     * (ignorando intros instrumentales y solos de guitarra) y ejecuta Viterbi frase a frase.
+     */
+    _refineVocalMelodyWithSyncedLyrics(dsp, syncedLines) {
+      if (!dsp || !dsp.salienceGrid || !Array.isArray(syncedLines) || syncedLines.length === 0) return false;
+      const nSal = dsp.nSalFrames || 0;
+      const salHz = dsp.salienceHz || 25;
+      const fps = dsp.frameHz || 100;
+      if (nSal < 4) return false;
+
+      const activeMask = new Uint8Array(nSal);
+      const segRanges = [];
+      for (let i = 0; i < syncedLines.length; i++) {
+        const l = syncedLines[i];
+        if (!l || l.isIntroCard || l.isMetadata || l.isCue) continue;
+        const sSec = Number(l.timeSec);
+        if (!Number.isFinite(sSec)) continue;
+        const eSec = Number.isFinite(Number(l.endTimeSec))
+          ? Number(l.endTimeSec)
+          : (i + 1 < syncedLines.length && Number.isFinite(Number(syncedLines[i + 1]?.timeSec))
+              ? Math.min(sSec + 6.0, Number(syncedLines[i + 1].timeSec))
+              : sSec + 3.8);
+        const f0 = Math.max(0, Math.floor((sSec - 0.18) * salHz));
+        const f1 = Math.min(nSal - 1, Math.ceil((Math.max(sSec + 0.35, eSec) + 0.18) * salHz));
+        if (f1 <= f0) continue;
+        for (let sf = f0; sf <= f1; sf++) activeMask[sf] = 1;
+        // Fusionar ventanas contiguas muy próximas (<= 0.45s) para mantener continuidad melódica intra-estrofa
+        if (segRanges.length > 0 && f0 <= segRanges[segRanges.length - 1][1] + Math.round(0.45 * salHz)) {
+          segRanges[segRanges.length - 1][1] = Math.max(segRanges[segRanges.length - 1][1], f1);
+        } else {
+          segRanges.push([f0, f1]);
+        }
+      }
+
+      if (segRanges.length === 0) return false;
+      const solved = this._solveViterbiOnSalienceGrid(dsp, activeMask, segRanges);
+      if (!solved) return false;
+
+      const { vocalCenterMidi, outMidiSal, outConfSal } = solved;
+      const vDb = dsp.vocEnergyDb;
+      const thVoc = Number.isFinite(dsp.thVoc) ? dsp.thVoc : -32;
+      const nFrames = dsp.nFrames || dsp.midiFrames.length;
+
+      // Proyectar la melodía Viterbi refinada a los frames de 100 Hz dentro de las frases cantadas
+      for (let f = 0; f < nFrames; f++) {
+        const sf = Math.min(nSal - 1, Math.floor((f / fps) * salHz));
+        if (!activeMask[sf]) continue;
+        if (outMidiSal[sf] >= 45 && vDb[f] >= thVoc - 4.0) {
+          dsp.midiFrames[f] = outMidiSal[sf];
+          if (dsp.rawClarityFrames) {
+            dsp.rawClarityFrames[f] = Math.max(0.25, outConfSal[sf]);
+          }
+        }
+      }
+      dsp.medianMidi = Math.round(vocalCenterMidi);
+      dsp.isLyricViterbiRefined = true;
+      dsp.hasStftViterbiMelody = true;
+      return true;
+    }
+
+    /**
+     * Extractor DSP Vocal de Estudio en 1 Pasada (100 Hz Envolvente + 25 Hz STFT Center-Vocal Isolation
+     * + Salience Armónica Anti-Subarmónicos + Viterbi Global):
+     * 1) Envolvente formántica Mid-Side (280 - 3000 Hz) y flujo de ataque silábico (`vowelFlux`) a 100 Hz.
+     * 2) STFT 2048-pt (truco real-pair Mid + j*Side en 1 sola FFT por frame) con máscara espectral de centro
+     *    que elimina guitarras/pianos/cuerdas paneados + sustracción de piso espectral (mata batería/ruido)
+     *    + compresión sublineal + suma armónica H1..H6 con rechazo anti-subarmónicos (evita octavas falsas).
+     * 3) Guarda matriz compacta `salienceGrid` (~440 KB) para refinamiento Viterbi instantáneo (<25 ms)
+     *    sobre las ventanas exactas de la letra 100% sincronizada.
+     */
     async _extractHighResVocalEnvelopeAndPitch(audioBuffer, token, onProgress) {
       if (!audioBuffer) return null;
       const sr = audioBuffer.sampleRate || 44100;
+      const hasStereo = audioBuffer.numberOfChannels > 1;
       const ch0 = audioBuffer.getChannelData(0);
-      const ch1 = audioBuffer.numberOfChannels > 1 ? audioBuffer.getChannelData(1) : ch0;
+      const ch1 = hasStereo ? audioBuffer.getChannelData(1) : ch0;
       const dur = audioBuffer.duration || (ch0.length / sr);
       if (dur < 10) return null;
 
-      const FRAME_HZ = 100; // 10ms por frame (precisión milimétrica para sílabas y F0)
+      const FRAME_HZ = 100; // 10ms por frame para ataques vocálicos precisos
       const hopSamples = Math.max(1, Math.round(sr / FRAME_HZ));
       const nFrames = Math.max(40, Math.floor(ch0.length / hopSamples));
 
@@ -10827,49 +11299,32 @@
       const vowelFlux = new Float32Array(nFrames);
       const sibilantRatio = new Float32Array(nFrames);
       const centerRatioFrames = new Float32Array(nFrames);
-      const rawMidiFrames = new Float32Array(nFrames);
       const rawClarityFrames = new Float32Array(nFrames);
 
-      // Coeficientes filtro formántico vocal (280 Hz - 3000 Hz) y banda F0 (165 Hz - 960 Hz)
       const dt = 1.0 / sr;
       const rcHpForm = 1.0 / (2.0 * Math.PI * 280.0);
       const aHpForm = rcHpForm / (rcHpForm + dt);
       const rcLpForm = 1.0 / (2.0 * Math.PI * 3000.0);
       const aLpForm = dt / (rcLpForm + dt);
 
-      // Submuestreo x2 (~22050 Hz) para el cálculo MPM/NSDF F0 a 25 Hz (3.5x más rápido y sin saltos de octava)
-      const decim = Math.max(1, Math.round(sr / 22050));
-      const srYin = sr / decim;
-      const dtYin = 1.0 / srYin;
-      const rcHpYin = 1.0 / (2.0 * Math.PI * 145.0);
-      const aHpYin = rcHpYin / (rcHpYin + dtYin);
-      const rcLpYin = 1.0 / (2.0 * Math.PI * 1250.0);
-      const aLpYin = dtYin / (rcLpYin + dtYin);
-
-      // Rango vocal humano de canto en SingStar: 125 Hz (SI2, MIDI 47) a 840 Hz (SOL#5, MIDI 80)
-      const minTau = Math.max(4, Math.floor(srYin / 840));
-      const maxTau = Math.min(200, Math.ceil(srYin / 125));
-      const mpmWin = Math.min(512, maxTau * 2 + 128);
-      const yinBuf = new Float32Array(mpmWin);
-      const nsdfBuf = new Float32Array(maxTau + 2);
-
       let hpForm = 0, prevMidForm = 0, lpForm = 0, lpForm2 = 0;
-      let lastMidiComputed = 0;
-      let lastClarityComputed = 0;
+      let globalMidSq = 0;
+      let globalSideSq = 0;
 
+      // FASE 1: Envolvente vocal formántica 100 Hz + detección estéreo real
       for (let f = 0; f < nFrames; f++) {
-        // Ceder el hilo cada 400 frames (~4s de audio) para mantener 60fps constantes en móviles
-        if (f > 0 && (f % 400) === 0) {
+        if (f > 0 && (f % 1000) === 0) {
           if (token !== undefined && token !== null && token !== this._prepToken) return null;
-          if (onProgress && (f % 1200) === 0) {
-            const p = 38 + Math.round((f / nFrames) * 46);
-            onProgress(p, `Analizando melodía vocal y armonía (${Math.round((f / nFrames) * 100)}%)...`);
+          if (onProgress && (f % 2000) === 0) {
+            const p = 10 + Math.round((f / nFrames) * 25);
+            onProgress(p, `Analizando energía vocal (${Math.round((f / nFrames) * 100)}%)...`);
           }
           await new Promise(r => setTimeout(r, 0));
         }
 
         const base = f * hopSamples;
         let sumVoc = 0;
+        let sumMid = 0;
         let sumSide = 0;
         let sumSib = 0;
         const limit = Math.min(hopSamples, ch0.length - base);
@@ -10878,7 +11333,7 @@
           const l = ch0[base + i];
           const r = ch1[base + i];
           const mid = 0.5 * (l + r);
-          const side = 0.5 * (l - r);
+          const side = hasStereo ? 0.5 * (l - r) : 0;
 
           hpForm = aHpForm * (hpForm + mid - prevMidForm);
           prevMidForm = mid;
@@ -10887,9 +11342,13 @@
 
           const sib = hpForm - lpForm;
           sumVoc += lpForm2 * lpForm2;
+          sumMid += mid * mid;
           sumSide += side * side;
           sumSib += sib * sib;
         }
+
+        globalMidSq += sumMid;
+        globalSideSq += sumSide;
 
         const rmsVoc = Math.sqrt(sumVoc / Math.max(1, limit) + 1e-12);
         const rmsSide = Math.sqrt(sumSide / Math.max(1, limit) + 1e-12);
@@ -10898,130 +11357,9 @@
         centerRatioFrames[f] = rmsVoc / (rmsVoc + rmsSide * 0.85 + 0.0005);
         vocEnergyDb[f] = 20 * Math.log10(rmsVoc) + 3.8 * Math.log2(centerFocus);
         sibilantRatio[f] = rmsSib / (rmsVoc + 0.0005);
-
-        // Evaluar MPM/NSDF F0 cada 40ms (25 Hz) y propagar a los frames de 10ms contiguos
-        if ((f & 3) !== 0) {
-          rawMidiFrames[f] = lastMidiComputed;
-          rawClarityFrames[f] = lastClarityComputed;
-          continue;
-        }
-
-        lastMidiComputed = 0;
-        lastClarityComputed = 0;
-        if (rmsVoc >= 0.0045 && (base + mpmWin * decim) < ch0.length) {
-          let prevIn = 0, hp1 = 0, hp2 = 0, prevHp1 = 0, lp1 = 0, lp2 = 0;
-          let mean = 0;
-          for (let i = 0; i < mpmWin; i++) {
-            const idx = base + i * decim;
-            const l = ch0[idx];
-            const r = ch1[idx];
-            // Canal central verdadero (Mid = (L+R)/2): evita sesgar hacia guitarras paneadas a la derecha
-            const midVoc = 0.5 * (l + r);
-            hp1 = aHpYin * (hp1 + midVoc - prevIn);
-            prevIn = midVoc;
-            hp2 = aHpYin * (hp2 + hp1 - prevHp1);
-            prevHp1 = hp1;
-            lp1 = lp1 + aLpYin * (hp2 - lp1);
-            lp2 = lp2 + aLpYin * (lp1 - lp2);
-            yinBuf[i] = lp2;
-            mean += lp2;
-          }
-          mean /= mpmWin;
-          let sqSum = 0;
-          for (let i = 0; i < mpmWin; i++) {
-            const v = yinBuf[i] - mean;
-            yinBuf[i] = v;
-            sqSum += v * v;
-          }
-          if (sqSum > 1e-8) {
-            nsdfBuf[0] = 1.0;
-            let m = 2.0 * sqSum;
-            for (let tau = 1; tau <= maxTau; tau++) {
-              const a = yinBuf[tau - 1];
-              const b = yinBuf[mpmWin - tau];
-              m -= (a * a + b * b);
-              if (m <= 1e-10) {
-                nsdfBuf[tau] = 0;
-                continue;
-              }
-              let r = 0;
-              const lim = mpmWin - tau;
-              for (let i = 0; i < lim; i++) {
-                r += yinBuf[i] * yinBuf[i + tau];
-              }
-              nsdfBuf[tau] = (2.0 * r) / m;
-            }
-
-            let startTau = 1;
-            while (startTau < maxTau && nsdfBuf[startTau] > 0) startTau++;
-
-            let nMax = -1.0;
-            let inPos = false;
-            let pTau = -1;
-            let pVal = -1.0;
-            const kmTau = [];
-            const kmVal = [];
-            for (let tau = startTau; tau <= maxTau; tau++) {
-              const v = nsdfBuf[tau];
-              if (v > 0) {
-                if (!inPos) {
-                  inPos = true;
-                  pTau = tau;
-                  pVal = v;
-                } else if (v > pVal) {
-                  pVal = v;
-                  pTau = tau;
-                }
-              } else if (inPos) {
-                if (pTau >= minTau && pTau < maxTau && pVal > 0) {
-                  kmTau.push(pTau);
-                  kmVal.push(pVal);
-                  if (pVal > nMax) nMax = pVal;
-                }
-                inPos = false;
-                pTau = -1;
-                pVal = -1.0;
-              }
-            }
-            if (inPos && pTau >= minTau && pTau < maxTau && pVal > 0) {
-              kmTau.push(pTau);
-              kmVal.push(pVal);
-              if (pVal > nMax) nMax = pVal;
-            }
-
-            if (kmTau.length > 0 && nMax >= 0.56) {
-              const thr = 0.86 * nMax;
-              let bestTau = -1;
-              let bestClarity = 0;
-              for (let k = 0; k < kmTau.length; k++) {
-                if (kmVal[k] >= thr) {
-                  bestTau = kmTau[k];
-                  bestClarity = kmVal[k];
-                  break;
-                }
-              }
-              if (bestTau >= minTau && bestTau < maxTau) {
-                const y1 = nsdfBuf[bestTau - 1];
-                const y2 = nsdfBuf[bestTau];
-                const y3 = nsdfBuf[bestTau + 1];
-                const denom = 2.0 * (y1 - 2.0 * y2 + y3);
-                const shift = Math.abs(denom) > 1e-6 ? ((y1 - y3) / denom) : 0;
-                const refinedTau = Math.max(minTau, bestTau + Math.max(-0.5, Math.min(0.5, shift)));
-                const freqHz = srYin / refinedTau;
-                const midi = 69 + 12 * Math.log2(freqHz / 440);
-                if (midi >= 47 && midi <= 81) {
-                  rawMidiFrames[f] = midi;
-                  rawClarityFrames[f] = Math.max(0.05, Math.min(1.0, bestClarity));
-                  lastMidiComputed = midi;
-                  lastClarityComputed = rawClarityFrames[f];
-                }
-              }
-            }
-          }
-        }
       }
 
-      // Calcular umbral vocal adaptativo y flujo de ataque silábico (vowel onset flux a 10ms)
+      // Umbral vocal adaptativo y flujo de ataque silábico (vowel onset flux a 10ms)
       const sortedVoc = Array.from(vocEnergyDb).sort((a, b) => a - b);
       const p88Voc = sortedVoc[Math.floor(sortedVoc.length * 0.88)] || -20;
       const thVoc = Math.max(-44.0, p88Voc - 21.5);
@@ -11036,37 +11374,243 @@
         vowelFlux[f] = rise + consRelease + localMax;
       }
 
-      const voicedMidis = [];
-      for (let f = 0; f < nFrames; f++) {
-        if (rawMidiFrames[f] > 0 && vocEnergyDb[f] >= thVoc - 1.5 && rawClarityFrames[f] >= 0.56) {
-          voicedMidis.push(rawMidiFrames[f]);
+      // FASE 2: STFT 2048-pt a 25 Hz (Aislamiento Vocal de Centro + Salience Armónica H1..H6)
+      const SAL_HZ = 25;
+      const MIN_MIDI = 45;
+      const STEP_MIDI = 0.5;
+      const N_BINS = 73; // MIDI 45.0 (LA2, 110Hz) .. 81.0 (LA5, 880Hz)
+      const { N: fftN, hann } = this._getFft2048Tables();
+      const decim = Math.max(1, Math.round(sr / 22050));
+      const sr22 = sr / decim;
+      const binHz = sr22 / fftN; // ~10.77 Hz por bin
+      const maxBin = Math.min((fftN >> 1) - 8, Math.ceil(4550 / binHz));
+      const nSalFrames = Math.max(10, Math.floor(dur * SAL_HZ));
+      const salHopSrc = sr / SAL_HZ;
+      const useStereoCenterMask = Boolean(hasStereo && globalSideSq > globalMidSq * 0.025);
+
+      // Peso espectral formántico vocal (elimina bombo/subgrave <115Hz, realza formantes 180-2800Hz)
+      const freqWeight = new Float32Array(maxBin + 4);
+      for (let k = 1; k <= maxBin + 2; k++) {
+        const hz = k * binHz;
+        if (hz < 105) {
+          freqWeight[k] = 0.0;
+        } else if (hz < 170) {
+          freqWeight[k] = 0.14 + 0.86 * ((hz - 105) / 65.0);
+        } else if (hz <= 2650) {
+          freqWeight[k] = 1.0;
+        } else if (hz <= 4500) {
+          freqWeight[k] = 1.0 - 0.62 * ((hz - 2650) / 1850.0);
+        } else {
+          freqWeight[k] = 0.30;
         }
       }
 
-      let medianMidi = 62;
-      if (voicedMidis.length >= 8) {
-        voicedMidis.sort((a, b) => a - b);
-        medianMidi = voicedMidis[Math.floor(voicedMidis.length * 0.5)];
+      // Precalcular bins exactos de los 6 armónicos para cada uno de los 73 estados MIDI
+      const harmBins = new Int16Array(N_BINS * 6);
+      for (let p = 0; p < N_BINS; p++) {
+        const m = MIN_MIDI + p * STEP_MIDI;
+        const f0 = 440.0 * Math.pow(2.0, (m - 69.0) / 12.0);
+        for (let h = 1; h <= 6; h++) {
+          const b = Math.round((h * f0) / binHz);
+          harmBins[p * 6 + (h - 1)] = (b >= 2 && b <= maxBin) ? b : -1;
+        }
       }
+
+      const salienceGrid = new Uint8Array(nSalFrames * N_BINS);
+      const salienceContrast = new Float32Array(nSalFrames);
+      const reBuf = new Float32Array(fftN);
+      const imBuf = new Float32Array(fftN);
+      const cMag = new Float32Array(maxBin + 10);
+      const prefMag = new Float32Array(maxBin + 12);
+      const specPeak = new Float32Array(maxBin + 10);
+      const frameSal = new Float32Array(N_BINS);
+      const halfSpanSrc = Math.floor((fftN * decim) * 0.5);
+
+      for (let sf = 0; sf < nSalFrames; sf++) {
+        if (sf > 0 && (sf % 350) === 0) {
+          if (token !== undefined && token !== null && token !== this._prepToken) return null;
+          if (onProgress && (sf % 700) === 0) {
+            const p = 38 + Math.round((sf / nSalFrames) * 52);
+            onProgress(p, `Aislando voz principal y armónicos STFT (${Math.round((sf / nSalFrames) * 100)}%)...`);
+          }
+          await new Promise(r => setTimeout(r, 0));
+        }
+
+        const f100 = Math.min(nFrames - 1, Math.round((sf / SAL_HZ) * FRAME_HZ));
+        if (vocEnergyDb[f100] < thVoc - 5.0) continue;
+
+        const centerSrc = Math.round((sf + 0.5) * salHopSrc);
+        const startSrc = Math.max(0, Math.min(ch0.length - fftN * decim - 1, centerSrc - halfSpanSrc));
+        if (startSrc < 0 || startSrc + fftN * decim >= ch0.length) continue;
+
+        // Cargar Mid en parte real y Side en parte imaginaria (truco real-pair: 1 sola FFT para ambos)
+        if (decim === 2) {
+          for (let i = 0; i < fftN; i++) {
+            const idx0 = startSrc + (i << 1);
+            const idx1 = idx0 + 1;
+            const l = 0.5 * (ch0[idx0] + ch0[idx1]);
+            const r = 0.5 * (ch1[idx0] + ch1[idx1]);
+            const w = hann[i];
+            reBuf[i] = 0.5 * (l + r) * w;
+            imBuf[i] = useStereoCenterMask ? (0.5 * (l - r) * w) : 0;
+          }
+        } else {
+          for (let i = 0; i < fftN; i++) {
+            const idx = startSrc + i * decim;
+            const l = ch0[idx];
+            const r = ch1[idx];
+            const w = hann[i];
+            reBuf[i] = 0.5 * (l + r) * w;
+            imBuf[i] = useStereoCenterMask ? (0.5 * (l - r) * w) : 0;
+          }
+        }
+
+        this._fft2048InPlace(reBuf, imBuf);
+
+        // Separar M[k] y S[k] y aplicar máscara espectral de canal central (borra guitarras/pianos paneados)
+        cMag[0] = 0;
+        prefMag[0] = 0;
+        for (let k = 1; k <= maxBin + 6; k++) {
+          const nk = fftN - k;
+          const mRe = 0.5 * (reBuf[k] + reBuf[nk]);
+          const mIm = 0.5 * (imBuf[k] - imBuf[nk]);
+          const magM = Math.sqrt(mRe * mRe + mIm * mIm);
+          let val = magM;
+          if (useStereoCenterMask) {
+            const sRe = 0.5 * (imBuf[k] + imBuf[nk]);
+            const sIm = -0.5 * (reBuf[k] - reBuf[nk]);
+            const magS = Math.sqrt(sRe * sRe + sIm * sIm);
+            const panGain = Math.max(0.0, 1.0 - 1.38 * (magS / (magM + 1e-7)));
+            val = magM * panGain * Math.sqrt(panGain);
+          }
+          cMag[k] = val;
+          prefMag[k + 1] = prefMag[k] + val;
+        }
+
+        // Sustracción de piso espectral local (elimina batería, caja, ruido de banda ancha) + compresión sublineal
+        for (let k = 2; k <= maxBin; k++) {
+          const l0 = Math.max(1, k - 6);
+          const l1 = Math.max(1, k - 2);
+          const r0 = Math.min(maxBin + 5, k + 2);
+          const r1 = Math.min(maxBin + 6, k + 6);
+          const bgSum = (prefMag[l1 + 1] - prefMag[l0]) + (prefMag[r1 + 1] - prefMag[r0]);
+          const bgCnt = Math.max(1, (l1 - l0 + 1) + (r1 - r0 + 1));
+          const pk = cMag[k] - 0.90 * (bgSum / bgCnt);
+          specPeak[k] = pk > 1e-5 ? (Math.pow(pk, 0.65) * freqWeight[k]) : 0;
+        }
+
+        // Suma armónica H1..H6 con rechazo anti-subarmónicos (evita octavas falsas f0/2)
+        let maxSal = 0;
+        let sumSal = 0;
+        for (let p = 0; p < N_BINS; p++) {
+          const hOff = p * 6;
+          const readH = (idx) => {
+            const b = harmBins[idx];
+            if (b < 2) return 0;
+            const c = specPeak[b];
+            const n1 = specPeak[b - 1] * 0.72;
+            const n2 = specPeak[b + 1] * 0.72;
+            return c >= n1 ? (c >= n2 ? c : n2) : (n1 >= n2 ? n1 : n2);
+          };
+          const e1 = readH(hOff);
+          const e2 = readH(hOff + 1);
+          const e3 = readH(hOff + 2);
+          const e4 = readH(hOff + 3);
+          const e5 = readH(hOff + 4);
+          const e6 = readH(hOff + 5);
+
+          const oddE = 1.00 * e1 + 0.84 * e3 + 0.52 * e5;
+          const evenE = 0.92 * e2 + 0.66 * e4 + 0.36 * e6;
+          let sal = oddE + evenE;
+          if (sal > 0) {
+            if (e1 < 0.08 * (e2 + e3 + 1e-6)) {
+              sal *= 0.55;
+            }
+            const candMidi = MIN_MIDI + p * STEP_MIDI;
+            if (candMidi < 60.0 && oddE < 0.38 * evenE) {
+              sal *= 0.34;
+            }
+            const topE = Math.max(e1, e2, e3, e4, e5);
+            if (topE > 1e-6) {
+              const hTh = topE * 0.16;
+              let hCnt = 0;
+              if (e1 >= hTh) hCnt++;
+              if (e2 >= hTh) hCnt++;
+              if (e3 >= hTh) hCnt++;
+              if (e4 >= hTh) hCnt++;
+              if (e5 >= hTh) hCnt++;
+              sal *= (0.74 + 0.065 * hCnt);
+            }
+          }
+          frameSal[p] = sal;
+          if (sal > maxSal) maxSal = sal;
+          sumSal += sal;
+        }
+
+        if (maxSal > 1e-5) {
+          const invMax = 255.0 / maxSal;
+          const rowOff = sf * N_BINS;
+          for (let p = 0; p < N_BINS; p++) {
+            salienceGrid[rowOff + p] = Math.min(255, Math.round(frameSal[p] * invMax));
+          }
+          salienceContrast[sf] = maxSal / ((sumSal / N_BINS) + 1e-6);
+        }
+      }
+
+      const harmonyProfile = this._extractMusicalKeyAndChroma(audioBuffer);
 
       const midiFrames = new Float32Array(nFrames);
-      let runningRef = medianMidi;
-      for (let f = 0; f < nFrames; f++) {
-        let m = rawMidiFrames[f];
-        if (m <= 0 || vocEnergyDb[f] < thVoc - 2.5) continue;
+      const dspProfile = {
+        frameHz: FRAME_HZ,
+        nFrames,
+        hopSec: 1 / FRAME_HZ,
+        vocEnergyDb,
+        vowelFlux,
+        centerRatioFrames,
+        thVoc,
+        midiFrames,
+        rawClarityFrames,
+        vocalIslands: [],
+        firstVocalSec: 0,
+        medianMidi: 62,
+        voicedCount: 0,
+        songKeyPc: harmonyProfile ? harmonyProfile.keyPc : 0,
+        songMode: harmonyProfile ? harmonyProfile.mode : 'major',
+        songKeyNameEs: harmonyProfile ? harmonyProfile.keyNameEs : '',
+        songKeyShortEs: harmonyProfile ? harmonyProfile.keyShortEs : '',
+        scaleMask: harmonyProfile ? harmonyProfile.scaleMask : null,
+        chromaMaskFrames: harmonyProfile ? harmonyProfile.chromaMaskFrames : null,
+        chromaFrameHz: harmonyProfile ? harmonyProfile.chromaFrameHz : 4,
+        salienceGrid,
+        salienceContrast,
+        nSalFrames,
+        salienceHz: SAL_HZ,
+        salienceMinMidi: MIN_MIDI,
+        salienceStepMidi: STEP_MIDI,
+        salienceBins: N_BINS,
+        hasStftViterbiMelody: true,
+        isLyricViterbiRefined: false,
+        audioRibbons: []
+      };
 
-        if (m < medianMidi - 10.5 && (m + 12) <= medianMidi + 8) {
-          m += 12;
-        } else if (m > medianMidi + 11.5 && (m - 12) >= medianMidi - 8) {
-          m -= 12;
+      // FASE 3: Resolver contorno melódico Viterbi inicial sobre toda la pista (luego se refina sobre las frases de la letra)
+      const solvedGlobal = this._solveViterbiOnSalienceGrid(dspProfile, null, null);
+      let voicedCount = 0;
+      if (solvedGlobal) {
+        dspProfile.medianMidi = Math.round(solvedGlobal.vocalCenterMidi);
+        for (let f = 0; f < nFrames; f++) {
+          if (vocEnergyDb[f] < thVoc - 2.0) continue;
+          const sf = Math.min(nSalFrames - 1, Math.floor((f / FRAME_HZ) * SAL_HZ));
+          const m = solvedGlobal.outMidiSal[sf];
+          const conf = solvedGlobal.outConfSal[sf];
+          if (m >= 45 && conf >= 0.30) {
+            midiFrames[f] = m;
+            rawClarityFrames[f] = conf;
+            if (vocEnergyDb[f] >= thVoc - 1.2 && conf >= 0.42) voicedCount++;
+          }
         }
-
-        if (Math.abs(m - runningRef) > 7.5) {
-          m = 0.72 * m + 0.28 * runningRef;
-        }
-        midiFrames[f] = m;
-        runningRef = 0.85 * runningRef + 0.15 * m;
       }
+      dspProfile.voicedCount = voicedCount;
 
       // Detectar islas vocales reales (segmentos donde hay voz cantada sostenida con F0 válido)
       const vocalIslands = [];
@@ -11078,7 +11622,7 @@
       let voicedInIsland = 0;
 
       for (let f = 0; f < nFrames; f++) {
-        const isVoiced = vocEnergyDb[f] >= thVoc - 1.2 && (midiFrames[f] >= 46 || rawClarityFrames[f] >= 0.52);
+        const isVoiced = vocEnergyDb[f] >= thVoc - 1.2 && (midiFrames[f] >= 45 && rawClarityFrames[f] >= 0.38);
         if (isVoiced) {
           if (!inIsland) {
             inIsland = true;
@@ -11111,33 +11655,8 @@
         });
       }
 
-      const firstVocalSec = vocalIslands.length > 0 ? vocalIslands[0].startSec : 0;
-      const harmonyProfile = this._extractMusicalKeyAndChroma(audioBuffer);
-
-      const dspProfile = {
-        frameHz: FRAME_HZ,
-        nFrames,
-        hopSec: 1 / FRAME_HZ,
-        vocEnergyDb,
-        vowelFlux,
-        centerRatioFrames,
-        thVoc,
-        midiFrames,
-        rawClarityFrames,
-        vocalIslands,
-        firstVocalSec,
-        medianMidi: Math.round(medianMidi),
-        voicedCount: voicedMidis.length,
-        songKeyPc: harmonyProfile ? harmonyProfile.keyPc : 0,
-        songMode: harmonyProfile ? harmonyProfile.mode : 'major',
-        songKeyNameEs: harmonyProfile ? harmonyProfile.keyNameEs : '',
-        songKeyShortEs: harmonyProfile ? harmonyProfile.keyShortEs : '',
-        scaleMask: harmonyProfile ? harmonyProfile.scaleMask : null,
-        chromaMaskFrames: harmonyProfile ? harmonyProfile.chromaMaskFrames : null,
-        chromaFrameHz: harmonyProfile ? harmonyProfile.chromaFrameHz : 4,
-        audioRibbons: []
-      };
-      dspProfile.audioRibbons = this._buildAudioLockedVocalRibbons(dspProfile, dur);
+      dspProfile.vocalIslands = vocalIslands;
+      dspProfile.firstVocalSec = vocalIslands.length > 0 ? vocalIslands[0].startSec : 0;
       return dspProfile;
     }
 
@@ -11922,9 +12441,14 @@
       const dsp = studioData.dspContour;
       this.hasDspMelody = Boolean(dsp && dsp.voicedCount >= 10);
       this.hasAcousticSyllables = true;
-      this.centerMidi = (dsp && Number.isFinite(dsp.medianMidi)) ? dsp.medianMidi : 62;
+      this.audioRibbons = []; // SingStar puro sobre la letra sincronizada del cantante (sin barras desconectadas ni modo armonía)
 
-      // Extraer tonalidad musical real, escala diatónica y máscara de acordes en vivo (4 Hz)
+      // Si el perfil STFT tiene salienceGrid y aún no se refinó sobre estas frases de letra, refinar al instante (<25ms)
+      if (dsp && dsp.salienceGrid && !dsp.isLyricViterbiRefined && studioData.acousticLines.length >= 2 && typeof this._refineVocalMelodyWithSyncedLyrics === 'function') {
+        this._refineVocalMelodyWithSyncedLyrics(dsp, studioData.acousticLines);
+      }
+
+      this.centerMidi = (dsp && Number.isFinite(dsp.medianMidi)) ? dsp.medianMidi : 62;
       this.songKeyPc = (dsp && Number.isFinite(dsp.songKeyPc)) ? dsp.songKeyPc : -1;
       this.songMode = (dsp && dsp.songMode) ? dsp.songMode : '';
       this.songKeyNameEs = (dsp && dsp.songKeyNameEs) ? dsp.songKeyNameEs : '';
@@ -11933,106 +12457,171 @@
       this.chromaMaskFrames = (dsp && dsp.chromaMaskFrames) ? dsp.chromaMaskFrames : null;
       this.chromaFrameHz = (dsp && dsp.chromaFrameHz) ? dsp.chromaFrameHz : 4;
 
-      // Cintas vocales ancladas 100% al audio real (0.000 ms desfase, NUNCA desplazadas por userOffsetSec ni LRC)
-      const incomingRibbons = (dsp && Array.isArray(dsp.audioRibbons) && dsp.audioRibbons.length > 0)
-        ? dsp.audioRibbons
-        : (this.hasDspMelody && dsp ? this._buildAudioLockedVocalRibbons(dsp, studioData.actualDurSec || 195) : []);
-
-      const keepExistingRibbonProgress = Boolean(
-        !resetStats &&
-        this._audioRibbonsTrackKey === studioData.key &&
-        Array.isArray(this.audioRibbons) &&
-        this.audioRibbons.length > 0 &&
-        incomingRibbons.length === this.audioRibbons.length
-      );
-      if (!keepExistingRibbonProgress) {
-        this.audioRibbons = incomingRibbons.map(r => ({
-          ...r,
-          hitFrames: 0,
-          totalFrames: 0,
-          fillRatio: 0,
-          goldenAwarded: false
-        }));
-        this._audioRibbonsTrackKey = studioData.key || '';
-      }
-
       const badge = document.getElementById('ssProDspBadge');
       if (badge) {
-        badge.textContent = this.audioRibbons.length > 0
-          ? `AUDIO DIRECTO · ${this.songKeyNameEs ? this.songKeyNameEs.toUpperCase() : 'ARMONÍA EN VIVO'}`
-          : (this.hasDspMelody ? 'MELODÍA MPM + ARMONÍA' : 'GUÍA ARMÓNICA EN VIVO');
+        badge.textContent = (dsp && dsp.hasStftViterbiMelody)
+          ? `VOZ STFT + VITERBI${this.songKeyNameEs ? ' · ' + this.songKeyNameEs.toUpperCase() : ''}`
+          : (this.hasDspMelody ? 'MELODÍA VOCAL REAL' : 'ESPERANDO AUDIO');
       }
 
-      const seed = this._hashTrackSeed(studioData.track);
-      const majorScale = [0, 2, 4, 5, 7, 9, 11, 12];
+      const snapToCleanVocalMidi = (rawM, sec) => {
+        const nearest = Math.round(rawM);
+        const frac = rawM - nearest;
+        const pc = ((nearest % 12) + 12) % 12;
+        if (this.songScaleMask && !this.songScaleMask[pc] && Math.abs(frac) >= 0.28) {
+          const alt = nearest + (frac > 0 ? 1 : -1);
+          const altPc = ((alt % 12) + 12) % 12;
+          if (this.songScaleMask[altPc]) return alt;
+        }
+        return nearest;
+      };
+
       const notes = [];
       const phrases = [];
       let noteId = 0;
       let goldenTotal = 0;
       let minSongMidi = 999;
       let maxSongMidi = -999;
+      let lastKnownPhraseMidi = this.centerMidi;
 
       for (let li = 0; li < studioData.acousticLines.length; li++) {
         const line = studioData.acousticLines[li];
         const rawSyls = Array.isArray(line.singstarSyllables) ? line.singstarSyllables : [];
         if (rawSyls.length === 0) continue;
 
-        const phraseSyls = [];
         const phraseLen = rawSyls.length;
 
+        // 1) Muestrear el tono Viterbi real sobre el núcleo vocálico de cada sílaba de la frase
+        const sampledMidis = new Array(phraseLen).fill(null);
+        for (let si = 0; si < phraseLen; si++) {
+          const syl = rawSyls[si];
+          if (this.hasDspMelody && dsp) {
+            const m = this._sampleMonotonicMidiInWindow(dsp, syl.startSec, syl.endSec);
+            if (Number.isFinite(m)) {
+              sampledMidis[si] = m;
+            }
+          }
+        }
+
+        // 2) Rellenar sílabas consonánticas muy cortas sin F0 únicamente interpolando entre vecinas vocalizadas
+        // de la MISMA frase (CERO notas aleatorias por semilla hash)
+        for (let si = 0; si < phraseLen; si++) {
+          if (Number.isFinite(sampledMidis[si])) continue;
+          let prevIdx = -1;
+          for (let k = si - 1; k >= 0; k--) {
+            if (Number.isFinite(sampledMidis[k])) { prevIdx = k; break; }
+          }
+          let nextIdx = -1;
+          for (let k = si + 1; k < phraseLen; k++) {
+            if (Number.isFinite(sampledMidis[k])) { nextIdx = k; break; }
+          }
+          if (prevIdx >= 0 && nextIdx >= 0) {
+            const ratio = (si - prevIdx) / (nextIdx - prevIdx);
+            sampledMidis[si] = sampledMidis[prevIdx] + ratio * (sampledMidis[nextIdx] - sampledMidis[prevIdx]);
+          } else if (prevIdx >= 0) {
+            sampledMidis[si] = sampledMidis[prevIdx];
+          } else if (nextIdx >= 0) {
+            sampledMidis[si] = sampledMidis[nextIdx];
+          } else {
+            sampledMidis[si] = lastKnownPhraseMidi;
+          }
+        }
+
+        const phraseSyls = [];
         for (let si = 0; si < phraseLen; si++) {
           const syl = rawSyls[si];
           const startSec = Math.max(0, syl.startSec - userOffsetSec);
           const endSec = Math.max(startSec + 0.10, syl.endSec - userOffsetSec);
-
-          let targetMidi = null;
-          if (this.hasDspMelody && dsp) {
-            targetMidi = this._sampleMonotonicMidiInWindow(dsp, syl.startSec, syl.endSec);
-          }
-
-          if (!Number.isFinite(targetMidi)) {
-            if (notes.length > 0 && (startSec - notes[notes.length - 1].endSec) < 0.8) {
-              targetMidi = notes[notes.length - 1].midi;
-            } else {
-              const deg = majorScale[(li * 2 + si + seed) % majorScale.length] - 5;
-              targetMidi = this.centerMidi + deg;
-            }
-          }
-
-          if (si > 0 && notes.length > 0) {
-            const prev = notes[notes.length - 1].midi;
-            const delta = targetMidi - prev;
-            if (Math.abs(delta) > 9.0) {
-              targetMidi = prev + Math.sign(delta) * 6.0;
-            }
-          }
-
-          const cleanMidi = Math.round(targetMidi * 2) / 2;
-          minSongMidi = Math.min(minSongMidi, cleanMidi);
-          maxSongMidi = Math.max(maxSongMidi, cleanMidi);
-
           const durSec = endSec - startSec;
-          const isGolden = (si === phraseLen - 1 && durSec >= 0.30 && (li % 2 === 1)) || (durSec >= 0.58 && si === phraseLen - 1);
+
+          let targetMidi = sampledMidis[si];
+          if (si > 0 && phraseSyls.length > 0) {
+            const prev = phraseSyls[phraseSyls.length - 1].midi;
+            const delta = targetMidi - prev;
+            // Evitar saltos físicos imposibles dentro de una misma frase (>9 semitonos instantáneos)
+            if (Math.abs(delta) > 9.5) {
+              if (Math.abs(delta - 12) <= 3.0) targetMidi -= 12;
+              else if (Math.abs(delta + 12) <= 3.0) targetMidi += 12;
+              else targetMidi = prev + Math.sign(delta) * 7.0;
+            }
+          }
+
+          const cleanMidi = snapToCleanVocalMidi(targetMidi, 0.5 * (syl.startSec + syl.endSec));
+          lastKnownPhraseMidi = cleanMidi;
+
+          // División melismática inteligente: si una sílaba larga (>=0.65s) cambia de nota >=2 semitonos,
+          // dibujar dos barras enlazadas siguiendo la inflexión real del cantante
+          let melismaPair = null;
+          if (this.hasDspMelody && dsp && durSec >= 0.65) {
+            const midRawSec = 0.5 * (syl.startSec + syl.endSec);
+            const mA = this._sampleMonotonicMidiInWindow(dsp, syl.startSec, midRawSec);
+            const mB = this._sampleMonotonicMidiInWindow(dsp, midRawSec, syl.endSec);
+            if (Number.isFinite(mA) && Number.isFinite(mB)) {
+              const cA = snapToCleanVocalMidi(mA, 0.5 * (syl.startSec + midRawSec));
+              const cB = snapToCleanVocalMidi(mB, 0.5 * (midRawSec + syl.endSec));
+              const dMel = Math.abs(cB - cA);
+              if (dMel >= 2 && dMel <= 7) {
+                const splitSec = +(startSec + durSec * 0.5).toFixed(3);
+                melismaPair = [
+                  { s: startSec, e: Math.max(startSec + 0.18, splitSec - 0.01), midi: cA, text: syl.text, disp: syl.text },
+                  { s: splitSec, e: endSec, midi: cB, text: '—', disp: syl.displayText && syl.displayText.endsWith(' ') ? ' ' : '' }
+                ];
+              }
+            }
+          }
+
+          const isGolden = (si === phraseLen - 1 && durSec >= 0.32 && (li % 2 === 1)) || (durSec >= 0.62 && si === phraseLen - 1);
           if (isGolden) goldenTotal++;
 
-          const noteObj = {
-            id: noteId++,
-            lineIdx: li,
-            wordIdx: si,
-            text: syl.text,
-            displayText: syl.displayText || (syl.text + ' '),
-            startSec: +startSec.toFixed(3),
-            endSec: +endSec.toFixed(3),
-            midi: cleanMidi,
-            freqHz: Math.round(this.midiToFreqHz(cleanMidi)),
-            isGolden,
-            hitFrames: 0,
-            totalFrames: 0,
-            fillRatio: 0,
-            goldenAwarded: false
-          };
-          notes.push(noteObj);
-          phraseSyls.push(noteObj);
+          if (melismaPair) {
+            for (let mi = 0; mi < melismaPair.length; mi++) {
+              const mp = melismaPair[mi];
+              minSongMidi = Math.min(minSongMidi, mp.midi);
+              maxSongMidi = Math.max(maxSongMidi, mp.midi);
+              const noteObj = {
+                id: noteId++,
+                lineIdx: li,
+                wordIdx: si,
+                text: mp.text,
+                displayText: mi === 0 ? (syl.displayText || (syl.text + ' ')) : '',
+                isMelismaTail: mi > 0,
+                startSec: +mp.s.toFixed(3),
+                endSec: +mp.e.toFixed(3),
+                midi: mp.midi,
+                freqHz: Math.round(this.midiToFreqHz(mp.midi)),
+                isGolden: isGolden && mi === melismaPair.length - 1,
+                hitFrames: 0,
+                totalFrames: 0,
+                fillRatio: 0,
+                goldenAwarded: false,
+                dspReal: true
+              };
+              notes.push(noteObj);
+              phraseSyls.push(noteObj);
+            }
+          } else {
+            minSongMidi = Math.min(minSongMidi, cleanMidi);
+            maxSongMidi = Math.max(maxSongMidi, cleanMidi);
+            const noteObj = {
+              id: noteId++,
+              lineIdx: li,
+              wordIdx: si,
+              text: syl.text,
+              displayText: syl.displayText || (syl.text + ' '),
+              startSec: +startSec.toFixed(3),
+              endSec: +endSec.toFixed(3),
+              midi: cleanMidi,
+              freqHz: Math.round(this.midiToFreqHz(cleanMidi)),
+              isGolden,
+              hitFrames: 0,
+              totalFrames: 0,
+              fillRatio: 0,
+              goldenAwarded: false,
+              dspReal: Boolean(this.hasDspMelody && dsp)
+            };
+            notes.push(noteObj);
+            phraseSyls.push(noteObj);
+          }
         }
 
         if (phraseSyls.length > 0) {
@@ -12047,28 +12636,10 @@
         }
       }
 
-      // Si existen cintas vocales ancladas al audio real, calibrar el eje vertical y las notas doradas sobre ellas
-      if (this.audioRibbons.length > 0) {
-        let rMin = 999;
-        let rMax = -999;
-        let rGold = 0;
-        for (let i = 0; i < this.audioRibbons.length; i++) {
-          const r = this.audioRibbons[i];
-          if (r.midi < rMin) rMin = r.midi;
-          if (r.midi > rMax) rMax = r.midi;
-          if (r.isGolden) rGold++;
-        }
-        if (rMin < rMax) {
-          minSongMidi = rMin;
-          maxSongMidi = rMax;
-        }
-        goldenTotal = Math.max(1, rGold);
-      }
-
-      // Configurar eje vertical estrictamente monotónico [axisMinMidi, axisMaxMidi]
+      // Configurar eje vertical estrictamente monotónico [axisMinMidi, axisMaxMidi] sobre el rango vocal real
       if (minSongMidi < maxSongMidi && Number.isFinite(minSongMidi)) {
         const midPoint = Math.round((minSongMidi + maxSongMidi) * 0.5);
-        const halfSpan = Math.max(9, Math.ceil((maxSongMidi - minSongMidi) * 0.5) + 3);
+        const halfSpan = Math.max(8, Math.ceil((maxSongMidi - minSongMidi) * 0.5) + 3);
         this.centerMidi = midPoint;
         this.axisMinMidi = midPoint - halfSpan;
         this.axisMaxMidi = midPoint + halfSpan;
@@ -12090,18 +12661,38 @@
 
     _sampleMonotonicMidiInWindow(dsp, startSec, endSec) {
       if (!dsp || !dsp.midiFrames) return null;
-      const f0 = Math.max(0, Math.min(dsp.midiFrames.length - 1, Math.floor(startSec * dsp.frameHz)));
-      const f1 = Math.max(f0, Math.min(dsp.midiFrames.length - 1, Math.ceil(endSec * dsp.frameHz)));
-      const vals = [];
+      const dur = Math.max(0.04, endSec - startSec);
+      // Muestrear el núcleo vocálico de la sílaba (recortando ataque consonántico inicial y caída final)
+      const coreStart = dur >= 0.16 ? (startSec + dur * 0.12) : startSec;
+      const coreEnd = dur >= 0.16 ? (endSec - dur * 0.08) : endSec;
+      const fps = dsp.frameHz || 100;
+      const f0 = Math.max(0, Math.min(dsp.midiFrames.length - 1, Math.floor(coreStart * fps)));
+      const f1 = Math.max(f0, Math.min(dsp.midiFrames.length - 1, Math.ceil(coreEnd * fps)));
+      const vDb = dsp.vocEnergyDb;
+      const vClar = dsp.rawClarityFrames;
+      const thVoc = Number.isFinite(dsp.thVoc) ? dsp.thVoc : -32;
+
+      const weighted = [];
+      let totalW = 0;
       for (let f = f0; f <= f1; f++) {
         const m = dsp.midiFrames[f];
-        if (m >= 44 && m <= 84) {
-          vals.push(m);
-        }
+        if (m < 44 || m > 84) continue;
+        const clar = vClar ? Math.max(0.15, vClar[f] || 0.35) : 0.6;
+        const eDb = vDb ? vDb[f] : thVoc;
+        const eW = Math.max(0.15, Math.min(3.5, (eDb - (thVoc - 6.0)) / 10.0));
+        const w = clar * eW;
+        weighted.push({ m, w });
+        totalW += w;
       }
-      if (vals.length === 0) return null;
-      vals.sort((a, b) => a - b);
-      return vals[Math.floor(vals.length * 0.5)];
+      if (weighted.length === 0 || totalW <= 0) return null;
+      weighted.sort((a, b) => a.m - b.m);
+      const halfW = totalW * 0.5;
+      let acc = 0;
+      for (let i = 0; i < weighted.length; i++) {
+        acc += weighted[i].w;
+        if (acc >= halfW) return weighted[i].m;
+      }
+      return weighted[weighted.length - 1].m;
     }
 
     /**
@@ -12596,9 +13187,7 @@
         this.liveUserMidi = null;
         this.liveUserFreqHz = 0;
         this.liveNoteLabel = '--';
-        this.liveStatusText = activeNote
-          ? (activeNote.kind === 'harmony' ? 'CANTA EN ARMONÍA' : 'SIGUE LA MELODÍA')
-          : (this.songKeyNameEs ? `TONO ${this.songKeyNameEs.toUpperCase()}` : 'MIC ACTIVO · CANTA');
+        this.liveStatusText = activeNote ? 'CANTA LA SÍLABA' : 'ESCUCHA Y CANTA';
         this.liveStatusTier = 'idle';
         return;
       }
@@ -12906,13 +13495,12 @@
       const dtSec = Math.min(0.08, Math.max(0.004, (nowMs - (this._lastFrameMs || nowMs)) / 1000));
       this._lastFrameMs = nowMs;
 
-      const isPlaying = Boolean(this.audioEngine && this.audioEngine.isPlaying());
+      const gateBlocked = Boolean(this.isWaitingFor100SyncGate);
+      const isPlaying = !gateBlocked && Boolean(this.audioEngine && this.audioEngine.isPlaying());
       const curSec = this.audioEngine ? this.audioEngine.getCurrentSongTimeSec() : 0;
 
-      // Usar las cintas vocales ancladas 100% al audio real (0.000 ms desfase, inmunes a desfase LRC);
-      // respaldo a pitchNotes únicamente si aún no se ha decodificado el AudioBuffer.
-      const usingAudioRibbons = Boolean(Array.isArray(this.audioRibbons) && this.audioRibbons.length > 0);
-      const sourceNotes = usingAudioRibbons ? this.audioRibbons : this.pitchNotes;
+      // SingStar puro: las barras y la puntuación corresponden 100% a las sílabas reales de la letra cantada
+      const sourceNotes = this.pitchNotes;
 
       let activeNote = null;
       for (let i = 0; i < sourceNotes.length; i++) {
@@ -12923,86 +13511,33 @@
         }
       }
 
-      const liveChordMask = this._getLiveChordMaskAt(curSec);
-      const isHarmonyZone = Boolean(activeNote && activeNote.kind === 'harmony');
-
-      if (activeNote && !isHarmonyZone) {
+      if (activeNote) {
         this.liveTargetKicker = 'META';
         this.liveTargetNoteLabel = this.midiToNoteNameEs(activeNote.midi);
         this.liveTargetNoteHz = `${activeNote.freqHz} Hz`;
-      } else if (isHarmonyZone) {
-        this.liveTargetKicker = 'ARMONÍA';
-        this.liveTargetNoteLabel = this.songKeyShortEs || this.midiToNoteNameEs(activeNote.midi);
-        this.liveTargetNoteHz = this.songKeyNameEs || '';
       } else {
-        this.liveTargetKicker = this.songKeyShortEs ? 'TONO' : 'META';
-        this.liveTargetNoteLabel = this.songKeyShortEs || '--';
+        this.liveTargetKicker = 'META';
+        this.liveTargetNoteLabel = '--';
         this.liveTargetNoteHz = this.songKeyNameEs || '';
       }
 
-      // Actualizar sintetizador de Tono Guía Audible si está activo
+      // Actualizar sintetizador de Tono Guía Audible y muestreo vocal solo cuando la puerta 100% está abierta
       this._updateAudibleToneGuideSynth(activeNote, isPlaying);
+      if (!gateBlocked) {
+        this._sampleLiveVoiceOrGuide(curSec, activeNote, nowMs);
+      }
 
-      // Muestrear micrófono o guía
-      this._sampleLiveVoiceOrGuide(curSec, activeNote, nowMs);
-
-      // Evaluación Musical de Doble Capa (Melodía Real + Armonía/Escala del Acorde en Vivo):
-      // Nunca castiga injustamente por guitarras/mezcla densa ni por cantar en armonía (3ª/5ª/octava)
+      // Evaluación Melódica Pura contra la nota real del cantante (con flexibilidad automática de octava)
       if (isPlaying && activeNote) {
         activeNote.totalFrames++;
-        const chordMaskNow = activeNote.chordMask || liveChordMask;
-        const hasVoicedPitch = Number.isFinite(this.liveUserMidi);
-        const userPc = hasVoicedPitch ? (((Math.round(this.liveUserMidi) % 12) + 12) % 12) : -1;
-        const isInLiveChord = userPc >= 0 && ((chordMaskNow & (1 << userPc)) !== 0);
-        const isInSongScale = userPc >= 0 && Boolean(this.songScaleMask && this.songScaleMask[userPc]);
-
-        if (isHarmonyZone) {
-          // Zona expresiva / mezcla densa / fraseo rápido: puntúa afinación al acorde, a la escala o ritmo vocal
-          if (hasVoicedPitch) {
-            this.sungFramesCount++;
-            if (isInLiveChord) {
-              this.liveStatusText = 'ARMONÍA EXACTA';
-              this.liveStatusTier = 'perfect';
-              activeNote.hitFrames += 1.16;
-              this.tunedFramesCount += 1.0;
-              this.streak++;
-              this.maxStreak = Math.max(this.maxStreak, this.streak);
-              this.feverMeter = Math.min(100, this.feverMeter + dtSec * 18);
-              this.score += Math.round(18 * this.multiplier);
-            } else if (isInSongScale) {
-              this.liveStatusText = 'EN TONO';
-              this.liveStatusTier = 'good';
-              activeNote.hitFrames += 0.96;
-              this.tunedFramesCount += 0.90;
-              this.streak++;
-              this.maxStreak = Math.max(this.maxStreak, this.streak);
-              this.feverMeter = Math.min(100, this.feverMeter + dtSec * 12);
-              this.score += Math.round(12 * this.multiplier);
-            } else {
-              this.liveStatusText = 'RITMO VOCAL';
-              this.liveStatusTier = 'near';
-              activeNote.hitFrames += 0.55;
-              this.tunedFramesCount += 0.55;
-              this.score += Math.round(6 * this.multiplier);
-            }
-          } else if (this.liveUserRms > Math.max(0.012, (this._lastGateThresholdRms || 0.0085) * 1.35)) {
-            // Voz rítmica / rap / consonantes fuertes en zona expresiva
-            this.sungFramesCount++;
-            this.liveStatusText = 'RITMO ACTIVO';
-            this.liveStatusTier = 'good';
-            activeNote.hitFrames += 0.78;
-            this.tunedFramesCount += 0.78;
-            this.streak++;
-            this.maxStreak = Math.max(this.maxStreak, this.streak);
-            this.score += Math.round(8 * this.multiplier);
-          }
-        } else if (hasVoicedPitch) {
+        if (Number.isFinite(this.liveUserMidi)) {
           const directDelta = this.liveUserMidi - activeNote.midi;
           const octaveFlexDelta = this.octaveRegisterMode === 'auto'
             ? (directDelta - Math.round(directDelta / 12) * 12)
             : directDelta;
           const evalDelta = Math.abs(octaveFlexDelta) < Math.abs(directDelta) ? octaveFlexDelta : directDelta;
           const absDelta = Math.abs(evalDelta);
+          this.liveSemitoneDelta = evalDelta;
           this.sungFramesCount++;
 
           if (absDelta <= 1.05) {
@@ -13023,21 +13558,11 @@
             this.maxStreak = Math.max(this.maxStreak, this.streak);
             this.feverMeter = Math.min(100, this.feverMeter + dtSec * 12);
             this.score += Math.round((activeNote.isGolden ? 18 : 10) * this.multiplier);
-          } else if (isInLiveChord) {
-            // El usuario está cantando una nota armónica válida del acorde actual (3ª/5ª/voz secundaria)
-            this.liveStatusText = 'ARMONÍA';
-            this.liveStatusTier = 'good';
-            activeNote.hitFrames += 0.88;
-            this.tunedFramesCount += 0.85;
-            this.streak++;
-            this.maxStreak = Math.max(this.maxStreak, this.streak);
-            this.feverMeter = Math.min(100, this.feverMeter + dtSec * 10);
-            this.score += Math.round((activeNote.isGolden ? 16 : 10) * this.multiplier);
-          } else if (absDelta <= 3.0 || isInSongScale) {
-            this.liveStatusText = evalDelta > 0 ? 'EN ESCALA · BAJA' : 'EN ESCALA · SUBE';
+          } else if (absDelta <= 3.0) {
+            this.liveStatusText = evalDelta > 0 ? 'CASI · BAJA' : 'CASI · SUBE';
             this.liveStatusTier = 'near';
-            activeNote.hitFrames += 0.48;
-            this.tunedFramesCount += 0.48;
+            activeNote.hitFrames += 0.45;
+            this.tunedFramesCount += 0.45;
             this.score += Math.round(5 * this.multiplier);
           } else {
             this.liveStatusText = evalDelta > 0 ? 'AGUDO · BAJA' : 'GRAVE · SUBE';
@@ -13059,22 +13584,9 @@
           this._spawnPopup('NOTA DORADA COMPLETADA', `+${bonus} PTS`, '#fde047', 1250);
         }
       } else if (isPlaying && !activeNote) {
-        // Entre frases vocales (instrumental / pausa): feedback armónico limpio sin penalizar jamás
-        if (Number.isFinite(this.liveUserMidi)) {
-          const userPc = ((Math.round(this.liveUserMidi) % 12) + 12) % 12;
-          const inChord = (liveChordMask & (1 << userPc)) !== 0;
-          const inScale = Boolean(this.songScaleMask && this.songScaleMask[userPc]);
-          if (inChord || inScale) {
-            this.liveStatusText = this.songKeyNameEs ? `EN TONO · ${this.songKeyNameEs.toUpperCase()}` : 'EN TONO';
-            this.liveStatusTier = 'good';
-          } else {
-            this.liveStatusText = 'INSTRUMENTAL';
-            this.liveStatusTier = 'idle';
-          }
-        } else {
-          this.liveStatusText = this.songKeyNameEs ? `TONO ${this.songKeyNameEs.toUpperCase()}` : 'ESCUCHA Y CANTA';
-          this.liveStatusTier = 'idle';
-        }
+        // Entre frases cantadas (instrumental / pausa): sin penalización jamás
+        this.liveStatusText = 'ESCUCHA Y CANTA';
+        this.liveStatusTier = 'idle';
       }
 
       // Actualizar multiplicador y estado Fiebre Vocal
@@ -13100,7 +13612,7 @@
         fsModal.classList.toggle('fever-mode', Boolean(this.isActive && this.isFever));
       }
 
-      // Evaluar final de cada frase cantada (sobre cintas de audio si existen, para no depender de LRC)
+      // Evaluar final de cada frase cantada directamente sobre sus sílabas
       if (isPlaying) {
         for (let pIdx = 0; pIdx < this.phraseWindows.length; pIdx++) {
           const pw = this.phraseWindows[pIdx];
@@ -13109,22 +13621,11 @@
             let fillSum = 0;
             let count = 0;
             let userAttempted = false;
-            if (usingAudioRibbons) {
-              for (let ri = 0; ri < this.audioRibbons.length; ri++) {
-                const r = this.audioRibbons[ri];
-                if (r.endSec < pw.startSec - 0.6) continue;
-                if (r.startSec > pw.endSec + 0.6) break;
-                fillSum += r.fillRatio;
-                count++;
-                if (r.hitFrames > 0) userAttempted = true;
-              }
-            } else {
-              for (let ni = 0; ni < pw.syllables.length; ni++) {
-                const n = pw.syllables[ni];
-                fillSum += n.fillRatio;
-                count++;
-                if (n.hitFrames > 0) userAttempted = true;
-              }
+            for (let ni = 0; ni < pw.syllables.length; ni++) {
+              const n = pw.syllables[ni];
+              fillSum += n.fillRatio;
+              count++;
+              if (n.hitFrames > 0) userAttempted = true;
             }
             if (count > 0 && userAttempted) {
               const avgFill = fillSum / count;
@@ -13230,13 +13731,24 @@
 
         const hasPhraseText = Boolean(String(phrase.text || '').trim());
         if (hasPhraseText) {
-          curEl.innerHTML = phrase.syllables.map((syl, sIdx) => {
-            return `<span class="singstar-fs-syl" data-syl-idx="${sIdx}">${escapeHtmlSafe(syl.displayText || syl.text)}</span>`;
-          }).join('');
+          const wordGroups = [];
+          let curWordSpans = [];
+          for (let sIdx = 0; sIdx < phrase.syllables.length; sIdx++) {
+            const syl = phrase.syllables[sIdx];
+            if (syl.isMelismaTail) continue;
+            const rawDisp = String(syl.displayText || syl.text || '');
+            curWordSpans.push(`<span class="singstar-fs-syl" data-syl-idx="${sIdx}">${escapeHtmlSafe(rawDisp)}</span>`);
+            if (/\s$/.test(rawDisp) || sIdx === phrase.syllables.length - 1) {
+              wordGroups.push(`<span class="singstar-fs-word">${curWordSpans.join('')}</span>`);
+              curWordSpans = [];
+            }
+          }
+          if (curWordSpans.length > 0) {
+            wordGroups.push(`<span class="singstar-fs-word">${curWordSpans.join('')}</span>`);
+          }
+          curEl.innerHTML = wordGroups.join('');
         } else {
-          curEl.textContent = this.isTranscribingWhisper
-            ? 'Sincronizando letra en segundo plano...'
-            : 'Sigue las barras de melodía y armonía en directo';
+          curEl.textContent = 'Canta la letra siguiendo la melodía del cantante';
         }
 
         let nextTextPhrase = null;
@@ -13249,7 +13761,7 @@
         if (nextEl) {
           nextEl.textContent = nextTextPhrase
             ? nextTextPhrase.text
-            : (this.isTranscribingWhisper ? 'Alineando texto al audio real...' : '');
+            : '';
         }
       }
 
@@ -13258,9 +13770,13 @@
         const spans = curEl.querySelectorAll('.singstar-fs-syl');
         for (let s = 0; s < spans.length; s++) {
           const sp = spans[s];
-          const syl = phrase.syllables[s];
-          const isCurrent = Boolean(syl && curSec >= syl.startSec - 0.03 && curSec <= syl.endSec + 0.05);
-          const isPast = Boolean(syl && curSec > syl.endSec + 0.05);
+          const sIdx = Number(sp.getAttribute('data-syl-idx'));
+          const syl = Number.isFinite(sIdx) ? phrase.syllables[sIdx] : phrase.syllables[s];
+          if (!syl) continue;
+          const nextSyl = phrase.syllables[sIdx + 1];
+          const effEnd = (nextSyl && nextSyl.isMelismaTail) ? nextSyl.endSec : syl.endSec;
+          const isCurrent = Boolean(curSec >= syl.startSec - 0.03 && curSec <= effEnd + 0.05);
+          const isPast = Boolean(curSec > effEnd + 0.05);
           sp.classList.toggle('active', isCurrent);
           sp.classList.toggle('sung', isPast);
         }
@@ -13300,7 +13816,7 @@
       }
       const targetKickerEl = document.getElementById('ssProTargetKicker');
       if (targetKickerEl) {
-        targetKickerEl.textContent = this.liveTargetKicker || 'TONO';
+        targetKickerEl.textContent = this.liveTargetKicker || 'META';
       }
       const targetEl = document.getElementById('ssProTargetNote');
       if (targetEl) {
@@ -13387,11 +13903,9 @@
       const lookaheadSec = isFullScreen ? (isCompact ? 2.45 : 3.15) : 2.6;
       const pxPerSec = (cssW - playheadX) / lookaheadSec;
 
-      const usingAudioRibbons = Boolean(Array.isArray(this.audioRibbons) && this.audioRibbons.length > 0);
-      const highwayNotes = usingAudioRibbons ? this.audioRibbons : this.pitchNotes;
-      const liveChordMask = this._getLiveChordMaskAt(curSec);
+      const highwayNotes = this.pitchNotes;
 
-      // 0. Cámara vertical dinámica suave (centrada en las cintas vocales reales visibles/próximas)
+      // 0. Cámara vertical dinámica suave (centrada en las sílabas visibles/próximas de la frase actual)
       let visMinMidi = Infinity;
       let visMaxMidi = -Infinity;
       const camWinStart = curSec - 0.9;
@@ -13445,17 +13959,11 @@
         return topPad + (1 - clamped) * usableH;
       };
 
-      // 1. Carriles armónicos iluminados en vivo (notas del acorde actual) + guías limpias de DO/SOL
+      // 1. Guías limpias de octava (DO) y quinta (SOL)
       for (let m = Math.ceil(minMidi); m <= Math.floor(maxMidi); m++) {
         const noteInOct = ((m % 12) + 12) % 12;
-        const y = midiToY(m);
-        if (liveChordMask && ((liveChordMask & (1 << noteInOct)) !== 0)) {
-          const hBand = Math.max(8, semitoneStepH * 0.86);
-          ctx.fillStyle = 'rgba(56, 189, 248, 0.038)';
-          ctx.fillRect(pianoRollW, y - hBand * 0.5, cssW - pianoRollW, hBand);
-        }
         if (noteInOct !== 0 && noteInOct !== 7) continue;
-        const yLine = Math.round(y) + 0.5;
+        const yLine = Math.round(midiToY(m)) + 0.5;
         const isC = (noteInOct === 0);
         ctx.strokeStyle = isC ? 'rgba(245, 197, 66, 0.16)' : 'rgba(255, 255, 255, 0.05)';
         ctx.lineWidth = isC ? 1 : 0.8;
@@ -13468,19 +13976,16 @@
       // Destello suave horizontal en el carril de la nota objetivo activa
       if (activeNote) {
         const laneY = midiToY(activeNote.midi);
-        const isHarm = activeNote.kind === 'harmony';
-        const laneH = Math.max(24, semitoneStepH * (isHarm ? 3.2 : 2.0));
+        const laneH = Math.max(24, semitoneStepH * 2.0);
         const laneGrad = ctx.createLinearGradient(pianoRollW, laneY - laneH * 0.5, pianoRollW, laneY + laneH * 0.5);
         laneGrad.addColorStop(0, 'rgba(56, 189, 248, 0)');
-        laneGrad.addColorStop(0.5, isHarm
-          ? 'rgba(16, 185, 129, 0.095)'
-          : (activeNote.isGolden ? 'rgba(250, 204, 21, 0.085)' : 'rgba(56, 189, 248, 0.08)'));
+        laneGrad.addColorStop(0.5, activeNote.isGolden ? 'rgba(250, 204, 21, 0.09)' : 'rgba(56, 189, 248, 0.085)');
         laneGrad.addColorStop(1, 'rgba(56, 189, 248, 0)');
         ctx.fillStyle = laneGrad;
         ctx.fillRect(pianoRollW, laneY - laneH * 0.5, cssW - pianoRollW, laneH);
       }
 
-      // Marcas sutiles de compás (1s) únicamente en el borde inferior para dar sensación de velocidad sin ensuciar
+      // Marcas sutiles de compás (1s) únicamente en el borde inferior
       const firstBeatSec = Math.floor(curSec);
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
       ctx.lineWidth = 1;
@@ -13493,7 +13998,7 @@
         ctx.stroke();
       }
 
-      // Precalcular geometría limpia sin solapamiento para todas las cintas/notas visibles
+      // Precalcular geometría limpia sin solapamiento para todas las sílabas visibles
       const minVisSec = curSec - 1.1;
       const maxVisSec = curSec + lookaheadSec + 0.45;
       const barH = isFullScreen ? Math.max(13, Math.min(18, Math.round(semitoneStepH * 0.60))) : 11;
@@ -13525,15 +14030,15 @@
         });
       }
 
-      // 2. Conectores melódicos suaves (curvas Bézier) entre cintas vocales próximas
+      // 2. Conectores melódicos suaves (curvas Bézier) entre sílabas consecutivas de la misma frase
       ctx.save();
-      ctx.strokeStyle = 'rgba(148, 163, 184, 0.19)';
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.22)';
       ctx.lineWidth = 1.5;
       for (let i = 1; i < visNotes.length; i++) {
         const prev = visNotes[i - 1];
         const curr = visNotes[i];
         if ((curr.n.startSec - prev.n.endSec) > 0.55) continue;
-        if (!usingAudioRibbons && curr.n.lineIdx !== prev.n.lineIdx) continue;
+        if (curr.n.lineIdx !== prev.n.lineIdx) continue;
         const gapX = curr.x1 - prev.x2;
         if (gapX <= 1) continue;
         if (gapX < 6 && Math.abs(curr.cy - prev.cy) > semitoneStepH * 4.5) continue;
@@ -13545,9 +14050,9 @@
       }
       ctx.restore();
 
-      // 3. Cintas Vocales Ancladas al Audio Real (Melodía Tonal + Zonas de Armonía Libre)
+      // 3. Barras de Sílabas Cantadas con Etiqueta Limpia y Relleno de Afinación
       ctx.font = isFullScreen
-        ? (isCompact ? '700 10px ui-monospace, SFMono-Regular, Menlo, monospace' : '700 11px ui-monospace, SFMono-Regular, Menlo, monospace')
+        ? (isCompact ? '700 10.5px Outfit, Montserrat, -apple-system, sans-serif' : '700 11.5px Outfit, Montserrat, -apple-system, sans-serif')
         : '700 9.5px Outfit, Montserrat, -apple-system, sans-serif';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'bottom';
@@ -13557,32 +14062,24 @@
       for (let i = 0; i < visNotes.length; i++) {
         const item = visNotes[i];
         const { n, x1, x2, w, cy, isCurrent } = item;
-        const isHarmony = n.kind === 'harmony';
-        const thisBarH = isHarmony ? Math.round(barH * 1.95) : barH;
-        const thisRadius = isHarmony ? Math.min(12, thisBarH * 0.42) : thisBarH * 0.5;
-        const y = cy - thisBarH * 0.5;
+        const thisRadius = barH * 0.5;
+        const y = cy - barH * 0.5;
         const isPast = curSec > n.endSec;
 
         ctx.save();
         if (isCurrent || n.isGolden) {
-          ctx.shadowColor = isHarmony
-            ? 'rgba(52, 211, 153, 0.36)'
-            : (n.isGolden ? 'rgba(250, 204, 21, 0.38)' : 'rgba(56, 189, 248, 0.42)');
+          ctx.shadowColor = n.isGolden ? 'rgba(250, 204, 21, 0.38)' : 'rgba(56, 189, 248, 0.42)';
           ctx.shadowBlur = isCurrent ? 14 : 8;
         }
 
         ctx.beginPath();
         if (ctx.roundRect) {
-          ctx.roundRect(x1, y, w, thisBarH, thisRadius);
+          ctx.roundRect(x1, y, w, barH, thisRadius);
         } else {
-          ctx.rect(x1, y, w, thisBarH);
+          ctx.rect(x1, y, w, barH);
         }
 
-        if (isHarmony) {
-          ctx.fillStyle = isCurrent
-            ? 'rgba(16, 65, 58, 0.72)'
-            : (isPast ? 'rgba(15, 34, 34, 0.42)' : 'rgba(16, 46, 48, 0.56)');
-        } else if (n.isGolden) {
+        if (n.isGolden) {
           ctx.fillStyle = isCurrent ? 'rgba(133, 77, 14, 0.90)' : 'rgba(78, 45, 12, 0.78)';
         } else {
           ctx.fillStyle = isCurrent
@@ -13595,8 +14092,8 @@
         // Brillo especular superior sutil + progreso afinado
         ctx.save();
         ctx.clip();
-        ctx.fillStyle = isHarmony ? 'rgba(110, 231, 183, 0.09)' : 'rgba(255, 255, 255, 0.10)';
-        ctx.fillRect(x1, y, w, Math.max(2, thisBarH * 0.32));
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.10)';
+        ctx.fillRect(x1, y, w, Math.max(2, barH * 0.32));
 
         const progress = Math.max(
           n.fillRatio,
@@ -13607,11 +14104,7 @@
         if (progress > 0.01) {
           const fillW = w * Math.min(1, progress);
           const fillGrad = ctx.createLinearGradient(x1, y, x1 + fillW, y);
-          if (isHarmony) {
-            fillGrad.addColorStop(0, 'rgba(16, 185, 129, 0.78)');
-            fillGrad.addColorStop(0.65, 'rgba(52, 211, 153, 0.86)');
-            fillGrad.addColorStop(1, 'rgba(167, 243, 208, 0.92)');
-          } else if (n.isGolden) {
+          if (n.isGolden) {
             fillGrad.addColorStop(0, '#f59e0b');
             fillGrad.addColorStop(0.65, '#fde047');
             fillGrad.addColorStop(1, '#fffef0');
@@ -13625,36 +14118,26 @@
             fillGrad.addColorStop(1, '#fde047');
           }
           ctx.fillStyle = fillGrad;
-          ctx.fillRect(x1, y, fillW, thisBarH);
+          ctx.fillRect(x1, y, fillW, barH);
         }
         ctx.restore();
 
-        // Contorno limpio (punteado sutil en zonas de armonía libre, continuo en melodía tonal)
+        // Contorno limpio de la barra silábica
         ctx.beginPath();
         if (ctx.roundRect) {
-          ctx.roundRect(x1, y, w, thisBarH, thisRadius);
+          ctx.roundRect(x1, y, w, barH, thisRadius);
         } else {
-          ctx.rect(x1, y, w, thisBarH);
+          ctx.rect(x1, y, w, barH);
         }
-        if (isHarmony) {
-          ctx.setLineDash([4, 3]);
-          ctx.strokeStyle = isCurrent ? '#6ee7b7' : 'rgba(52, 211, 153, 0.45)';
-          ctx.lineWidth = isCurrent ? 1.6 : 1.05;
-        } else {
-          ctx.strokeStyle = n.isGolden
-            ? (isCurrent ? '#fef08a' : 'rgba(250, 204, 21, 0.78)')
-            : (isCurrent ? '#38bdf8' : (isPast ? 'rgba(148, 163, 184, 0.22)' : 'rgba(226, 232, 240, 0.30)'));
-          ctx.lineWidth = isCurrent ? 1.8 : 1.05;
-        }
+        ctx.strokeStyle = n.isGolden
+          ? (isCurrent ? '#fef08a' : 'rgba(250, 204, 21, 0.78)')
+          : (isCurrent ? '#38bdf8' : (isPast ? 'rgba(148, 163, 184, 0.22)' : 'rgba(226, 232, 240, 0.32)'));
+        ctx.lineWidth = isCurrent ? 1.8 : 1.05;
         ctx.stroke();
-        ctx.setLineDash([]);
         ctx.restore();
 
-        // En modo cintas ancladas al audio real: mostrar nota musical limpia ('SOL3' o 'ARMONÍA') solo en cintas amplias
-        // (las letras completas y sincronizadas viven despejadas en el teleprompter de 3 líneas inferior).
-        const lbl = usingAudioRibbons
-          ? (isHarmony ? (w >= 54 || isCurrent ? 'ARMONÍA' : '') : (w >= 34 || isCurrent ? this.midiToNoteNameEs(n.midi) : ''))
-          : String(n.text || '').trim();
+        // Etiqueta limpia con la sílaba real de la letra sobre la barra
+        const lbl = n.isMelismaTail ? '' : String(n.text || '').trim();
         if (lbl && x2 > pianoRollW + 10 && x1 < cssW - 10) {
           const textX = Math.max(pianoRollW + 6, x1 + 3);
           const tw = ctx.measureText(lbl).width;
@@ -13674,8 +14157,8 @@
             ctx.strokeStyle = 'rgba(7, 9, 16, 0.90)';
             ctx.strokeText(lbl, textX, labelY);
             ctx.fillStyle = isCurrent
-              ? (isHarmony ? '#6ee7b7' : '#fde047')
-              : (isHarmony ? 'rgba(110, 231, 183, 0.78)' : (n.fillRatio >= 0.5 ? '#86efac' : (isPast ? 'rgba(148, 163, 184, 0.55)' : '#cbd5e1')));
+              ? '#fde047'
+              : (n.fillRatio >= 0.5 ? '#86efac' : (isPast ? 'rgba(148, 163, 184, 0.55)' : '#e2e8f0'));
             ctx.fillText(lbl, textX, labelY);
             ctx.restore();
             placedLabels.push({ x1: textX, x2: textX + tw, y: labelY });
@@ -20168,6 +20651,12 @@
     toggleSingStarStudioSettings(forceState = null) {
       if (singstarEngine) {
         singstarEngine.toggleStudioSettingsModal(forceState);
+      }
+    },
+
+    startSingStarAfterGate(fromBeginning = true) {
+      if (singstarEngine && typeof singstarEngine.startAfterGate === 'function') {
+        singstarEngine.startAfterGate(Boolean(fromBeginning));
       }
     },
 
