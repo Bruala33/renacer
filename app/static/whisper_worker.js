@@ -222,37 +222,43 @@ self.onmessage = async (event) => {
       const winDur = audioArr.length / 16000;
 
       // Para ventanas <= 28.5s usar pase único nativo de Whisper (30s) SIN stride_length_s:
-      // evita 100% los duplicados con saltos hacia atrás en el tiempo y duplica la velocidad.
-      // Limitar max_new_tokens + no_repeat_ngram_size impide los bucles de repetición en pasajes
-      // musicales/vibrato que podían colgar una ventana 30+ segundos en WASM.
-      const opts = {
-        task: 'transcribe',
-        return_timestamps: 'word',
-        max_new_tokens: Math.min(148, Math.max(68, Math.round(winDur * 5.8))),
-        no_repeat_ngram_size: 5,
-        repetition_penalty: 1.12
+      // usar return_timestamps: true (tokens temporales nativos del decoder) en lugar de 'word'
+      // evita copiar tensores de atención cruzada y el colapso DTW en mezclas densas (~2x más rápido,
+      // mitad de RAM en móvil y 0 re-inferencias duplicadas). La colocación exacta palabra a palabra
+      // se refina luego sobre la envolvente vocal real a 100 Hz (CDF acústico + recorte de silencios).
+      const requestedTsMode = data.returnTimestamps !== undefined ? data.returnTimestamps : true;
+      const buildOpts = (tsMode) => {
+        const o = {
+          task: 'transcribe',
+          return_timestamps: tsMode,
+          max_new_tokens: Math.min(140, Math.max(64, Math.round(winDur * 5.6))),
+          no_repeat_ngram_size: 5,
+          repetition_penalty: 1.12
+        };
+        if (winDur > 28.5) {
+          o.chunk_length_s = 26;
+          o.stride_length_s = 3;
+        }
+        if (languageHint) {
+          o.language = languageHint;
+        }
+        return o;
       };
-      if (winDur > 28.5) {
-        opts.chunk_length_s = 26;
-        opts.stride_length_s = 3;
-      }
-      if (languageHint) {
-        opts.language = languageHint;
-      }
 
+      let usedTsMode = requestedTsMode === 'word' ? 'word' : 'segment';
       let out = null;
       try {
-        out = await pipe(audioArr, opts);
+        out = await pipe(audioArr, buildOpts(requestedTsMode));
       } catch (_) {
-        opts.return_timestamps = true;
-        out = await pipe(audioArr, opts);
+        if (requestedTsMode !== true) {
+          usedTsMode = 'segment';
+          out = await pipe(audioArr, buildOpts(true));
+        } else {
+          throw _;
+        }
       }
 
-      // DETECCIÓN DE COLAPSO DTW EN ATENCIÓN CRUZADA DE WHISPER-TINY:
-      // En pasajes musicales intensos, return_timestamps:'word' puede colapsar todas las palabras
-      // al borde de relleno de ceros (timestamp >= winDur - 0.15s) o apilarlas en el mismo instante.
-      // Si detectamos colapso DTW, reintentar automáticamente con return_timestamps:true (tokens de
-      // tiempo nativos del decoder Whisper, inmunes al colapso de atención cruzada).
+      // Guardia ligera solo si algún caller solicitó explícitamente return_timestamps:'word'
       const hasDtwTimestampCollapse = (resObj) => {
         const chs = Array.isArray(resObj?.chunks) ? resObj.chunks : [];
         if (chs.length < 2) return false;
@@ -280,19 +286,19 @@ self.onmessage = async (event) => {
       };
 
       let collapsedDtw = false;
-      if (opts.return_timestamps === 'word' && hasDtwTimestampCollapse(out)) {
+      if (usedTsMode === 'word' && hasDtwTimestampCollapse(out)) {
         collapsedDtw = true;
         const rawFallbackClean = normalizeWordClean(out?.text || '');
         const rawFallbackWords = (!rawFallbackClean || HALLUCINATION_PHRASE_RE.test(rawFallbackClean))
           ? []
           : rawFallbackClean.split(/\s+/).filter(t => t.length >= 2 && !HALLUCINATION_WORD_RE.test(t));
-        if (rawFallbackWords.length >= 4) {
+        if (rawFallbackWords.length >= 3) {
           try {
-            const segOpts = { ...opts, return_timestamps: true };
-            const segOut = await pipe(audioArr, segOpts);
+            const segOut = await pipe(audioArr, buildOpts(true));
             if (segOut && Array.isArray(segOut.chunks) && segOut.chunks.length > 0 && !hasDtwTimestampCollapse(segOut)) {
               out = segOut;
               collapsedDtw = false;
+              usedTsMode = 'segment';
             }
           } catch (_) {}
         }
@@ -334,6 +340,7 @@ self.onmessage = async (event) => {
 
       const rawChunks = Array.isArray(out?.chunks) ? out.chunks : [];
       const words = [];
+      const cleanRawChunks = [];
       let lastEndSec = startSec;
       let lastNormWord = '';
       let repeatRun = 0;
@@ -368,8 +375,9 @@ self.onmessage = async (event) => {
         const tokens = cleanW.split(/\s+/).filter(t => t && !HALLUCINATION_WORD_RE.test(t));
         if (tokens.length === 0) continue;
 
-        if (tokens.length === 1) {
-          const normT = tokens[0].toLowerCase().replace(/[^a-z0-9áéíóúüñ]/gi, '');
+        const keptTokens = [];
+        for (let ti = 0; ti < tokens.length; ti++) {
+          const normT = tokens[ti].toLowerCase().replace(/[^a-z0-9áéíóúüñ]/gi, '');
           if (!normT) continue;
           if (normT === lastNormWord) {
             repeatRun++;
@@ -378,36 +386,64 @@ self.onmessage = async (event) => {
             lastNormWord = normT;
             repeatRun = 1;
           }
+          keptTokens.push(tokens[ti]);
+        }
+        if (keptTokens.length === 0) continue;
+
+        const clampedChunkEnd = Math.min(+(startSec + winDur + 0.25).toFixed(3), absEnd);
+        cleanRawChunks.push({
+          text: keptTokens.join(' '),
+          tokens: keptTokens,
+          startSec: absStart,
+          endSec: Math.max(+(absStart + 0.09).toFixed(3), clampedChunkEnd)
+        });
+
+        if (keptTokens.length === 1) {
+          const isWinEdgeWord0 = Boolean(words.length === 0 && rawTs0 <= 0.22);
+          let wordStart = absStart;
+          const wordEnd = Math.max(+(absStart + 0.09).toFixed(3), clampedChunkEnd);
+          // En modo palabra DTW, la 1ª palabra pegada a t0=0.0s suele estirarse hacia atrás sobre 1-5s de
+          // silencio/intro instrumental antes de la voz real: acotar su inicio cerca de su final real.
+          if (usedTsMode === 'word' && isWinEdgeWord0 && (wordEnd - wordStart) >= 1.35) {
+            const estWordDur = Math.min(1.15, Math.max(0.28, keptTokens[0].length * 0.14));
+            wordStart = +Math.max(wordStart, wordEnd - estWordDur).toFixed(3);
+          }
           words.push({
-            text: tokens[0],
-            startSec: absStart,
-            endSec: Math.min(+(startSec + winDur + 0.25).toFixed(3), absEnd)
+            text: keptTokens[0],
+            startSec: wordStart,
+            endSec: Math.max(+(wordStart + 0.09).toFixed(3), wordEnd),
+            isWinStartEdge: isWinEdgeWord0
           });
-          lastEndSec = absEnd;
+          lastEndSec = wordEnd;
         } else {
-          const totalChars = tokens.reduce((acc, t) => acc + Math.max(1, t.length), 0);
+          const totalChars = keptTokens.reduce((acc, t) => acc + Math.max(1, t.length), 0);
           let curT = absStart;
-          const span = Math.max(0.24, Math.min(winDur - rawTs0 + 0.2, absEnd - absStart));
-          for (let ti = 0; ti < tokens.length; ti++) {
-            const normT = tokens[ti].toLowerCase().replace(/[^a-z0-9áéíóúüñ]/gi, '');
-            if (!normT) continue;
-            if (normT === lastNormWord) {
-              repeatRun++;
-              if (repeatRun >= 4) continue;
-            } else {
-              lastNormWord = normT;
-              repeatRun = 1;
-            }
-            const wDur = span * (Math.max(1, tokens[ti].length) / totalChars);
-            const wEnd = ti === tokens.length - 1 ? +(absStart + span).toFixed(3) : +(curT + wDur).toFixed(3);
+          const span = Math.max(0.24, Math.min(winDur - rawTs0 + 0.2, clampedChunkEnd - absStart));
+          for (let ti = 0; ti < keptTokens.length; ti++) {
+            const wDur = span * (Math.max(1, keptTokens[ti].length) / totalChars);
+            const wEnd = ti === keptTokens.length - 1 ? +(absStart + span).toFixed(3) : +(curT + wDur).toFixed(3);
             const safeEnd = +Math.max(curT + 0.09, wEnd).toFixed(3);
             words.push({
-              text: tokens[ti],
+              text: keptTokens[ti],
               startSec: +curT.toFixed(3),
               endSec: safeEnd
             });
             curT = safeEnd;
             lastEndSec = safeEnd;
+          }
+        }
+      }
+
+      // En modo palabra DTW, partículas átonas de 1-2 letras al inicio de frase ("si", "y", "el", "de"...)
+      // a veces absorben > 1.15s de la pausa previa: acotar su inicio cerca del ataque de la palabra siguiente.
+      if (usedTsMode === 'word' && words.length >= 2) {
+        for (let wi = 0; wi < words.length - 1; wi++) {
+          const w = words[wi];
+          const nw = words[wi + 1];
+          const cleanLen = String(w.text || '').replace(/[^a-z0-9áéíóúüñ]/gi, '').length;
+          const dur = w.endSec - w.startSec;
+          if (cleanLen > 0 && cleanLen <= 2 && dur >= 1.15 && (nw.startSec - w.endSec) <= 0.18) {
+            w.startSec = +Math.max(w.startSec, w.endSec - 0.35).toFixed(3);
           }
         }
       }
@@ -426,8 +462,10 @@ self.onmessage = async (event) => {
         startSec,
         endSec,
         dtwCollapsed: collapsedDtw,
+        tsMode: usedTsMode,
         text: fullTextClean,
-        words
+        words,
+        rawChunks: cleanRawChunks
       });
     } catch (err) {
       const errMsg = String(err?.message || err);

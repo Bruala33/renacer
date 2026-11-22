@@ -541,7 +541,7 @@ class MainActivity : AppCompatActivity() {
 
         setContentView(webView)
         webView.clearCache(true)
-        webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html?v=93.0")
+        webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html?v=94.0")
         hideSystemUI()
     }
 
@@ -873,7 +873,7 @@ class MainActivity : AppCompatActivity() {
                         while (tau < maxTau && nsdf[tau] <= 0f) tau++
                     }
 
-                    val minClarity = if (wasVoiced) 0.48f else 0.60f
+                    val minClarity = if (wasVoiced) 0.45f else 0.60f
                     var chosenFreq = 0f
                     var chosenClarity = 0f
                     if (peakCount > 0 && globalMaxVal >= minClarity) {
@@ -922,7 +922,7 @@ class MainActivity : AppCompatActivity() {
                             }
                         }
 
-                        unvoicedGraceLeft = 3 // ~35ms consonant/glottal bridge
+                        unvoicedGraceLeft = 6 // ~70ms vibrato/consonant/glottal sustain bridge
                         voicedFreezeFrames = 39 // ~450ms noise-floor freeze so singing NEVER poisons ambientFloor
 
                         if (consecutiveVoiced >= 2 || wasVoiced) {

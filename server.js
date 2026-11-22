@@ -4657,8 +4657,8 @@ app.all('/api/v1/lyrics/transcribe', async (req, res) => {
       const winDurSec = sampleCount / 16000;
       const opts = {
         task: 'transcribe',
-        return_timestamps: 'word',
-        max_new_tokens: Math.min(148, Math.max(68, Math.round(winDurSec * 5.8))),
+        return_timestamps: true,
+        max_new_tokens: Math.min(140, Math.max(64, Math.round(winDurSec * 5.6))),
         no_repeat_ngram_size: 5,
         repetition_penalty: 1.12
       };
@@ -4669,43 +4669,15 @@ app.all('/api/v1/lyrics/transcribe', async (req, res) => {
         opts.chunk_length_s = 25;
         opts.stride_length_s = 3;
       }
-      let out = await transcriber(float32, opts);
-      const hasServerDtwCollapse = (resObj) => {
-        const chs = Array.isArray(resObj?.chunks) ? resObj.chunks : [];
-        if (chs.length < 2) return false;
-        let cliffCount = 0;
-        let sameTsPairs = 0;
-        let minTs = Infinity;
-        let maxTs = -Infinity;
-        let validCount = 0;
-        let prevTs0 = -999;
-        for (const c of chs) {
-          const t0 = Array.isArray(c?.timestamp) && Number.isFinite(c.timestamp[0]) ? Number(c.timestamp[0]) : NaN;
-          if (!Number.isFinite(t0)) continue;
-          validCount++;
-          if (t0 >= winDurSec - 0.18) cliffCount++;
-          if (Math.abs(t0 - prevTs0) < 0.015) sameTsPairs++;
-          if (t0 < minTs) minTs = t0;
-          if (t0 > maxTs) maxTs = t0;
-          prevTs0 = t0;
-        }
-        if (validCount < 2) return false;
-        if (cliffCount >= 2 && cliffCount >= validCount * 0.35) return true;
-        if (validCount >= 4 && sameTsPairs >= validCount * 0.55) return true;
-        if (validCount >= 5 && (maxTs - minTs) < 0.25) return true;
-        return false;
-      };
-      let dtwCollapsed = false;
-      if (opts.return_timestamps === 'word' && hasServerDtwCollapse(out)) {
-        dtwCollapsed = true;
-        try {
-          const segOut = await transcriber(float32, { ...opts, return_timestamps: true });
-          if (segOut && Array.isArray(segOut.chunks) && segOut.chunks.length > 0 && !hasServerDtwCollapse(segOut)) {
-            out = segOut;
-            dtwCollapsed = false;
-          }
-        } catch (_) {}
-      }
+      const out = await transcriber(float32, opts);
+      const dtwCollapsed = false;
+      const rawChunks = (Array.isArray(out?.chunks) ? out.chunks : [])
+        .filter((c) => c && typeof c.text === 'string' && c.text.trim())
+        .map((c) => ({
+          text: c.text.trim(),
+          startSec: +(offsetSec + (Array.isArray(c.timestamp) && Number.isFinite(c.timestamp[0]) ? Math.max(0, c.timestamp[0]) : 0)).toFixed(3),
+          endSec: +(offsetSec + (Array.isArray(c.timestamp) && Number.isFinite(c.timestamp[1]) ? Math.min(winDurSec + 0.35, c.timestamp[1]) : winDurSec)).toFixed(3)
+        }));
       const words = sanitizeServerWhisperWords(out?.chunks, offsetSec, winDurSec);
       const syncedLyrics = buildLrcFromServerWhisperWords(words);
       return res.json({
@@ -4715,6 +4687,7 @@ app.all('/api/v1/lyrics/transcribe', async (req, res) => {
         dtwCollapsed,
         text: words.map(w => w.text).join(' '),
         words,
+        rawChunks,
         syncedLyrics,
         provider: 'whisper_server_pcm'
       });

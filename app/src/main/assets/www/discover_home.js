@@ -5931,7 +5931,7 @@
       this._whisperWorkerBusy = [];
       const hwCores = (typeof navigator !== 'undefined' && Number(navigator.hardwareConcurrency)) || 2;
       const devMemGb = (typeof navigator !== 'undefined' && Number(navigator.deviceMemory)) || 0;
-      this._whisperWorkerPoolSize = (hwCores >= 2 && (!devMemGb || devMemGb >= 4)) ? 2 : 1;
+      this._whisperWorkerPoolSize = (hwCores >= 2 && (!devMemGb || devMemGb >= 3)) ? 2 : 1;
       this._whisperWorkerCallbacks = new Map();
       this._whisperWorkerSeq = 0;
       this._whisperStatusListener = null;
@@ -6440,6 +6440,7 @@
       this._noiseFloorFreezeUntilMs = 0;
       if (this._webMicMedianBuf) this._webMicMedianBuf.length = 0;
       for (const n of this.pitchNotes) {
+        n.hitSec = 0;
         n.hitFrames = 0;
         n.totalFrames = 0;
         n.fillRatio = 0;
@@ -7639,7 +7640,9 @@
 
         let hasRealLyrics = !this._isPlaceholderLyrics(baseLines);
         let isPlainUnaligned = hasRealLyrics && this._isUnalignedPlainLyrics(baseLines);
-        const preloadMono16k = Boolean(forceReanalyze || !hasRealLyrics || isPlainUnaligned);
+        // Extraer mono16k en la misma pasada inicial si la pista aún no tiene verificación Whisper:
+        // evita decodificar el MP3 completo 2 veces en canciones que no son de karaoke (ahorra 3-8 s).
+        const preloadMono16k = Boolean(forceReanalyze || !hasWhisperVerifiedCache);
 
         const decoded = await this._decodeAudioBlobSinglePass(track, key, audioBlob, null, (pct, msg) => {
           if (token === this._prepToken) {
@@ -7901,7 +7904,7 @@
         return this._whisperWorkers[safeSlot];
       }
       try {
-        const worker = new Worker('./whisper_worker.js?v=92.0', { type: 'module' });
+        const worker = new Worker('./whisper_worker.js?v=94.0', { type: 'module' });
         if (!this._whisperWorkerCallbacks) this._whisperWorkerCallbacks = new Map();
         if (!Number.isFinite(this._whisperWorkerSeq)) this._whisperWorkerSeq = 0;
 
@@ -7982,8 +7985,11 @@
       return this._getOrCreateWhisperWorkerAt(0, onStatus);
     }
 
-    _transcribeWindowViaWorker(pcm16kSlice, windowStartSec, language = 'auto', onStatus = null, preferredSlot = -1) {
+    _transcribeWindowViaWorker(pcm16kSlice, windowStartSec, language = 'auto', onStatus = null, preferredSlot = -1, returnTimestamps = undefined) {
       return new Promise((resolve) => {
+        const effReturnTimestamps = returnTimestamps !== undefined
+          ? returnTimestamps
+          : (this._whisperNextTsMode !== undefined ? this._whisperNextTsMode : true);
         const poolSize = Math.max(1, this._whisperWorkerPoolSize || 1);
         let chosenSlot = 0;
         if (preferredSlot >= 0 && preferredSlot < poolSize && !this._whisperWorkerBusy[preferredSlot]) {
@@ -8021,7 +8027,7 @@
             releaseSlot();
             resolve(null);
           }
-        }, 32000);
+        }, 26000);
 
         this._whisperWorkerCallbacks.set(reqId, {
           resolve: (res) => {
@@ -8046,7 +8052,8 @@
               startSec: windowStartSec,
               windowStartSec,
               language,
-              languageHint: language
+              languageHint: language,
+              returnTimestamps: effReturnTimestamps
             },
             [copyPcm.buffer]
           );
@@ -8293,11 +8300,15 @@
     }
 
     _findActiveVocalWindowsForWhisper(vocalProfile, totalDurSec, prioritySec = 0, options = {}) {
-      // Ventanas de 24s (Whisper siempre procesa un mel de 30s en el encoder; paso de 20s = 4s de solape
-      // que captura 4 versos completos por pasada y permite convergencia en 3 ventanas para pistas uniformes).
+      // Ventanas adaptativas ancladas a entradas reales de frase (evita cortar a mitad de verso antes de una pausa):
+      // - Alineación LRC: 24s (paso 20s) -> mismo coste de encoder 30s que 21s, +20% cobertura de versos y 4s de solape;
+      //   2 ventanas en paralelo convergen en 1 sola oleada para pistas uniformes.
+      // - Letra plana sin tiempos: 22s (paso 20s), tope 6 ventanas ancla bien repartidas (~3x más rápido).
+      // - Transcripción pura (sin letra): 27s (paso 26s) -> aprovecha al 90% el mel de 30s del encoder con 35% menos pasadas.
       const isAlign = Boolean(options && options.forAlignment);
-      const winLenSec = 24.0;
-      const stepSec = isAlign ? 20.0 : 22.0;
+      const isPlainUnaligned = Boolean(options && options.isPlainUnaligned);
+      const winLenSec = isAlign ? (isPlainUnaligned ? 22.0 : 24.0) : 27.0;
+      const stepSec = isAlign ? 20.0 : 26.0;
       const maxDur = Math.min(totalDurSec, 380);
       const rawWindows = [];
 
@@ -8308,9 +8319,15 @@
         Number(options.refEndSec) > Number(options.refStartSec) + 12.0
       );
       const leadMargin = vocalProfile?.isFastEnvelopeOnly ? 4.5 : 1.5;
-      const firstVocRaw = (vocalProfile && Number.isFinite(vocalProfile.firstVocalSec) && vocalProfile.firstVocalSec >= 4.0)
-        ? Math.max(0, vocalProfile.firstVocalSec - leadMargin)
-        : 0;
+      const islandsForStart = Array.isArray(vocalProfile?.vocalIslands) ? vocalProfile.vocalIslands : [];
+      const firstSubstantialIsland = islandsForStart.find(isl => ((isl.endSec || 0) - (isl.startSec || 0)) >= 1.15);
+      const firstVocSecEff = firstSubstantialIsland
+        ? firstSubstantialIsland.startSec
+        : (vocalProfile && Number.isFinite(vocalProfile.firstVocalSec) ? vocalProfile.firstVocalSec : 0);
+      const fastBandpassStart = Number(options && options.fastVocalStartSec) || 0;
+      const firstVocRaw = firstVocSecEff >= 4.0
+        ? Math.max(0, firstVocSecEff - leadMargin)
+        : fastBandpassStart;
       const scanStart = hasRefSpan
         ? Math.max(0, Math.min(maxDur - winLenSec, firstVocRaw >= 3.5 ? firstVocRaw : Math.max(0, Number(options.refStartSec) - 4.0)))
         : firstVocRaw;
@@ -8324,9 +8341,11 @@
         const thVoc = Number.isFinite(vocalProfile.thVoc) ? vocalProfile.thVoc : -32;
         const hasMidi = Boolean(vocalProfile.midiFrames && vocalProfile.midiFrames.length >= nFrames);
         const vDb = vocalProfile.vocEnergyDb;
+        const strictMinFrames = Math.round((isAlign ? 0.30 : 0.85) * fps);
+        const looseCandidates = [];
 
         let curSec = scanStart;
-        while (curSec < scanEnd - 1.2 && rawWindows.length < 24) {
+        while (curSec < scanEnd - 1.2 && looseCandidates.length < 24) {
           const endSec = Math.min(scanEnd, curSec + winLenSec);
           const f0 = Math.max(0, Math.floor(curSec * fps));
           const f1 = Math.min(nFrames - 1, Math.ceil(endSec * fps));
@@ -8337,15 +8356,19 @@
               voicedFrames++;
             }
           }
-          if (voicedFrames >= Math.round(0.30 * fps)) {
-            rawWindows.push({
-              startSec: +curSec.toFixed(2),
-              endSec: +endSec.toFixed(2),
-              voicedFrames
-            });
+          const winObj = { startSec: +curSec.toFixed(2), endSec: +endSec.toFixed(2), voicedFrames };
+          if (voicedFrames >= strictMinFrames) {
+            rawWindows.push(winObj);
+          }
+          if (voicedFrames >= Math.round(0.28 * fps)) {
+            looseCandidates.push(winObj);
           }
           if (endSec >= scanEnd - 0.5) break;
           curSec += stepSec;
+        }
+        if (rawWindows.length < 2 && looseCandidates.length > rawWindows.length) {
+          rawWindows.length = 0;
+          for (const w of looseCandidates) rawWindows.push(w);
         }
       }
 
@@ -8367,9 +8390,8 @@
       }
 
       // En modo alineación forzada multi-ventana (con letra LRC/texto), cubrir TODA la letra:
-      //  1) Ventana actual (prioIdx) + 50% en Oleada 1 paralela -> bloquea inicio y centro simultáneamente
-      //  2) 85% en Oleada 2 -> converge en 3 ventanas si toda la canción es uniforme, o expande en paralelo
-      //     a 25%, 68%, 100%, 12%, 38%, 76%, 92% para capturar cualquier corte no lineal o sabotaje por tramos.
+      //  1) Oleada 1 paralela: ventana inicial/actual (prioIdx) + 76% -> bloquea pistas uniformes en 1 sola oleada (2 ventanas)
+      //  2) Si hay corte/desfase por tramos, Oleada 2+ expande en paralelo en modo palabra DTW cubriendo 16%, 30%, 48%, 81%, 64%, 100%.
       if (isAlign && rawWindows.length >= 2) {
         const maxProbes = Number(options.maxProbes) || 0;
         const nWin = rawWindows.length;
@@ -8383,7 +8405,7 @@
           }
         };
         addIdx(prioIdx);
-        const spreadFracs = [0.62, 0.85, 0.30, 0.48, 0.15, 0.74, 1.0, 0.92];
+        const spreadFracs = [0.76, 0.16, 0.30, 0.48, 0.81, 0.64, 1.0];
         for (const frac of spreadFracs) {
           if (maxProbes > 0 && ordered.length >= maxProbes) break;
           addIdx(Math.round((nWin - 1) * frac));
@@ -8410,9 +8432,352 @@
     }
 
     /**
+     * Refinador acústico a 100 Hz (10 ms) para bloques de frase de Whisper (`return_timestamps: true`):
+     * 1) Recorta silencios instrumentales al principio y final de cada bloque usando `vocEnergyDb`.
+     * 2) Distribuye las palabras proporcionalmente a la densidad real de actividad vocal y ataques (CDF 100 Hz)
+     *    en lugar de reparto lineal ciego, logrando precisión de milisegundos al doble de velocidad y 0 colapsos DTW.
+     */
+    _refineWhisperChunksWithVocalProfile(rawChunks, vocalProfile, actualDurSec = 195, winStartSec = -1) {
+      if (!Array.isArray(rawChunks) || rawChunks.length === 0) return [];
+      if (!vocalProfile || !vocalProfile.vocEnergyDb) return [];
+
+      const fps = vocalProfile.frameHz || 100;
+      const vDb = vocalProfile.vocEnergyDb;
+      const vFlux = vocalProfile.vowelFlux;
+      const vMidi = vocalProfile.midiFrames;
+      const vClar = vocalProfile.rawClarityFrames;
+      const nF = vDb.length;
+      const hasTonal = Boolean(vMidi && vClar && vMidi.length >= nF && vClar.length >= nF);
+      const thVoc = Number.isFinite(vocalProfile.thVoc) ? vocalProfile.thVoc : -32;
+      const trimTh = thVoc - 1.5;
+
+      const isSustainedVocalFrame = (f) => {
+        if (vDb[f] < trimTh) return false;
+        if (!hasTonal) return vDb[f] >= thVoc - 0.8;
+        return (vMidi[f] >= 45 && vClar[f] >= 0.42) || vDb[f] >= thVoc + 3.5;
+      };
+
+      const outWords = [];
+      let prevEndSec = 0;
+
+      for (let ci = 0; ci < rawChunks.length; ci++) {
+        const ch = rawChunks[ci];
+        if (!ch) continue;
+        const toks = Array.isArray(ch.tokens) && ch.tokens.length > 0
+          ? ch.tokens
+          : String(ch.text || '').trim().split(/\s+/).filter(Boolean);
+        if (toks.length === 0) continue;
+
+        const chRawStart = Number(ch.startSec) || 0;
+        const isWinEdgeChunk = Boolean(ci === 0 && winStartSec >= 0 && Math.abs(chRawStart - winStartSec) <= 0.28);
+        const rawStart = Math.max(prevEndSec, chRawStart);
+        const rawEnd = Math.min(actualDurSec > 5 ? actualDurSec : 9999, Math.max(rawStart + 0.14, Number(ch.endSec) || (rawStart + 1.2)));
+        let f0 = Math.max(0, Math.min(nF - 1, Math.floor(rawStart * fps)));
+        let f1 = Math.max(f0, Math.min(nF - 1, Math.ceil(rawEnd * fps)));
+
+        // Recortar silencios/respiraciones/acordes de intro al inicio y final del bloque exigiendo >= 80 ms de voz continua
+        if (f1 - f0 >= Math.round(0.45 * fps)) {
+          const minRunF = Math.max(4, Math.round(0.08 * fps));
+          let firstVoiced = -1;
+          let lastVoiced = -1;
+          let run = 0;
+          for (let f = f0; f <= f1; f++) {
+            if (isSustainedVocalFrame(f)) {
+              run++;
+              if (run >= minRunF) {
+                if (firstVoiced === -1) firstVoiced = f - minRunF + 1;
+                lastVoiced = f;
+              }
+            } else {
+              run = 0;
+            }
+          }
+          if (firstVoiced !== -1 && lastVoiced - firstVoiced >= Math.round(0.26 * fps)) {
+            f0 = Math.max(f0, firstVoiced - 1);
+            f1 = Math.min(f1, lastVoiced + 2);
+          }
+        }
+
+        // Guardia de cola previa huérfana y borde <|0.00|> de ventana Whisper:
+        // 1) En el 1er bloque anclado a t0=0.0s de ventana (isWinEdgeChunk), Whisper siempre emite <|0.00|>
+        //    aunque los primeros 1-3.5s sean acordes de intro o el final del verso anterior + pausa (>=0.32s).
+        // 2) En bloques interiores anormalmente largos (>6.2s y >N*0.62+1.5s), también puede haber absorbido
+        //    una cola + pausa (>=0.52s) al inicio antes del verso transcrito.
+        const chunkDurSec = (f1 - f0) / fps;
+        const isOverlongInterior = Boolean(!isWinEdgeChunk && toks.length >= 4 && chunkDurSec > Math.max(6.2, toks.length * 0.62 + 1.5));
+        const shouldCheckEdgeGap = Boolean(isWinEdgeChunk && toks.length >= 3 && chunkDurSec >= Math.max(2.6, toks.length * 0.34));
+        let trimmedEdgeGap = false;
+        if (shouldCheckEdgeGap || isOverlongInterior) {
+          const gapDbTh = thVoc + 0.8;
+          const isGapFrame = (f) => {
+            if (vDb[f] < gapDbTh) return true;
+            if (hasTonal && (vMidi[f] < 45 || vClar[f] < 0.36)) return true;
+            return false;
+          };
+          const minNeededRem = Math.max(isOverlongInterior ? 2.0 : 1.5, toks.length * (isOverlongInterior ? 0.28 : 0.25));
+          const maxSkipSec = isOverlongInterior
+            ? Math.min(chunkDurSec - minNeededRem, (chunkDurSec - Math.max(6.2, toks.length * 0.62 + 1.5)) + 2.8)
+            : Math.min(3.6, chunkDurSec * 0.44, chunkDurSec - minNeededRem);
+          const fScanEnd = Math.min(f1 - Math.round(1.3 * fps), f0 + Math.round(Math.max(0, maxSkipSec) * fps));
+          const minGapF = Math.round((isOverlongInterior ? 0.52 : 0.32) * fps);
+          let gapRun = 0;
+          let bestReentryF = -1;
+          for (let f = f0; f <= fScanEnd; f++) {
+            if (isGapFrame(f)) {
+              gapRun++;
+            } else {
+              if (gapRun >= minGapF) {
+                let postOk = 0;
+                const lim = Math.min(f1, f + Math.round(0.45 * fps));
+                for (let k = f; k < lim; k++) {
+                  if (!isGapFrame(k)) postOk++;
+                }
+                if (postOk >= Math.round(0.30 * fps)) {
+                  bestReentryF = f;
+                }
+              }
+              gapRun = 0;
+            }
+          }
+          if (bestReentryF > f0 + Math.round(0.35 * fps)) {
+            const remDurSec = (f1 - bestReentryF) / fps;
+            if (remDurSec >= minNeededRem) {
+              f0 = Math.max(f0, bestReentryF - 2);
+              trimmedEdgeGap = true;
+            }
+          }
+        }
+
+        const trimStartSec = Math.max(prevEndSec, f0 / fps);
+        const trimEndSec = Math.max(trimStartSec + 0.12, f1 / fps);
+
+        if (toks.length === 1) {
+          outWords.push({
+            text: toks[0],
+            startSec: +trimStartSec.toFixed(3),
+            endSec: +trimEndSec.toFixed(3),
+            isWinStartEdge: isWinEdgeChunk
+          });
+          prevEndSec = trimEndSec;
+          continue;
+        }
+
+        const M = Math.max(2, f1 - f0 + 1);
+        const cdf = new Float32Array(M + 1);
+        for (let m = 0; m < M; m++) {
+          const fAbs = f0 + m;
+          const e = vDb[fAbs];
+          const flux = vFlux ? (vFlux[fAbs] || 0) : 0;
+          const act = e >= trimTh
+            ? (0.90 + Math.min(3.0, (e - trimTh) * 0.22) + Math.min(2.2, flux * 0.35))
+            : 0.03;
+          cdf[m + 1] = cdf[m] + act;
+        }
+        const totAct = cdf[M] || 1;
+        const secForFrac = (frac) => {
+          const target = Math.max(0, Math.min(1, frac)) * totAct;
+          let lo = 0;
+          let hi = M;
+          while (lo < hi) {
+            const mid = (lo + hi) >> 1;
+            if (cdf[mid] < target) lo = mid + 1;
+            else hi = mid;
+          }
+          return (f0 + lo) / fps;
+        };
+
+        const weights = toks.map((tk, idx) => {
+          const cleanLen = tk.replace(/[^a-zA-Z0-9áéíóúüñÁÉÍÓÚÜÑ]/g, '').length;
+          let w = Math.max(1.6, cleanLen);
+          if (idx === toks.length - 1) w += 0.65;
+          return w;
+        });
+        const totW = weights.reduce((a, b) => a + b, 0) || toks.length;
+
+        let cumW = 0;
+        let wordPrevEnd = trimStartSec;
+        for (let ti = 0; ti < toks.length; ti++) {
+          let sSec = ti === 0 ? trimStartSec : Math.max(wordPrevEnd, secForFrac(cumW / totW));
+          // Micro-anclaje ±50ms al pico local de ataque vocálico para palabras interiores
+          if (ti > 0 && vFlux) {
+            const cF = Math.round(sSec * fps);
+            const loF = Math.max(Math.ceil(wordPrevEnd * fps), cF - 5);
+            const hiF = Math.min(f1 - 4, cF + 5);
+            let bestF = cF;
+            let bestSc = -1e9;
+            for (let f = loF; f <= hiF; f++) {
+              if (vDb[f] >= trimTh - 0.8) {
+                const sc = vFlux[f] * 1.4 - Math.abs(f - cF) * 0.14;
+                if (sc > bestSc) { bestSc = sc; bestF = f; }
+              }
+            }
+            sSec = Math.max(wordPrevEnd, bestF / fps);
+          }
+          cumW += weights[ti];
+          const rawE = (ti === toks.length - 1) ? trimEndSec : secForFrac(cumW / totW);
+          const eSec = Math.max(sSec + 0.085, Math.min(trimEndSec, rawE));
+          outWords.push({
+            text: toks[ti],
+            startSec: +sSec.toFixed(3),
+            endSec: +eSec.toFixed(3),
+            isWinStartEdge: Boolean(isWinEdgeChunk && !trimmedEdgeGap && ti === 0)
+          });
+          wordPrevEnd = eSec;
+        }
+        prevEndSec = wordPrevEnd;
+      }
+
+      return outWords;
+    }
+
+    /**
+     * Identifica el índice de la sílaba tónica de una palabra (reglas prosódicas del español + tilde gráfica),
+     * clave para asignar correctamente la duración de las vocales sostenidas (p. ej. "a-MAAAAN-te", "a-MOOOOR").
+     */
+    _findStressedSyllableIndex(pieces, cleanWord = '') {
+      if (!Array.isArray(pieces) || pieces.length <= 1) return 0;
+      const K = pieces.length;
+      for (let i = 0; i < K; i++) {
+        if (/[áéíóúÁÉÍÓÚ]/.test(pieces[i])) return i;
+      }
+      const core = String(cleanWord || pieces.join('')).replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]+$/g, '');
+      if (!core) return K - 1;
+      // Palabras llanas (terminadas en vocal, n o s) cargan el acento en la penúltima; el resto en la última
+      return /[aeiouáéíóúüns]$/i.test(core) ? Math.max(0, K - 2) : (K - 1);
+    }
+
+    /**
+     * Extensor Acústico de Colas Vocales Sostenidas (100 Hz + STFT con pico dinámico de frase):
+     * Sigue ininterrumpidamente la nota cantada desde `seedEndSec` hasta `hardMaxEndSec`
+     * incluyendo decaimientos naturales de hasta -7.2 dB al final de vocales largas cuando la voz
+     * central sigue bloqueada en STFT, y se detiene al instante (10 ms) cuando cae a un lecho
+     * puramente instrumental (caída frente al pico vocal de la frase o corte + salto de nota).
+     */
+    _extendVoicedTailSec(vocalProfile, startSec, seedEndSec, hardMaxEndSec, naturalMaxDur = 2.6) {
+      const baseEnd = Math.max(startSec + 0.35, Math.min(hardMaxEndSec, seedEndSec));
+      if (!vocalProfile || !vocalProfile.vocEnergyDb || hardMaxEndSec <= baseEnd + 0.04) {
+        return baseEnd;
+      }
+      const fHz = vocalProfile.frameHz || 100;
+      const vDb = vocalProfile.vocEnergyDb;
+      const vMidi = vocalProfile.midiFrames;
+      const vClar = vocalProfile.rawClarityFrames;
+      const vCent = vocalProfile.centerRatioFrames;
+      const nF = vDb.length;
+      const th = Number.isFinite(vocalProfile.thVoc) ? vocalProfile.thVoc : -32;
+      const hasTonal = Boolean(vMidi && vClar && vMidi.length >= nF && vClar.length >= nF);
+
+      const fStart = Math.max(0, Math.min(nF - 1, Math.floor(startSec * fHz)));
+      const fSeed = Math.max(fStart, Math.min(nF - 1, Math.round(baseEnd * fHz)));
+      const maxCapSec = hasTonal
+        ? hardMaxEndSec
+        : Math.min(hardMaxEndSec, startSec + Math.max(naturalMaxDur * 1.45, 5.8));
+      const fHardMax = Math.max(fSeed, Math.min(nF - 1, Math.ceil(maxCapSec * fHz)));
+      const fNaturalLim = Math.min(fHardMax, fStart + Math.round(Math.max(0.75, naturalMaxDur) * fHz));
+
+      // Medir nivel vocal y foco central propios de la frase (actualizando dinámicamente peakPhraseDb
+      // cuando la sílaba sostenida llega más fuerte que el ataque inicial!).
+      const refDbVals = [];
+      const refCentVals = [];
+      for (let f = fStart; f <= Math.max(fStart + 8, fSeed); f++) {
+        if (f < nF) {
+          refDbVals.push(vDb[f]);
+          if (vCent) refCentVals.push(vCent[f]);
+        }
+      }
+      refDbVals.sort((a, b) => a - b);
+      let peakPhraseDb = refDbVals.length > 0 ? refDbVals[Math.floor(refDbVals.length * 0.85)] : th;
+      let peakCenterRef = 0.50;
+      if (refCentVals.length > 0) {
+        refCentVals.sort((a, b) => a - b);
+        peakCenterRef = refCentVals[Math.floor(refCentVals.length * 0.80)];
+      }
+
+      const isFrameVoiced = (f, deepSustain) => {
+        const eDb = vDb[f];
+        const strongCenter = Boolean(vCent && peakCenterRef >= 0.60);
+        const centMin = strongCenter
+          ? Math.max(0.36, peakCenterRef - (deepSustain ? 0.14 : 0.22))
+          : (deepSustain ? 0.38 : 0.34);
+        const centOk = !vCent || vCent[f] >= centMin;
+        const normalFloorDb = Math.max(th - 1.4, peakPhraseDb - 10.5);
+        const deepTonalFloorDb = Math.max(th - 1.6, peakPhraseDb - 7.4);
+        const deepEnergyFloorDb = Math.max(th - 0.2, peakPhraseDb - 6.8);
+        if (hasTonal) {
+          const tonalLock = vMidi[f] >= 45 && vClar[f] >= (deepSustain ? 0.40 : 0.36);
+          if (tonalLock && centOk && eDb >= (deepSustain ? deepTonalFloorDb : normalFloorDb)) return true;
+          if (!deepSustain && eDb >= normalFloorDb && centOk) return true;
+          if (deepSustain && eDb >= deepEnergyFloorDb && centOk) return true;
+          return false;
+        }
+        return eDb >= (deepSustain ? Math.max(th + 0.4, peakPhraseDb - 7.5) : normalFloorDb);
+      };
+
+      // Si en el propio entorno de `fSeed` la voz ya se apagó por completo (sin continuidad),
+      // no saltar a través de un silencio hacia una nota posterior.
+      const seedWinLo = Math.max(fStart, fSeed - Math.round(0.10 * fHz));
+      const seedWinHi = Math.min(fHardMax, fSeed + Math.round(0.10 * fHz));
+      let voicedNearSeed = 0;
+      for (let f = seedWinLo; f <= seedWinHi; f++) {
+        if (isFrameVoiced(f, false)) voicedNearSeed++;
+      }
+      if (voicedNearSeed < 3 && (baseEnd - startSec) >= 0.55) {
+        return baseEnd;
+      }
+
+      const silenceHoldFrames = Math.max(10, Math.round(0.24 * fHz));
+      let lastVoiced = fSeed;
+      let sustainMidiRef = 0;
+      let rollingDb = peakPhraseDb;
+      if (hasTonal) {
+        for (let f = Math.max(fStart, fSeed - 8); f <= fSeed; f++) {
+          if (vMidi[f] >= 45 && vClar[f] >= 0.40) sustainMidiRef = vMidi[f];
+        }
+      }
+
+      for (let f = fSeed; f <= fHardMax; f++) {
+        const deepSustain = f > fNaturalLim;
+        const eNow = vDb[f];
+        // Detectar corte vocal instantáneo hacia lecho instrumental (caída brusca >= 3.4 dB + salto de tono >= 4 st)
+        if (deepSustain && hasTonal && sustainMidiRef >= 45 && vMidi[f] >= 45) {
+          const jumpSt = Math.abs(vMidi[f] - sustainMidiRef);
+          if ((jumpSt >= 4.0 && eNow < rollingDb - 3.4) || (jumpSt >= 6.5 && eNow < peakPhraseDb - 5.5)) {
+            break;
+          }
+        }
+        if (isFrameVoiced(f, deepSustain)) {
+          if (eNow > peakPhraseDb) peakPhraseDb = eNow;
+          if (vCent && vCent[f] > peakCenterRef && eNow >= peakPhraseDb - 3.0) {
+            peakCenterRef = peakCenterRef * 0.85 + vCent[f] * 0.15;
+          }
+          if (hasTonal && vMidi[f] >= 45 && vClar[f] >= 0.40) {
+            sustainMidiRef = sustainMidiRef >= 45
+              ? (sustainMidiRef * 0.90 + vMidi[f] * 0.10)
+              : vMidi[f];
+          }
+          rollingDb = rollingDb * 0.94 + eNow * 0.06;
+          lastVoiced = f;
+        } else {
+          let silentRun = 0;
+          const checkLim = Math.min(fHardMax, f + silenceHoldFrames);
+          for (let s = f; s <= checkLim; s++) {
+            if (!isFrameVoiced(s, s > fNaturalLim)) silentRun++;
+          }
+          if (silentRun >= Math.min(silenceHoldFrames, checkLim - f + 1)) {
+            break;
+          }
+        }
+      }
+
+      return Math.max(baseEnd, Math.min(hardMaxEndSec, +((lastVoiced + 2) / fHz).toFixed(3)));
+    }
+
+    /**
      * Subdivide una palabra individual en sus sílabas fonéticas naturales y ancla cada sílaba
-     * dentro de la ventana acústica exacta [wordStartSec, wordEndSec] detectada por Whisper
-     * utilizando los picos de apertura vocálica a 100 Hz (10 ms) del audio real.
+     * dentro de la ventana acústica exacta [wordStartSec, wordEndSec] utilizando los picos
+     * de apertura vocálica a 100 Hz (10 ms) + detección de sílaba tónica sostenida (Viterbi 1D).
+     * En palabras largas sostenidas (p. ej. "a-MAAAAN-te" 3.0s), mantiene nítidas las sílabas
+     * átonas (0.15-0.32s) y asigna a la sílaba sostenida toda su meseta vocálica real.
      */
     _splitWordAndAlignSyllables100Hz(wordText, wordStartSec, wordEndSec, vocalProfile) {
       const cleanWord = repairSpanishBrokenAccents(String(wordText || '').trim());
@@ -8440,22 +8805,202 @@
       }
 
       const fHz = vocalProfile.frameHz || 100;
+      const vDb = vocalProfile.vocEnergyDb;
+      const vFlux = vocalProfile.vowelFlux;
+      const thVoc = Number.isFinite(vocalProfile.thVoc) ? vocalProfile.thVoc : -32;
       const f0 = Math.max(0, Math.floor(wordStartSec * fHz));
-      const f1 = Math.min(vocalProfile.vowelFlux.length - 1, Math.ceil(wordEndSec * fHz));
+      const f1 = Math.min(vFlux.length - 1, Math.ceil(wordEndSec * fHz));
       const M = f1 - f0 + 1;
-      const minStep = Math.max(3, Math.min(7, Math.floor(M / (K + 0.3))));
+      const minStep = Math.max(3, Math.min(8, Math.floor(M / (K + 0.3))));
+      const stressIdx = this._findStressedSyllableIndex(pieces, cleanWord);
+      const isLongSustainedWord = spanSec >= 0.65 && K >= 2;
 
-      // Pesos fonéticos por sílaba (vocales abiertas y tónicas duran más)
+      // Pesos fonéticos conscientes de sílaba tónica sostenida
       const weights = pieces.map((p, idx) => {
         let w = 1.0;
-        if (/[áéíóúÁÉÍÓÚ]/.test(p)) w += 0.32;
+        if (/[áéíóúÁÉÍÓÚ]/.test(p)) w += 0.36;
         if (/[aeoAEO]/.test(p)) w += 0.14;
-        if (idx === K - 1) w += 0.18;
+        if (idx === stressIdx) {
+          w += isLongSustainedWord ? (0.95 + Math.min(3.2, (spanSec - 0.55) * 1.45)) : 0.24;
+        }
+        if (idx === K - 1) {
+          w += isLongSustainedWord && idx !== stressIdx ? 0.16 : 0.22;
+        }
         return w;
       });
       const totalW = weights.reduce((a, b) => a + b, 0) || K;
 
       if (M >= K * minStep) {
+        if (isLongSustainedWord) {
+          // Viterbi 1D acústico con CDF de ataques y penalización de corte en meseta sostenida
+          const onsetCdf = new Float32Array(M + 1);
+          const isPlateau = new Uint8Array(M);
+          const prefPlateau = new Int32Array(M + 1);
+          const nAll = vDb.length;
+
+          for (let m = 0; m < M; m++) {
+            const fAbs = f0 + m;
+            const eDb = vDb[fAbs];
+            const flux = vFlux[fAbs] || 0;
+            const voiced = eDb >= (thVoc - 2.4);
+            const ePrev = vDb[Math.max(0, fAbs - 4)];
+            const eNext = vDb[Math.min(nAll - 1, fAbs + 4)];
+            const plateau = (voiced && flux < 0.85 && Math.abs(eDb - ePrev) < 2.0 && Math.abs(eDb - eNext) < 2.0) ? 1 : 0;
+            isPlateau[m] = plateau;
+            prefPlateau[m + 1] = prefPlateau[m] + plateau;
+            onsetCdf[m + 1] = onsetCdf[m] + (plateau ? 0.04 : (voiced ? (0.14 + Math.min(8.0, flux) * 1.2) : 0.04));
+          }
+
+          const totAct = onsetCdf[M] || 1;
+          const cdfFrame = (frac) => {
+            const target = Math.max(0, Math.min(1, frac)) * totAct;
+            let lo = 0;
+            let hi = M - 1;
+            while (lo < hi) {
+              const mid = (lo + hi) >> 1;
+              if (onsetCdf[mid + 1] < target) lo = mid + 1;
+              else hi = mid;
+            }
+            return f0 + lo;
+          };
+
+          const cdfBlend = Math.max(0.45, Math.min(0.84, (spanSec - 0.50) * 0.55));
+          const idealFrames = new Array(K);
+          let cumW = 0;
+          for (let k = 0; k < K; k++) {
+            const ratio = cumW / totalW;
+            const unifF = f0 + Math.round(ratio * Math.max(1, M - minStep));
+            const cF = cdfFrame(ratio);
+            idealFrames[k] = k === 0 ? f0 : Math.round((1 - cdfBlend) * unifF + cdfBlend * cF);
+            cumW += weights[k];
+          }
+          for (let k = 1; k < K; k++) {
+            if (idealFrames[k] < idealFrames[k - 1] + minStep) {
+              idealFrames[k] = idealFrames[k - 1] + minStep;
+            }
+          }
+
+          // DP exacto sobre K sílabas (K <= 6 -> < 0.15 ms)
+          const stride = M > 260 ? 2 : 1;
+          const Ms = Math.ceil(M / stride);
+          const minStepS = Math.max(1, Math.floor(minStep / stride));
+          const dp = new Float32Array(K * Ms).fill(-1e9);
+          const back = new Int32Array(K * Ms).fill(-1);
+          dp[0] = 0;
+
+          for (let k = 1; k < K; k++) {
+            const expGapS = Math.max(minStepS, (idealFrames[k] - idealFrames[k - 1]) / stride);
+            const isPrevSustainCand = (k - 1 === stressIdx || k - 1 === K - 1);
+            const devScale = Math.max(8, M * 0.34);
+
+            for (let ms = k * minStepS; ms < Ms - (K - 1 - k) * minStepS; ms++) {
+              const m = Math.min(M - 1, ms * stride);
+              const fAbs = f0 + m;
+              const dev = Math.abs(fAbs - idealFrames[k]) / devScale;
+              const plateauPen = isPlateau[m] ? 2.45 : 0;
+              const emit = vFlux[fAbs] * 1.65 + (vDb[fAbs] - thVoc) * 0.12 - dev * dev * 1.15 - plateauPen;
+
+              const pMin = (k - 1) * minStepS;
+              const pMax = ms - minStepS;
+              let bestVal = -1e9;
+              let bestP = -1;
+              for (let pms = pMin; pms <= pMax; pms++) {
+                const pv = dp[(k - 1) * Ms + pms];
+                if (pv <= -1e8) continue;
+                const gapS = ms - pms;
+                const gapSec = (gapS * stride) / fHz;
+                let transPen = 0;
+                if (!isPrevSustainCand && gapSec > 0.42) {
+                  // Las sílabas átonas de una palabra larga suelen ser nítidas (<= 0.38s) salvo meseta clara
+                  const over = (gapSec - 0.38) / 0.25;
+                  transPen = over * over * 1.45;
+                } else {
+                  const gd = (gapS - expGapS) / Math.max(3, expGapS * 0.72);
+                  transPen = gd * gd * 0.90;
+                }
+                if (gapS > expGapS * 1.1) {
+                  const pm = Math.min(M - 1, pms * stride);
+                  const inner = Math.max(1, (m - 2) - (pm + 2));
+                  const pFrac = (m - 2 > pm + 2) ? ((prefPlateau[m - 2] - prefPlateau[pm + 2]) / inner) : 0;
+                  if (pFrac >= 0.45) transPen *= Math.max(0.14, 1.0 - pFrac * 0.88);
+                }
+                const cand = pv - transPen;
+                if (cand > bestVal) {
+                  bestVal = cand;
+                  bestP = pms;
+                }
+              }
+              if (bestP !== -1) {
+                dp[k * Ms + ms] = bestVal + emit;
+                back[k * Ms + ms] = bestP;
+              }
+            }
+          }
+
+          // Evaluar el tramo final [lastSylStart .. M-1] favoreciendo que una última sílaba átona sea nítida
+          // y una última sílaba tónica/sostenida absorba la meseta final
+          const lastIsStressed = (K - 1 === stressIdx);
+          let bestEndMs = -1;
+          let bestEndVal = -1e9;
+          for (let ms = (K - 1) * minStepS; ms < Ms; ms++) {
+            const baseV = dp[(K - 1) * Ms + ms];
+            if (baseV <= -1e8) continue;
+            const tailSec = ((M - 1) - Math.min(M - 1, ms * stride)) / fHz;
+            let tailPen = 0;
+            if (!lastIsStressed && tailSec > 0.46) {
+              const mStart = Math.min(M - 1, ms * stride);
+              const inner = Math.max(1, (M - 2) - (mStart + 2));
+              const pFrac = (M - 2 > mStart + 2) ? ((prefPlateau[M - 2] - prefPlateau[mStart + 2]) / inner) : 0;
+              // Si la sílaba final átona NO tiene meseta propia sino que corta el sostenido tónico, penalizar
+              if (pFrac < 0.70) {
+                const over = (tailSec - 0.36) / 0.25;
+                tailPen = over * over * 1.25;
+              }
+            }
+            const score = baseV - tailPen;
+            if (score > bestEndVal) {
+              bestEndVal = score;
+              bestEndMs = ms;
+            }
+          }
+
+          if (bestEndMs !== -1 && bestEndVal > -1e7) {
+            const chosenFrames = new Array(K);
+            let curMs = bestEndMs;
+            for (let k = K - 1; k >= 0; k--) {
+              chosenFrames[k] = f0 + Math.min(M - 1, curMs * stride);
+              curMs = back[k * Ms + curMs];
+            }
+            chosenFrames[0] = f0;
+            if (stride > 1) {
+              for (let k = 1; k < K; k++) {
+                const loF = Math.max(chosenFrames[k - 1] + minStep, chosenFrames[k] - 3);
+                const hiF = Math.min((k + 1 < K ? chosenFrames[k + 1] - minStep : f1 - minStep), chosenFrames[k] + 3);
+                let bF = chosenFrames[k];
+                let bSc = -1e9;
+                for (let f = loF; f <= hiF; f++) {
+                  const sc = vFlux[f] * 1.5 - (isPlateau[f - f0] ? 2.0 : 0);
+                  if (sc > bSc) { bSc = sc; bF = f; }
+                }
+                chosenFrames[k] = bF;
+              }
+            }
+            const outSyls = [];
+            for (let k = 0; k < K; k++) {
+              const sSec = k === 0 ? wordStartSec : (chosenFrames[k] / fHz);
+              const nextSec = (k + 1 < K) ? (chosenFrames[k + 1] / fHz) : wordEndSec;
+              const eSec = Math.max(sSec + 0.075, Math.min(wordEndSec, nextSec - 0.01));
+              outSyls.push({
+                text: pieces[k],
+                displayText: k === K - 1 ? `${pieces[k]} ` : pieces[k],
+                startSec: +sSec.toFixed(3),
+                endSec: +eSec.toFixed(3)
+              });
+            }
+            return outSyls;
+          }
+        }
+
         const idealFrames = [];
         let cumW = 0;
         for (let k = 0; k < K; k++) {
@@ -8478,7 +9023,7 @@
           const sHi = Math.min(maxF, targetF + searchR);
           for (let f = sLo; f <= sHi; f++) {
             const dev = (f - targetF) / Math.max(3, searchR);
-            const score = vocalProfile.vowelFlux[f] * 1.6 + (vocalProfile.vocEnergyDb[f] - vocalProfile.thVoc) * 0.15 - dev * dev * 2.1;
+            const score = vFlux[f] * 1.6 + (vDb[f] - thVoc) * 0.15 - dev * dev * 2.1;
             if (score > bestScore) {
               bestScore = score;
               bestF = f;
@@ -8753,7 +9298,8 @@
             norm: n,
             phon: phonNorm(n),
             startSec: Number.isFinite(sSec) ? Math.max(0, sSec) : -1,
-            endSec: Number.isFinite(eSec) ? Math.max(sSec + 0.10, eSec) : (sSec + 0.30)
+            endSec: Number.isFinite(eSec) ? Math.max(sSec + 0.10, eSec) : (sSec + 0.30),
+            isWinStartEdge: Boolean(w?.isWinStartEdge)
           };
         })
         .filter(w => w.startSec >= 0 && w.norm.length >= 1 && !HALLUCINATION_TOKENS.has(w.norm))
@@ -9258,6 +9804,7 @@
       // 8) Calcular anclas por línea con offset absoluto real (offsetSec = estStart - rl.rawStart)
       const lineAnchors = new Array(rawLines.length).fill(null);
       let prevAnchoredEndSec = -1;
+      let prevAnchoredIdx = -1;
 
       for (let li = 0; li < rawLines.length; li++) {
         const span = lineWordSpans[li];
@@ -9276,7 +9823,8 @@
               rTok,
               startSec: snappedS,
               endSec: snappedE,
-              sim: m.sim
+              sim: m.sim,
+              isWinStartEdge: Boolean(m.w.isWinStartEdge)
             });
           }
         }
@@ -9288,11 +9836,11 @@
         const firstHit = hits[0];
         const lastHit = hits[hits.length - 1];
 
-        // Mediana ponderada robusta de inicio de verso (palabras de contenido 3x vs stopwords 0.35x):
-        // evita que una stopword aislada pegada al inicio de ventana Whisper ("Y@0.00s") adelante el verso -1.3s.
+        // Mediana ponderada robusta de inicio de verso (palabras de contenido 3x vs stopwords/bordes de ventana):
+        // evita que una palabra pegada al t0=0.0s de la ventana Whisper (acorde/cola previa) adelante el verso ~1s.
         const startEsts = hits.map((h) => ({
           val: Math.max(0, h.startSec - Math.max(0, (h.rTok.rawStartSec - rl.rawStart) * finalSlope)),
-          w: (!h.rTok.isStop ? 3.0 : 0.35) * (h.wi === 0 && !h.rTok.isStop ? 1.5 : 1.0)
+          w: (h.isWinStartEdge ? 0.35 : (!h.rTok.isStop ? 3.0 : 0.40)) * (h.wi === 0 && !h.rTok.isStop && !h.isWinStartEdge ? 1.5 : 1.0)
         })).sort((a, b) => a.val - b.val);
         const totalEstW = startEsts.reduce((s, e) => s + e.w, 0) || 1;
         let accEstW = 0;
@@ -9307,24 +9855,37 @@
         const firstHitEst = firstHit.wi === 0
           ? firstHit.startSec
           : Math.max(0, firstHit.startSec - Math.max(0, (firstHit.rTok.rawStartSec - rl.rawStart) * finalSlope));
+        const isWinEdgeEarlyOutlier = Boolean(
+          firstHit.wi === 0 && firstHit.isWinStartEdge && hits.length >= 2 && (medEstStart - firstHit.startSec) > 0.42
+        );
         const isEarlyStopwordOutlier = Boolean(
-          firstHit.wi === 0 && firstHit.rTok.isStop && hits.length >= 2 && (medEstStart - firstHit.startSec) > 0.55
+          firstHit.wi === 0 && firstHit.rTok.isStop && hits.length >= 2 && (medEstStart - firstHit.startSec) > 1.35
         );
         const isMidLineFirstOutlier = Boolean(
           firstHit.wi > 0 && hits.length >= 3 && Math.abs(firstHitEst - medEstStart) > 1.1
         );
-        const estStart = (isEarlyStopwordOutlier || isMidLineFirstOutlier)
+        const estStart = (isWinEdgeEarlyOutlier || isEarlyStopwordOutlier || isMidLineFirstOutlier)
           ? medEstStart
           : firstHitEst;
         const estEnd = (lastHit.wi === span.count - 1)
           ? lastHit.endSec
           : Math.max(estStart + 0.55, lastHit.endSec + Math.max(0, (rl.rawEnd - lastHit.rTok.rawEndSec) * finalSlope));
 
-        // Guardia anti-robo de palabra final: si solo coincidió 1 palabra NO inicial cuya retroproyección
-        // invade la línea anterior ya anclada o salta > 2.5s respecto a priorTime, descartar esa ancla espuria.
+        // Guardia anti-robo de estribillo/línea previa:
+        // 1) Si solo coincidió 1 palabra NO inicial cuya retroproyección invade la línea previa o salta >2.5s vs priorTime, descartar.
+        // 2) Si un ancla empieza >1.05s ANTES de terminar la línea anterior ya anclada (p. ej. estribillo repetido
+        //    que roba palabras de la 2ª mitad del verso previo) y su desfase salta < -1.6s, descartar el robo.
         if (hits.length === 1 && firstHit.wi > 0) {
           const pStart = priorTime(rl.rawStart);
           if ((prevAnchoredEndSec > 0 && estStart < prevAnchoredEndSec - 0.35) || Math.abs(estStart - pStart) > 2.5) {
+            continue;
+          }
+        }
+        if (prevAnchoredIdx >= 0 && prevAnchoredEndSec > 0 && estStart < prevAnchoredEndSec - 1.05) {
+          const prevA = lineAnchors[prevAnchoredIdx];
+          const curOff = Math.max(0, estStart) - rl.rawStart;
+          const rawGapFromPrev = rl.rawStart - rawLines[prevAnchoredIdx].rawEnd;
+          if (prevA && rawGapFromPrev >= -0.25 && rawGapFromPrev <= 4.0 && (curOff - prevA.offsetSec) < -1.60) {
             continue;
           }
         }
@@ -9338,6 +9899,7 @@
           hits
         };
         prevAnchoredEndSec = clampedEnd;
+        prevAnchoredIdx = li;
       }
 
       // Filtro de picos aislados (3 puntos interior + extremos): descartar anclas débiles que salten > 2.1s respecto a 2 vecinas concordantes en la misma estrofa
@@ -9386,6 +9948,44 @@
         const lastGap = rawLines[anchoredIndices[nAnch - 1]].rawStart - rawLines[anchoredIndices[nAnch - 2]].rawEnd;
         checkEdgeSpike(anchoredIndices[nAnch - 1], anchoredIndices[nAnch - 2], anchoredIndices[nAnch - 3], Math.max(0, lastGap));
 
+        // Guardia de sobreimpulso en frontera de sección:
+        // Si un ancla débil (<=2 palabras de contenido) está pegada (<3.5s) a una meseta concordante de 2+ líneas
+        // y SOBREIMPULSA >2.1s más allá de esa meseta en sentido opuesto a la sección contigua, descartarla.
+        for (let k = 1; k < nAnch - 1; k++) {
+          const curAi = anchoredIndices[k];
+          const curA = lineAnchors[curAi];
+          if (!curA || curA.contentHitCount > 2) continue;
+          const prevOff = lineAnchors[anchoredIndices[k - 1]].offsetSec;
+          const nextOff = lineAnchors[anchoredIndices[k + 1]].offsetSec;
+          if (k + 2 < nAnch) {
+            const n1Ai = anchoredIndices[k + 1];
+            const n2Ai = anchoredIndices[k + 2];
+            const gapFwd = Math.max(0, rawLines[n1Ai].rawStart - rawLines[curAi].rawEnd);
+            const o1 = lineAnchors[n1Ai].offsetSec;
+            const o2 = lineAnchors[n2Ai].offsetSec;
+            if (gapFwd < 3.5 && Math.abs(o1 - o2) <= 1.35) {
+              const avgN = 0.5 * (o1 + o2);
+              if (Math.abs(curA.offsetSec - avgN) > 2.1 && ((curA.offsetSec - avgN) * (avgN - prevOff)) > 0) {
+                toDrop.push(curAi);
+                continue;
+              }
+            }
+          }
+          if (k >= 2) {
+            const p1Ai = anchoredIndices[k - 1];
+            const p2Ai = anchoredIndices[k - 2];
+            const gapBack = Math.max(0, rawLines[curAi].rawStart - rawLines[p1Ai].rawEnd);
+            const o1 = lineAnchors[p1Ai].offsetSec;
+            const o2 = lineAnchors[p2Ai].offsetSec;
+            if (gapBack < 3.5 && Math.abs(o1 - o2) <= 1.35) {
+              const avgP = 0.5 * (o1 + o2);
+              if (Math.abs(curA.offsetSec - avgP) > 2.1 && ((curA.offsetSec - avgP) * (avgP - nextOff)) > 0) {
+                toDrop.push(curAi);
+              }
+            }
+          }
+        }
+
         for (const dropIdx of toDrop) lineAnchors[dropIdx] = null;
         if (toDrop.length > 0) {
           anchoredIndices = [];
@@ -9432,12 +10032,15 @@
 
       // 10) Curva por tramos consciente de pausas entre estrofas para líneas no ancladas (CERO decaimiento exponencial)
       const intervalSplitCache = new Map();
-      const getIntervalSplitIdx = (prevIdx, nextIdx) => {
-        const cKey = `${prevIdx}_${nextIdx}`;
+      const getIntervalSplitIdx = (prevIdx, nextIdx, offDelta = 0) => {
+        const cKey = `${prevIdx}_${nextIdx}_${offDelta > 2.0 ? 1 : 0}`;
         if (intervalSplitCache.has(cKey)) return intervalSplitCache.get(cKey);
         const gaps = [];
         let maxGap = -1;
         let maxGapIdx = -1;
+        let minGap = 9999;
+        let minGapIdx = -1;
+        let crushedCount = 0;
         for (let k = prevIdx; k < nextIdx; k++) {
           const g = Math.max(0, rawLines[k + 1].rawStart - rawLines[k].rawEnd);
           gaps.push(g);
@@ -9445,11 +10048,20 @@
             maxGap = g;
             maxGapIdx = k;
           }
+          if (g < minGap) {
+            minGap = g;
+            minGapIdx = k;
+          }
+          if (g <= 0.28) crushedCount++;
         }
         const sortedG = gaps.slice().sort((a, b) => a - b);
         const medGap = sortedG[Math.floor(sortedG.length / 2)] || 0;
         // Saltar en el corte de estrofa/interludio cuando existe una pausa musical dominante (>= 1.30s)
-        const splitK = (maxGapIdx >= 0 && maxGap >= Math.max(1.30, medGap * 1.15)) ? maxGapIdx : -1;
+        // o un solape aplastado único (<= 0.28s entre pausas normales >= 0.85s) cuando un bloque LRC se desplazó hacia delante.
+        let splitK = (maxGapIdx >= 0 && maxGap >= Math.max(1.30, medGap * 1.15)) ? maxGapIdx : -1;
+        if (splitK < 0 && offDelta > 2.0 && crushedCount === 1 && minGapIdx >= 0 && minGap <= 0.28 && medGap >= 0.85) {
+          splitK = minGapIdx;
+        }
         intervalSplitCache.set(cKey, splitK);
         return splitK;
       };
@@ -9512,7 +10124,7 @@
         const jump = Math.abs(offNext - offPrev);
 
         if (jump > 2.4) {
-          const splitK = getIntervalSplitIdx(prevIdx, nextIdx);
+          const splitK = getIntervalSplitIdx(prevIdx, nextIdx, offNext - offPrev);
           if (splitK >= 0) {
             return Math.max(0, rl.rawStart + (li <= splitK ? offPrev : offNext));
           }
@@ -9683,12 +10295,24 @@
             }
           }
 
+          const nextLineStartBound = (li + 1 < draftLines.length)
+            ? Math.max(dl.endSec, draftLines[li + 1].startSec - 0.05)
+            : Math.min(actualDurSec > 10 ? actualDurSec : 9999, dl.endSec + 5.5);
           const syls = [];
           let prevEnd = dl.startSec;
           for (let k = 0; k < span.count; k++) {
             const wt = wordTimes[k];
             const ws = Math.max(prevEnd, wt.s);
-            const we = Math.max(ws + 0.09, wt.e);
+            let we = Math.max(ws + 0.09, wt.e);
+            if (k === span.count - 1 && vocalProfile && vocalProfile.vocEnergyDb && (nextLineStartBound - we) >= 0.22) {
+              we = this._extendVoicedTailSec(
+                vocalProfile,
+                ws,
+                we,
+                Math.min(nextLineStartBound, ws + 6.5),
+                Math.max(0.85, we - ws)
+              );
+            }
             prevEnd = we;
             const wSyls = this._splitWordAndAlignSyllables100Hz(R[span.startIdx + k].rawText, ws, we, vocalProfile);
             for (const sObj of wSyls) syls.push(sObj);
@@ -9995,17 +10619,20 @@
           if (count <= 0) return;
           let sumW = 0;
           for (let i = startIdx; i < endIdx; i++) sumW += lineWeights[i];
-          const avail = Math.max(count * 0.65, rangeEndSec - rangeStartSec);
+          const safeEnd = Math.max(rangeStartSec + count * 0.24, rangeEndSec);
+          const avail = safeEnd - rangeStartSec;
+          const minStep = Math.min(0.55, avail / count);
+          const extra = Math.max(0, avail - count * minStep);
           let cur = rangeStartSec;
           for (let i = startIdx; i < endIdx; i++) {
-            const dur = Math.max(0.55, avail * (lineWeights[i] / Math.max(1, sumW)));
+            const dur = minStep + extra * (lineWeights[i] / Math.max(1, sumW));
             const s = cur;
             const e = Math.min(actualDurSec - 0.15, cur + Math.min(dur * 0.92, 4.6));
             anchoredLines[i] = {
               ...cleanPlain[i],
               _origTimeSec: +s.toFixed(2),
               timeSec: +s.toFixed(2),
-              endTimeSec: +Math.max(s + 0.50, e).toFixed(2),
+              endTimeSec: +Math.max(s + Math.min(0.50, Math.max(0.18, dur * 0.85)), e).toFixed(2),
               _isUnalignedPlainLyrics: false,
               _whisperAlignedPlain: true
             };
@@ -10017,8 +10644,8 @@
         const firstAi = anchorIndices[0];
         if (firstAi > 0) {
           const firstAnchorStart = lineAnchors.get(firstAi).startSec;
-          const leadStart = Math.min(Math.max(0, firstAnchorStart - firstAi * 2.8), firstVocalSec);
-          fillRange(0, firstAi, Math.max(0, leadStart), Math.max(leadStart + firstAi * 0.7, firstAnchorStart - 0.08));
+          const leadStart = Math.max(0, Math.min(firstAnchorStart - firstAi * 2.8, firstVocalSec, firstAnchorStart - firstAi * 0.35));
+          fillRange(0, firstAi, leadStart, Math.max(leadStart + firstAi * 0.24, firstAnchorStart - 0.06));
         }
 
         // Anclas y huecos intermedios
@@ -10035,9 +10662,15 @@
           };
           if (aiPos + 1 < anchorIndices.length) {
             const nextIdx = anchorIndices[aiPos + 1];
-            if (nextIdx > idx + 1) {
+            const gapCount = nextIdx - idx - 1;
+            if (gapCount > 0) {
               const nextAnc = lineAnchors.get(nextIdx);
-              fillRange(idx + 1, nextIdx, anc.endSec + 0.06, Math.max(anc.endSec + (nextIdx - idx) * 0.65, nextAnc.startSec - 0.06));
+              const gapEnd = Math.max(anc.startSec + 0.28 + gapCount * 0.24, nextAnc.startSec - 0.05);
+              const gapStart = Math.min(anc.endSec + 0.04, Math.max(anc.startSec + 0.24, gapEnd - gapCount * 0.28));
+              if (anchoredLines[idx].endTimeSec > gapStart - 0.02) {
+                anchoredLines[idx].endTimeSec = +Math.max(anc.startSec + 0.20, gapStart - 0.02).toFixed(2);
+              }
+              fillRange(idx + 1, nextIdx, gapStart, gapEnd);
             }
           }
         }
@@ -10098,7 +10731,47 @@
       }
 
       const validAnchored = anchoredLines.filter(Boolean);
-      return this._alignSyllablesWithVocalProfile(key, validAnchored, vocalProfile, actualDurSec);
+      for (let i = 1; i < validAnchored.length; i++) {
+        const prev = validAnchored[i - 1];
+        const cur = validAnchored[i];
+        if (cur.timeSec < prev.timeSec + 0.22) {
+          cur.timeSec = +(prev.timeSec + 0.22).toFixed(2);
+          cur._origTimeSec = cur.timeSec;
+        }
+        if (prev.endTimeSec > cur.timeSec - 0.03) {
+          prev.endTimeSec = +Math.max(prev.timeSec + 0.16, cur.timeSec - 0.03).toFixed(2);
+        }
+        if (cur.endTimeSec < cur.timeSec + 0.22) {
+          cur.endTimeSec = +Math.min(actualDurSec - 0.12, cur.timeSec + 0.42).toFixed(2);
+        }
+      }
+      const alignedOut = this._alignSyllablesWithVocalProfile(key, validAnchored, vocalProfile, actualDurSec);
+      for (let i = 1; i < alignedOut.length; i++) {
+        const prev = alignedOut[i - 1];
+        const cur = alignedOut[i];
+        if (cur.timeSec < prev.timeSec + 0.06) {
+          const shift = +(prev.timeSec + 0.06 - cur.timeSec).toFixed(3);
+          cur.timeSec = +(cur.timeSec + shift).toFixed(3);
+          cur._origTimeSec = cur.timeSec;
+          cur.endTimeSec = +Math.max(cur.timeSec + 0.20, (cur.endTimeSec || cur.timeSec) + shift).toFixed(3);
+          if (Array.isArray(cur.singstarSyllables)) {
+            for (const syl of cur.singstarSyllables) {
+              syl.startSec = +(syl.startSec + shift).toFixed(3);
+              syl.endSec = +(syl.endSec + shift).toFixed(3);
+            }
+          }
+          if (Array.isArray(cur.words)) {
+            for (const w of cur.words) {
+              w.timeSec = +(w.timeSec + shift).toFixed(3);
+              if (Number.isFinite(w.endSec)) w.endSec = +(w.endSec + shift).toFixed(3);
+            }
+          }
+        }
+        if (prev.endTimeSec > cur.timeSec - 0.02) {
+          prev.endTimeSec = +Math.max(prev.timeSec + 0.14, cur.timeSec - 0.02).toFixed(3);
+        }
+      }
+      return alignedOut;
     }
 
     /**
@@ -10181,12 +10854,24 @@
       }
       if (curGroup.length > 0) lines.push(curGroup);
 
-      return lines.map((wordGroup) => {
+      return lines.map((wordGroup, li) => {
+        const nextLineFirstStart = (li + 1 < lines.length && lines[li + 1][0])
+          ? Math.max(wordGroup[wordGroup.length - 1].startSec + 0.30, lines[li + 1][0].startSec - 0.05)
+          : Math.min(actualDurSec, wordGroup[wordGroup.length - 1].startSec + 6.5);
         const syls = [];
         for (let wi = 0; wi < wordGroup.length; wi++) {
           const w = wordGroup[wi];
           const nextW = wordGroup[wi + 1];
-          const maxWordEnd = nextW ? Math.max(w.startSec + 0.12, Math.min(w.endSec, nextW.startSec - 0.015)) : w.endSec;
+          let maxWordEnd = nextW ? Math.max(w.startSec + 0.12, Math.min(w.endSec, nextW.startSec - 0.015)) : w.endSec;
+          if (!nextW && vocalProfile && vocalProfile.vocEnergyDb && (nextLineFirstStart - maxWordEnd) >= 0.22) {
+            maxWordEnd = this._extendVoicedTailSec(
+              vocalProfile,
+              w.startSec,
+              maxWordEnd,
+              Math.min(nextLineFirstStart, w.startSec + 6.5),
+              Math.max(0.80, maxWordEnd - w.startSec)
+            );
+          }
           const wordSyls = this._splitWordAndAlignSyllables100Hz(w.text, w.startSec, maxWordEnd, vocalProfile);
           syls.push(...wordSyls);
         }
@@ -10473,18 +11158,34 @@
             const isRefSyncMode = Boolean(hasReferenceLyrics && !isPlainUnaligned);
             const refStartSec = (isRefSyncMode && rawRefLines.length >= 2) ? Number(rawRefLines[0]._rawLrcTimeSec) : undefined;
             const refEndSec = (isRefSyncMode && rawRefLines.length >= 2) ? Number(rawRefLines[rawRefLines.length - 1]._rawLrcEndTimeSec) : undefined;
+            const fastBandpassProf = (effVocalProfile && effVocalProfile.isFastEnvelopeOnly)
+              ? effVocalProfile
+              : ((!effVocalProfile || !Number.isFinite(effVocalProfile.firstVocalSec) || effVocalProfile.firstVocalSec < 4.0)
+                  ? this._extractFast100HzVocalProfileFromMono16k(mono16k)
+                  : null);
+            const fastVocalStartSec = (fastBandpassProf && Number.isFinite(fastBandpassProf.firstVocalSec) && fastBandpassProf.firstVocalSec >= 4.0)
+              ? Math.max(0, fastBandpassProf.firstVocalSec - 5.0)
+              : 0;
             const windows = this._findActiveVocalWindowsForWhisper(effVocalProfile, actualDurSec, prioritySec, {
               forAlignment: hasReferenceLyrics,
               isPlainUnaligned,
-              maxProbes: isRefSyncMode ? 9 : 0,
+              maxProbes: isRefSyncMode ? 9 : (isPlainUnaligned ? 6 : 0),
               refStartSec,
-              refEndSec
+              refEndSec,
+              fastVocalStartSec
             });
-            const maxNonEmptyGoal = isRefSyncMode ? Math.min(6, windows.length) : windows.length;
-            const fastUniformGoal = isRefSyncMode ? Math.min(3, maxNonEmptyGoal) : windows.length;
-            const minSpanForConverge = Math.min(38.0, Math.max(18.0, actualDurSec * 0.36));
+            const baseNonEmptyGoal = isRefSyncMode ? Math.min(5, windows.length) : windows.length;
+            const piecewiseNonEmptyGoal = isRefSyncMode ? Math.min(6, windows.length) : windows.length;
+            const fastUniformGoal = isRefSyncMode ? Math.min(2, baseNonEmptyGoal) : windows.length;
+            const minSpanForConverge = Math.min(54.0, Math.max(24.0, actualDurSec * 0.34));
             const poolWidth = Math.max(1, Math.min(2, this._whisperWorkerPoolSize || 1));
             let expandedForPiecewise = false;
+            let requeuedWave1Scout = false;
+            let wave1ScoutWeak = false;
+            let zeroWinRetries = 0;
+            let dispatchedWinCalls = 0;
+            this._whisperNextTsMode = true;
+            const getActiveGoal = () => (expandedForPiecewise ? piecewiseNonEmptyGoal : baseNonEmptyGoal);
             const collectedWords = [];
             let nonEmptyWins = 0;
             let reachedGoal = false;
@@ -10519,7 +11220,9 @@
 
             const updateWorkingUi = (winRef, stepNum) => {
               const dispTotal = isRefSyncMode
-                ? (expandedForPiecewise || nonEmptyWins >= fastUniformGoal ? maxNonEmptyGoal : fastUniformGoal)
+                ? (expandedForPiecewise
+                    ? piecewiseNonEmptyGoal
+                    : (nonEmptyWins >= fastUniformGoal ? baseNonEmptyGoal : fastUniformGoal))
                 : windows.length;
               const dispStep = Math.min(dispTotal, Math.max(1, stepNum));
               const stepLabel = lockedOnce
@@ -10546,30 +11249,75 @@
 
             const processWindowOutput = (res, wIdxUsed) => {
               if (!isStillRelevant()) return;
-              if (!res || !Array.isArray(res.words) || res.words.length === 0) return;
+              const winUsedObj = windows[wIdxUsed];
+              const isDtwUpgradeWin = Boolean(winUsedObj && winUsedObj._isDtwUpgrade);
+              const winStartRef = Number.isFinite(Number(res?.startSec)) ? Number(res.startSec) : -1;
+              const winEndRef = Number.isFinite(Number(res?.endSec)) ? Number(res.endSec) : -1;
+              const isWordDtwResult = Boolean(res && res.tsMode === 'word' && !res.dtwCollapsed);
+              const rawResWords = (
+                res &&
+                !isWordDtwResult &&
+                Array.isArray(res.rawChunks) &&
+                res.rawChunks.length > 0 &&
+                effVocalProfile &&
+                effVocalProfile.vocEnergyDb
+              )
+                ? this._refineWhisperChunksWithVocalProfile(res.rawChunks, effVocalProfile, actualDurSec, winStartRef)
+                : (Array.isArray(res?.words) ? res.words : []);
+              const useWords = rawResWords.length > 0 ? rawResWords : (Array.isArray(res?.words) ? res.words : []);
+              if (wIdxUsed === 1 && !isWordDtwResult) {
+                const rawChs = Array.isArray(res?.rawChunks) ? res.rawChunks : [];
+                let maxChunkDur = 0;
+                for (const rc of rawChs) {
+                  const d = (Number(rc?.endSec) || 0) - (Number(rc?.startSec) || 0);
+                  if (d > maxChunkDur) maxChunkDur = d;
+                }
+                wave1ScoutWeak = (useWords.length < 16 || rawChs.length <= 1 || maxChunkDur >= 5.2);
+              }
+              if (useWords.length === 0) return;
 
-              nonEmptyWins++;
-              for (const w of res.words) {
+              if (!isDtwUpgradeWin && (!isRefSyncMode || useWords.length >= 6)) {
+                nonEmptyWins++;
+              }
+              // Si llegan palabras precisas DTW ('word'), reemplazar palabras gruesas de segmento en la misma franja
+              if (isWordDtwResult && winStartRef >= 0 && winEndRef > winStartRef + 2.0) {
+                for (let ci = collectedWords.length - 1; ci >= 0; ci--) {
+                  const ew = collectedWords[ci];
+                  if (ew.fromSegmentMode && ew.startSec >= winStartRef - 0.35 && ew.startSec <= winEndRef + 0.35) {
+                    collectedWords.splice(ci, 1);
+                  }
+                }
+              }
+              for (const w of useWords) {
                 const txt = String(w?.text || '').trim();
                 if (!txt) continue;
                 const sSec = Number(w.startSec);
                 const eSec = Number(w.endSec);
                 if (!Number.isFinite(sSec)) continue;
-                const dup = collectedWords.some(
+                const dup = collectedWords.find(
                   (ew) => Math.abs(ew.startSec - sSec) < 0.30 && ew.text.toLowerCase() === txt.toLowerCase()
                 );
                 if (!dup) {
                   collectedWords.push({
                     text: txt,
                     startSec: sSec,
-                    endSec: Number.isFinite(eSec) ? Math.max(sSec + 0.10, eSec) : +(sSec + 0.32).toFixed(3)
+                    endSec: Number.isFinite(eSec) ? Math.max(sSec + 0.10, eSec) : +(sSec + 0.32).toFixed(3),
+                    isWinStartEdge: Boolean(w.isWinStartEdge),
+                    fromSegmentMode: !isWordDtwResult
                   });
+                } else {
+                  if (dup.isWinStartEdge && !w.isWinStartEdge) dup.isWinStartEdge = false;
+                  if (dup.fromSegmentMode && isWordDtwResult) {
+                    dup.startSec = sSec;
+                    dup.endSec = Number.isFinite(eSec) ? Math.max(sSec + 0.10, eSec) : +(sSec + 0.32).toFixed(3);
+                    dup.fromSegmentMode = false;
+                  }
                 }
               }
               collectedWords.sort((a, b) => a.startSec - b.startSec);
 
-              let localReached = Boolean(isRefSyncMode && nonEmptyWins >= maxNonEmptyGoal);
-              let isLastWin = (wIdxUsed >= windows.length - 1) || localReached;
+              let localReached = false;
+              let isLastWin = (wIdxUsed >= windows.length - 1);
 
               if (hasReferenceLyrics && isPlainUnaligned) {
                 const alignedPlain = this._alignPlainLyricsWithWhisperAndIslands(
@@ -10588,8 +11336,8 @@
                 }
               } else if (hasReferenceLyrics) {
                 // Actualizar en vivo al instante en que acaba cada worker:
-                // - Convergencia rápida en 3 ventanas de 22s (2 oleadas paralelas) si toda la canción es uniforme
-                // - Expansión automática paralela a 6 ventanas si detecta cortes / saltos no lineales por tramos
+                // - Oleada 1 (2 ventanas en paralelo, timestamps nativos + CDF 100 Hz): converge en ~7.5s en pistas uniformes
+                // - Si detecta cortes / saltos no lineales por tramos, Oleada 2+ activa modo palabra DTW
                 const alignRes = this._alignReferenceLyricsToWhisperRealAudio(
                   key,
                   rawRefLines,
@@ -10600,25 +11348,33 @@
                 if (alignRes && alignRes.hasGlobalLock && Array.isArray(alignRes.lines) && alignRes.lines.length >= 2) {
                   const secSpread = Number.isFinite(alignRes.bucketSpreadSec) ? alignRes.bucketSpreadSec : alignRes.spreadSec;
                   const maxResid = Number.isFinite(alignRes.maxLinearResidSec) ? alignRes.maxLinearResidSec : secSpread;
-                  const isNonLinearNow = Boolean(alignRes.isPiecewise || secSpread > 0.85);
-                  expandedForPiecewise = Boolean(nonEmptyWins >= 2 && isNonLinearNow);
+                  const isNonLinearNow = Boolean(alignRes.isPiecewise || secSpread > 0.72);
+                  if (nonEmptyWins >= 2 && isNonLinearNow) {
+                    if (!expandedForPiecewise && !requeuedWave1Scout && wave1ScoutWeak && windows.length >= 2 && wIdx >= 2) {
+                      requeuedWave1Scout = true;
+                      windows.splice(wIdx, 0, { ...windows[1], _isDtwUpgrade: true });
+                    }
+                    expandedForPiecewise = true;
+                  }
 
                   const earlyUniformConverged = Boolean(
                     isRefSyncMode &&
                     !expandedForPiecewise &&
                     nonEmptyWins >= fastUniformGoal &&
-                    alignRes.bucketCount >= Math.min(3, fastUniformGoal) &&
+                    alignRes.bucketCount >= Math.min(2, fastUniformGoal) &&
                     !alignRes.isPiecewise &&
-                    secSpread <= 0.85 &&
-                    maxResid <= 0.78 &&
+                    secSpread <= 0.72 &&
+                    maxResid <= 0.68 &&
                     alignRes.matchedContentWords >= 10 &&
                     alignRes.bucketSpanSec >= minSpanForConverge
                   );
-                  if (earlyUniformConverged) {
-                    localReached = true;
-                    isLastWin = true;
-                  }
+                  const curGoal = getActiveGoal();
+                  const hitCallCap = Boolean(isRefSyncMode && expandedForPiecewise && dispatchedWinCalls >= 7 && nonEmptyWins >= 4);
+                  localReached = Boolean(earlyUniformConverged || hitCallCap || (isRefSyncMode && nonEmptyWins >= curGoal));
+                  if (localReached) isLastWin = true;
                   applyTranscribedLinesLive(alignRes.lines, alignRes.lines, isLastWin, alignRes);
+                } else if (isRefSyncMode && (nonEmptyWins >= getActiveGoal() || (expandedForPiecewise && dispatchedWinCalls >= 7))) {
+                  localReached = true;
                 }
               } else {
                 const liveLines = this._buildLinesFromWhisperWordsAndDsp(
@@ -10644,39 +11400,61 @@
             const runOneWindow = async (win, wIdxLocal, slotIdx) => {
               const slicePcm = extractNormSlice(win.startSec, win.endSec);
               if (!slicePcm) return null;
-              let res = await this._transcribeWindowViaWorker(slicePcm, win.startSec, languageHint, statusCb, slotIdx);
+              const tsModeForWin = (isRefSyncMode && (expandedForPiecewise || win._isDtwUpgrade)) ? 'word' : true;
+              this._whisperNextTsMode = tsModeForWin;
+              dispatchedWinCalls++;
+              let res = await this._transcribeWindowViaWorker(slicePcm, win.startSec, languageHint, statusCb, slotIdx, tsModeForWin);
               if (!isStillRelevant()) return null;
 
-              // Recuperación inteligente de bordes: en la 1ª ventana (intro) o cuando la pista está en modo
-              // por tramos / aún no tiene suficientes ventanas válidas, desplazar el corte y reintentar 1 vez.
-              if (res && (!Array.isArray(res.words) || res.words.length === 0) && !this._whisperWorkerFailed) {
-                let retryStart = -1;
-                if (wIdxLocal === 0 && collectedWords.length === 0 && win.startSec < 20.0 && (win.startSec + 16.0) < actualDurSec) {
-                  retryStart = +(win.startSec + 4.0).toFixed(2);
-                } else if ((expandedForPiecewise || nonEmptyWins < 2) && res.dtwCollapsed && win.startSec >= 2.5) {
-                  retryStart = +(win.startSec - 2.5).toFixed(2);
-                } else if (expandedForPiecewise && isRefSyncMode && vocalDspProfile && vocalDspProfile.vocEnergyDb && vocalDspProfile.midiFrames && (win.startSec + 16.0) < actualDurSec) {
-                  const fps = vocalDspProfile.frameHz || 100;
-                  const thVoc = Number.isFinite(vocalDspProfile.thVoc) ? vocalDspProfile.thVoc : -32;
-                  const f0 = Math.max(0, Math.floor(win.startSec * fps));
-                  const f1 = Math.min(vocalDspProfile.vocEnergyDb.length - 1, Math.ceil(win.endSec * fps));
-                  let vf = 0;
-                  for (let f = f0; f <= f1; f++) {
-                    if (vocalDspProfile.vocEnergyDb[f] >= thVoc && vocalDspProfile.midiFrames[f] >= 45) vf++;
-                  }
-                  if (vf >= Math.round(3.5 * fps)) {
-                    retryStart = win.startSec >= 3.0 ? +(win.startSec - 2.5).toFixed(2) : +(win.startSec + 2.0).toFixed(2);
+              // Reintento rápido único solo si la 1ª ventana cayó en una intro instrumental (0..4 palabras/alucinación)
+              const nFirstW = Array.isArray(res?.words) ? res.words.length : 0;
+              if (
+                res &&
+                nFirstW <= 4 &&
+                !this._whisperWorkerFailed &&
+                wIdxLocal === 0 &&
+                collectedWords.length === 0 &&
+                win.startSec < 20.0 &&
+                (win.startSec + 16.0) < actualDurSec &&
+                (win.voicedFrames || 0) >= 160
+              ) {
+                const retryStart = +(win.startSec + (win.startSec < 14.0 ? 5.5 : 4.0)).toFixed(2);
+                const retryEnd = Math.min(actualDurSec, retryStart + (win.endSec - win.startSec));
+                const retryPcm = extractNormSlice(retryStart, retryEnd);
+                if (retryPcm) {
+                  this._whisperNextTsMode = tsModeForWin;
+                  dispatchedWinCalls++;
+                  const retryRes = await this._transcribeWindowViaWorker(retryPcm, retryStart, languageHint, statusCb, slotIdx, tsModeForWin);
+                  if (!isStillRelevant()) return null;
+                  if (retryRes && Array.isArray(retryRes.words) && retryRes.words.length > nFirstW) {
+                    res = retryRes;
                   }
                 }
-                if (retryStart >= 0) {
-                  const retryEnd = Math.min(actualDurSec, retryStart + (win.endSec - win.startSec));
-                  const retryPcm = extractNormSlice(retryStart, retryEnd);
-                  if (retryPcm) {
-                    const retryRes = await this._transcribeWindowViaWorker(retryPcm, retryStart, languageHint, statusCb, slotIdx);
-                    if (!isStillRelevant()) return null;
-                    if (retryRes && Array.isArray(retryRes.words) && retryRes.words.length > 0) {
-                      res = retryRes;
-                    }
+              }
+
+              // Reintento único desplazado cuando una ventana con voz activa en modo por tramos devuelve 0 palabras
+              if (
+                isRefSyncMode &&
+                expandedForPiecewise &&
+                zeroWinRetries < 1 &&
+                dispatchedWinCalls < 7 &&
+                !this._whisperWorkerFailed &&
+                (!res || !Array.isArray(res.words) || res.words.length === 0) &&
+                (win.voicedFrames || 0) >= 220
+              ) {
+                zeroWinRetries++;
+                const winDurLocal = Math.max(10, win.endSec - win.startSec);
+                const nudgeDelta = 1.6;
+                const altStart = Math.max(0, Math.min(actualDurSec - 12.0, +(win.startSec + nudgeDelta).toFixed(2)));
+                const altEnd = Math.min(actualDurSec, altStart + winDurLocal);
+                const altPcm = extractNormSlice(altStart, altEnd);
+                if (altPcm) {
+                  this._whisperNextTsMode = 'word';
+                  dispatchedWinCalls++;
+                  const altRes = await this._transcribeWindowViaWorker(altPcm, altStart, languageHint, statusCb, slotIdx, 'word');
+                  if (!isStillRelevant()) return null;
+                  if (altRes && Array.isArray(altRes.words) && altRes.words.length > 0) {
+                    res = altRes;
                   }
                 }
               }
@@ -10685,7 +11463,7 @@
               if (!res || !Array.isArray(res.words) || res.words.length === 0) {
                 if (this._whisperWorkerFailed || !this._whisperWorker) {
                   if (this.currentTrackKey === key && this.isActive) {
-                    this._setSyncStatusChip(`Servidor ${nonEmptyWins + 1}/${maxNonEmptyGoal}`, 'working');
+                    this._setSyncStatusChip(`Servidor ${nonEmptyWins + 1}/${getActiveGoal()}`, 'working');
                   }
                   res = await this._transcribeWindowViaServerPcm(slicePcm, win.startSec, languageHint, track);
                   if (!isStillRelevant()) return null;
@@ -10698,13 +11476,17 @@
             while (wIdx < windows.length && !reachedGoal) {
               if (!isStillRelevant()) return null;
 
+              if (isRefSyncMode && expandedForPiecewise && dispatchedWinCalls >= 7) break;
+
               let batchSize = 1;
               if (poolWidth >= 2 && !this._whisperWorkerFailed) {
                 if (isRefSyncMode) {
-                  const remainingGoal = expandedForPiecewise
-                    ? Math.max(1, maxNonEmptyGoal - nonEmptyWins)
-                    : Math.max(1, fastUniformGoal - nonEmptyWins);
-                  batchSize = Math.min(poolWidth, remainingGoal, windows.length - wIdx);
+                  const targetGoal = expandedForPiecewise
+                    ? piecewiseNonEmptyGoal
+                    : (nonEmptyWins >= fastUniformGoal ? baseNonEmptyGoal : fastUniformGoal);
+                  const remainingGoal = Math.max(1, targetGoal - nonEmptyWins);
+                  const remainingCallBudget = expandedForPiecewise ? Math.max(1, 7 - dispatchedWinCalls) : 99;
+                  batchSize = Math.min(poolWidth, remainingGoal, remainingCallBudget, windows.length - wIdx);
                 } else {
                   batchSize = Math.min(poolWidth, windows.length - wIdx);
                 }
@@ -10728,7 +11510,7 @@
                 const wavePromises = batchItems.map((item) =>
                   runOneWindow(item.win, item.idx, item.slot).then((res) => {
                     if (!isStillRelevant()) return;
-                    if (res && Array.isArray(res.words) && res.words.length > 0) {
+                    if (res && ((Array.isArray(res.words) && res.words.length > 0) || (Array.isArray(res.rawChunks) && res.rawChunks.length > 0))) {
                       processWindowOutput(res, item.idx);
                     }
                   })
@@ -10875,6 +11657,7 @@
         } finally {
           if (jobToken === this._whisperJobToken) {
             this.isTranscribingWhisper = false;
+            this._whisperNextTsMode = true;
             if (this._activeWhisperTrackKey === key) {
               this._activeWhisperTrackKey = '';
               this._activeWhisperPromise = null;
@@ -12106,7 +12889,7 @@
           nextAnchoredSec - 0.40,
           Math.max(anchoredBaseSec, Math.min(prevLineEndSec, anchoredBaseSec + 0.14))
         );
-        const maxWindowEndSec = Math.max(rawStartSec + 0.42, Math.min(nextAnchoredSec - 0.04, rawStartSec + 5.4));
+        const maxWindowEndSec = Math.max(rawStartSec + 0.42, Math.min(nextAnchoredSec - 0.04, rawStartSec + 9.5));
 
         // Caso A: La línea tiene timestamps verificados por palabra o sílaba coherentes con rawStartSec
         const hasCoherentVerifiedWords = Boolean(
@@ -12125,9 +12908,21 @@
             if (!trimmed) continue;
             const sSec = Math.max(rawStartSec - 0.06, Number(w.timeSec) || rawStartSec);
             const nextW = line.words[wi + 1];
-            const eSec = nextW
+            let eSec = nextW
               ? Math.max(sSec + 0.085, Math.min(maxWindowEndSec, Number(nextW.timeSec) - 0.012))
               : Math.max(sSec + 0.15, Math.min(maxWindowEndSec, Number(w.endSec) || (sSec + 0.48)));
+
+            // Si es la última palabra de la frase y el cantante sostiene la vocal más allá del fin estimado por ASR,
+            // extender suavemente hasta la caída vocal real sin invadir la frase siguiente.
+            if (!nextW && vocalProfile && vocalProfile.vocEnergyDb && (maxWindowEndSec - eSec) >= 0.20) {
+              eSec = this._extendVoicedTailSec(
+                vocalProfile,
+                sSec,
+                eSec,
+                maxWindowEndSec,
+                Math.max(0.85, eSec - sSec)
+              );
+            }
 
             // Subdividir palabras polisilábicas en sílabas fonéticas ancladas a 10 ms (100 Hz)
             const hasTrailingSpace = /\s$/.test(rawToken) || wi === line.words.length - 1;
@@ -12169,12 +12964,15 @@
           }
         }
 
-        // Caso B: Ajuste micro-acústico acotado [-160ms, +220ms] sin deriva acumulativa + Viterbi-DTW 10 ms
+        // Caso B: Ajuste micro-acústico acotado [-160ms, +220ms] sin deriva acumulativa + Viterbi-DTW consciente de sostenidos
         const rawWords = cleanText.split(/\s+/).filter(Boolean);
-        const naturalMaxDur = Math.max(0.65, Math.min(4.4, rawWords.length * 0.40 + 0.34));
+        const naturalMaxDur = Math.max(0.65, Math.min(4.6, rawWords.length * 0.40 + 0.34));
+        const rawLineHintDur = Number.isFinite(Number(line.endTimeSec)) && Number(line.endTimeSec) > rawStartSec + 0.35
+          ? Math.min(9.5, Number(line.endTimeSec) - rawStartSec)
+          : naturalMaxDur;
 
         let vocalStartSec = rawStartSec;
-        let vocalEndSec = Math.min(maxWindowEndSec, rawStartSec + naturalMaxDur);
+        let vocalEndSec = Math.min(maxWindowEndSec, rawStartSec + Math.max(naturalMaxDur, rawLineHintDur));
 
         if (vocalProfile && vocalProfile.vocEnergyDb) {
           const fHz = vocalProfile.frameHz || 100;
@@ -12204,28 +13002,14 @@
             if (Math.abs(candidateStart - rawStartSec) <= 0.24) {
               vocalStartSec = Math.max(prevLineEndSec, candidateStart - 0.01);
             }
-            const minPhraseFrames = Math.round(Math.min(naturalMaxDur * 0.45, 0.70) * fHz);
-            const maxPhraseFrames = Math.round(naturalMaxDur * 1.22 * fHz);
-            const silenceHoldFrames = Math.max(7, Math.round(0.20 * fHz));
-            const fMaxPhrase = Math.min(
-              vocalProfile.vocEnergyDb.length - 1,
-              Math.ceil(maxWindowEndSec * fHz),
-              bestOnsetF + maxPhraseFrames
+            const seedEndSec = vocalStartSec + Math.min(naturalMaxDur * 0.48, 0.72);
+            vocalEndSec = this._extendVoicedTailSec(
+              vocalProfile,
+              vocalStartSec,
+              seedEndSec,
+              maxWindowEndSec,
+              Math.max(naturalMaxDur, rawLineHintDur * 0.92)
             );
-            let lastVoiced = Math.min(fMaxPhrase, bestOnsetF + minPhraseFrames);
-
-            for (let f = bestOnsetF + minPhraseFrames; f <= fMaxPhrase; f++) {
-              if (vocalProfile.vocEnergyDb[f] >= th - 1.0) {
-                lastVoiced = f;
-              } else {
-                let silentRun = 0;
-                for (let s = f; s <= Math.min(fMaxPhrase, f + silenceHoldFrames); s++) {
-                  if (vocalProfile.vocEnergyDb[s] < th - 1.4) silentRun++;
-                }
-                if (silentRun >= silenceHoldFrames) break;
-              }
-            }
-            vocalEndSec = Math.max(vocalStartSec + 0.42, Math.min(maxWindowEndSec, (lastVoiced + 3) / fHz));
           }
         }
 
@@ -12240,79 +13024,181 @@
         const syls = [];
         if (vocalProfile && vocalProfile.vowelFlux && K >= 2) {
           const fHz = vocalProfile.frameHz || 100;
+          const vDb = vocalProfile.vocEnergyDb;
+          const vFlux = vocalProfile.vowelFlux;
+          const vMidi = vocalProfile.midiFrames;
+          const thVoc = Number.isFinite(vocalProfile.thVoc) ? vocalProfile.thVoc : -32;
           const f0 = Math.max(0, Math.floor(vocalStartSec * fHz));
-          const f1 = Math.min(vocalProfile.vowelFlux.length - 1, Math.ceil(vocalEndSec * fHz));
+          const f1 = Math.min(vFlux.length - 1, Math.ceil(vocalEndSec * fHz));
           const M = f1 - f0 + 1;
-          const minStepFrames = Math.max(Math.round(0.075 * fHz), Math.min(Math.round(0.18 * fHz), Math.floor(M / (K + 0.5))));
+          const minStepFrames = Math.max(Math.round(0.075 * fHz), Math.min(Math.round(0.17 * fHz), Math.floor(M / (K + 0.5))));
 
           if (M >= K * minStepFrames) {
-            const totalW = tokens.reduce((acc, t) => acc + (Number(t.weight) || 1.0), 0) || K;
-            const idealFrames = [];
-            let cumW = 0;
-            for (let k = 0; k < K; k++) {
-              const ratio = cumW / totalW;
-              idealFrames.push(f0 + Math.round(ratio * Math.max(1, M - minStepFrames)));
-              cumW += (Number(tokens[k].weight) || 1.0);
-            }
-
-            // Programación dinámica Viterbi a 10ms con anclaje fuerte a la posición fonética ideal
-            const dp = new Float32Array(K * M).fill(-1e9);
-            const back = new Int32Array(K * M).fill(-1);
+            // 1) Densidad de actividad de ataques vocálicos + detección de mesetas sostenidas (bajo flujo, energía/tono estables)
+            const onsetCdf = new Float32Array(M + 1);
+            const isSustainPlateau = new Uint8Array(M);
+            const prefSustain = new Int32Array(M + 1);
+            const nAllF = vDb.length;
 
             for (let m = 0; m < M; m++) {
               const fAbs = f0 + m;
-              const dev = Math.abs(fAbs - idealFrames[0]) / Math.max(6, M * 0.20);
-              if (dev <= 1.15) {
-                dp[m] = vocalProfile.vowelFlux[fAbs] * 1.35 + (vocalProfile.vocEnergyDb[fAbs] - vocalProfile.thVoc) * 0.16 - dev * dev * 4.2;
-              }
-            }
-
-            for (let k = 1; k < K; k++) {
-              const expGap = Math.max(minStepFrames, idealFrames[k] - idealFrames[k - 1]);
-              for (let m = k * minStepFrames; m < M - (K - 1 - k) * minStepFrames; m++) {
-                const fAbs = f0 + m;
-                const globalDev = Math.abs(fAbs - idealFrames[k]) / Math.max(8, M * 0.26);
-                if (globalDev > 1.25) continue;
-
-                const emission = vocalProfile.vowelFlux[fAbs] * 1.3 + (vocalProfile.vocEnergyDb[fAbs] - vocalProfile.thVoc) * 0.15 - globalDev * globalDev * 3.1;
-                const prevMin = Math.max((k - 1) * minStepFrames, m - Math.round(expGap * 2.0));
-                const prevMax = m - minStepFrames;
-
-                let bestPrevScore = -1e9;
-                let bestPrevM = -1;
-                for (let pm = prevMin; pm <= prevMax; pm++) {
-                  const prevVal = dp[(k - 1) * M + pm];
-                  if (prevVal <= -1e8) continue;
-                  const gapDiff = ((m - pm) - expGap) / Math.max(4, expGap * 0.50);
-                  const cand = prevVal - gapDiff * gapDiff * 2.8;
-                  if (cand > bestPrevScore) {
-                    bestPrevScore = cand;
-                    bestPrevM = pm;
+              const eDb = vDb[fAbs];
+              const flux = vFlux[fAbs] || 0;
+              const voiced = eDb >= (thVoc - 2.4);
+              let pitchChangeBoost = 0;
+              if (vMidi && fAbs >= 4 && fAbs + 4 < nAllF) {
+                const mPrev = vMidi[fAbs - 4];
+                const mNext = vMidi[fAbs + 4];
+                if (mPrev >= 45 && mNext >= 45) {
+                  const dP = Math.abs(mNext - mPrev);
+                  if (dP >= 1.35 && dP <= 10.0) {
+                    pitchChangeBoost = Math.min(2.0, dP * 0.42);
                   }
                 }
-                if (bestPrevM !== -1) {
-                  dp[k * M + m] = bestPrevScore + emission;
-                  back[k * M + m] = bestPrevM;
+              }
+              const ePrev = vDb[Math.max(0, fAbs - 5)];
+              const eNext = vDb[Math.min(nAllF - 1, fAbs + 5)];
+              const flatEnergy = Math.abs(eDb - ePrev) < 2.0 && Math.abs(eDb - eNext) < 2.0;
+              const plateau = (voiced && flux < 0.88 && flatEnergy && pitchChangeBoost === 0) ? 1 : 0;
+              isSustainPlateau[m] = plateau;
+              prefSustain[m + 1] = prefSustain[m] + plateau;
+
+              const act = plateau
+                ? 0.045
+                : (voiced ? (0.14 + Math.min(8.0, flux) * 1.15 + pitchChangeBoost) : 0.035);
+              onsetCdf[m + 1] = onsetCdf[m] + act;
+            }
+
+            const totalAct = onsetCdf[M] || 1;
+            const frameForCdfFrac = (frac) => {
+              const target = Math.max(0, Math.min(1, frac)) * totalAct;
+              let lo = 0;
+              let hi = M - 1;
+              while (lo < hi) {
+                const mid = (lo + hi) >> 1;
+                if (onsetCdf[mid + 1] < target) lo = mid + 1;
+                else hi = mid;
+              }
+              return f0 + lo;
+            };
+
+            const totalW = tokens.reduce((acc, t) => acc + (Number(t.weight) || 1.0), 0) || K;
+            const avgSylDurSec = (vocalEndSec - vocalStartSec) / Math.max(1, K);
+            // En frases con notas sostenidas (promedio > 0.30s/sílaba), priorizar el CDF real de ataques vocálicos
+            // para que las sílabas rápidas previas queden en su tiempo exacto y la sílaba sostenida absorba la meseta.
+            const cdfBlend = Math.max(0.25, Math.min(0.84, (avgSylDurSec - 0.18) * 1.45));
+            const idealFrames = new Array(K);
+            let cumW = 0;
+            for (let k = 0; k < K; k++) {
+              const ratio = cumW / totalW;
+              const unifF = f0 + Math.round(ratio * Math.max(1, M - minStepFrames));
+              const cdfF = frameForCdfFrac(ratio);
+              idealFrames[k] = k === 0 ? f0 : Math.round((1 - cdfBlend) * unifF + cdfBlend * cdfF);
+              cumW += (Number(tokens[k].weight) || 1.0);
+            }
+            for (let k = 1; k < K; k++) {
+              if (idealFrames[k] < idealFrames[k - 1] + minStepFrames) {
+                idealFrames[k] = idealFrames[k - 1] + minStepFrames;
+              }
+            }
+
+            // 2) Programación dinámica Viterbi consciente de sostenidos (submuestreo 20 ms si M > 320 para < 2 ms)
+            const stride = M > 320 ? 2 : 1;
+            const Ms = Math.ceil(M / stride);
+            const minStepS = Math.max(1, Math.floor(minStepFrames / stride));
+            const dp = new Float32Array(K * Ms).fill(-1e9);
+            const back = new Int32Array(K * Ms).fill(-1);
+
+            for (let ms = 0; ms < Ms; ms++) {
+              const m = Math.min(M - 1, ms * stride);
+              const fAbs = f0 + m;
+              const dev = Math.abs(fAbs - idealFrames[0]) / Math.max(7, M * 0.18);
+              if (dev <= 1.35) {
+                dp[ms] = vFlux[fAbs] * 1.35 + (vDb[fAbs] - thVoc) * 0.16 - dev * dev * 3.8;
+              }
+            }
+
+            const maxSustainSpanS = Math.ceil(Math.round(5.4 * fHz) / stride);
+            for (let k = 1; k < K; k++) {
+              const expGapF = Math.max(minStepFrames, idealFrames[k] - idealFrames[k - 1]);
+              const expGapS = Math.max(minStepS, expGapF / stride);
+              const maxGapS = Math.min(Ms - 1, Math.max(Math.round(expGapS * 3.0), maxSustainSpanS));
+              const devScale = Math.max(10, M * 0.32);
+
+              for (let ms = k * minStepS; ms < Ms - (K - 1 - k) * minStepS; ms++) {
+                const m = Math.min(M - 1, ms * stride);
+                const fAbs = f0 + m;
+                const globalDev = Math.abs(fAbs - idealFrames[k]) / devScale;
+                if (globalDev > 2.35) continue;
+
+                // Penalizar fuertemente cortar una nueva sílaba en medio de una meseta vocal sostenida estable
+                const plateauPen = isSustainPlateau[m] ? 2.25 : 0;
+                const emission = vFlux[fAbs] * 1.48 + (vDb[fAbs] - thVoc) * 0.14 - globalDev * globalDev * 1.55 - plateauPen;
+
+                const prevMin = Math.max((k - 1) * minStepS, ms - maxGapS);
+                const prevMax = ms - minStepS;
+
+                let bestPrevScore = -1e9;
+                let bestPrevMs = -1;
+                for (let pms = prevMin; pms <= prevMax; pms++) {
+                  const prevVal = dp[(k - 1) * Ms + pms];
+                  if (prevVal <= -1e8) continue;
+                  const gapS = ms - pms;
+                  const gapDiff = (gapS - expGapS) / Math.max(3, expGapS * 0.62);
+                  let transPen = gapDiff * gapDiff * 1.55;
+                  // Si la sílaba anterior se alarga sobre una meseta vocal sostenida real, liberar la penalización
+                  if (gapS > expGapS * 1.15) {
+                    const pm = Math.min(M - 1, pms * stride);
+                    const innerLen = Math.max(1, (m - 2) - (pm + 2));
+                    const sustainCnt = (m - 2 > pm + 2) ? (prefSustain[m - 2] - prefSustain[pm + 2]) : 0;
+                    const sustainFrac = sustainCnt / innerLen;
+                    if (sustainFrac >= 0.45) {
+                      transPen *= Math.max(0.16, 1.0 - sustainFrac * 0.88);
+                    }
+                  }
+                  const cand = prevVal - transPen;
+                  if (cand > bestPrevScore) {
+                    bestPrevScore = cand;
+                    bestPrevMs = pms;
+                  }
+                }
+                if (bestPrevMs !== -1) {
+                  dp[k * Ms + ms] = bestPrevScore + emission;
+                  back[k * Ms + ms] = bestPrevMs;
                 }
               }
             }
 
-            let bestEndM = -1;
+            let bestEndMs = -1;
             let bestEndVal = -1e9;
-            for (let m = (K - 1) * minStepFrames; m < M; m++) {
-              const v = dp[(K - 1) * M + m];
+            for (let ms = (K - 1) * minStepS; ms < Ms; ms++) {
+              const v = dp[(K - 1) * Ms + ms];
               if (v > bestEndVal) {
                 bestEndVal = v;
-                bestEndM = m;
+                bestEndMs = ms;
               }
             }
 
-            if (bestEndM !== -1 && bestEndVal > -1e7) {
+            if (bestEndMs !== -1 && bestEndVal > -1e7) {
               const chosenFrames = new Array(K);
-              let curM = bestEndM;
+              let curMs = bestEndMs;
               for (let k = K - 1; k >= 0; k--) {
-                chosenFrames[k] = f0 + curM;
-                curM = back[k * M + curM];
+                chosenFrames[k] = f0 + Math.min(M - 1, curMs * stride);
+                curMs = back[k * Ms + curMs];
+              }
+              // Refinamiento fino a 10 ms exactos sobre picos de ataque vocálico
+              if (stride > 1) {
+                for (let k = 1; k < K; k++) {
+                  const loF = Math.max(chosenFrames[k - 1] + minStepFrames, chosenFrames[k] - 3);
+                  const hiF = Math.min((k + 1 < K ? chosenFrames[k + 1] - minStepFrames : f1 - minStepFrames), chosenFrames[k] + 3);
+                  let bF = chosenFrames[k];
+                  let bSc = -1e9;
+                  for (let f = loF; f <= hiF; f++) {
+                    const sc = vFlux[f] * 1.5 - (isSustainPlateau[f - f0] ? 2.0 : 0);
+                    if (sc > bSc) { bSc = sc; bF = f; }
+                  }
+                  chosenFrames[k] = bF;
+                }
               }
               for (let k = 0; k < K; k++) {
                 const sSec = chosenFrames[k] / fHz;
@@ -12511,47 +13397,54 @@
           const cleanMidi = snapToCleanVocalMidi(targetMidi, 0.5 * (syl.startSec + syl.endSec));
           lastKnownPhraseMidi = cleanMidi;
 
-          // División melismática inteligente: si una sílaba larga (>=0.65s) cambia de nota >=2 semitonos,
-          // dibujar dos barras enlazadas siguiendo la inflexión real del cantante
-          let melismaPair = null;
-          if (this.hasDspMelody && dsp && durSec >= 0.65) {
-            const midRawSec = 0.5 * (syl.startSec + syl.endSec);
-            const mA = this._sampleMonotonicMidiInWindow(dsp, syl.startSec, midRawSec);
-            const mB = this._sampleMonotonicMidiInWindow(dsp, midRawSec, syl.endSec);
-            if (Number.isFinite(mA) && Number.isFinite(mB)) {
-              const cA = snapToCleanVocalMidi(mA, 0.5 * (syl.startSec + midRawSec));
-              const cB = snapToCleanVocalMidi(mB, 0.5 * (midRawSec + syl.endSec));
-              const dMel = Math.abs(cB - cA);
-              if (dMel >= 2 && dMel <= 7) {
-                const splitSec = +(startSec + durSec * 0.5).toFixed(3);
-                melismaPair = [
-                  { s: startSec, e: Math.max(startSec + 0.18, splitSec - 0.01), midi: cA, text: syl.text, disp: syl.text },
-                  { s: splitSec, e: endSec, midi: cB, text: '—', disp: syl.displayText && syl.displayText.endsWith(' ') ? ' ' : '' }
-                ];
-              }
-            }
+          // División melismática inteligente por mesetas reales de tono (inmune al vibrato):
+          // Si una sílaba sostenida (>=0.68s) mantiene 1 nota fija (incluso con vibrato ±0.7 st), conserva
+          // UNA sola barra continua; si cambia de nota >=2 semitonos (melisma asimétrico de 2-4 notas),
+          // corta en el instante exacto de la inflexión vocal (NO 50/50 fijo).
+          let melismaSegs = null;
+          if (this.hasDspMelody && dsp && durSec >= 0.68) {
+            melismaSegs = this._splitSustainedSyllableByPitchPlateaus(
+              dsp,
+              syl.startSec,
+              syl.endSec,
+              userOffsetSec,
+              cleanMidi,
+              snapToCleanVocalMidi
+            );
           }
 
-          const isGolden = (si === phraseLen - 1 && durSec >= 0.32 && (li % 2 === 1)) || (durSec >= 0.62 && si === phraseLen - 1);
+          const isGolden = (si === phraseLen - 1 && durSec >= 0.32 && (li % 2 === 1)) || (durSec >= 0.62 && si === phraseLen - 1) || durSec >= 1.45;
           if (isGolden) goldenTotal++;
 
-          if (melismaPair) {
-            for (let mi = 0; mi < melismaPair.length; mi++) {
-              const mp = melismaPair[mi];
-              minSongMidi = Math.min(minSongMidi, mp.midi);
-              maxSongMidi = Math.max(maxSongMidi, mp.midi);
+          if (Array.isArray(melismaSegs) && melismaSegs.length >= 2) {
+            for (let mi = 0; mi < melismaSegs.length; mi++) {
+              const mp = melismaSegs[mi];
+              let segMidi = mp.midi;
+              if (phraseSyls.length > 0) {
+                const prevM = phraseSyls[phraseSyls.length - 1].midi;
+                const dSeg = segMidi - prevM;
+                if (Math.abs(dSeg) > 9.5) {
+                  if (Math.abs(dSeg - 12) <= 3.0) segMidi -= 12;
+                  else if (Math.abs(dSeg + 12) <= 3.0) segMidi += 12;
+                  else segMidi = snapToCleanVocalMidi(prevM + Math.sign(dSeg) * 7.0, 0.5 * (mp.s + mp.e));
+                }
+              }
+              minSongMidi = Math.min(minSongMidi, segMidi);
+              maxSongMidi = Math.max(maxSongMidi, segMidi);
+              lastKnownPhraseMidi = segMidi;
               const noteObj = {
                 id: noteId++,
                 lineIdx: li,
                 wordIdx: si,
-                text: mp.text,
+                text: mi === 0 ? syl.text : '—',
                 displayText: mi === 0 ? (syl.displayText || (syl.text + ' ')) : '',
                 isMelismaTail: mi > 0,
                 startSec: +mp.s.toFixed(3),
                 endSec: +mp.e.toFixed(3),
-                midi: mp.midi,
-                freqHz: Math.round(this.midiToFreqHz(mp.midi)),
-                isGolden: isGolden && mi === melismaPair.length - 1,
+                midi: segMidi,
+                freqHz: Math.round(this.midiToFreqHz(segMidi)),
+                isGolden: isGolden && mi === melismaSegs.length - 1,
+                hitSec: 0,
                 hitFrames: 0,
                 totalFrames: 0,
                 fillRatio: 0,
@@ -12575,6 +13468,7 @@
               midi: cleanMidi,
               freqHz: Math.round(this.midiToFreqHz(cleanMidi)),
               isGolden,
+              hitSec: 0,
               hitFrames: 0,
               totalFrames: 0,
               fillRatio: 0,
@@ -12619,6 +13513,173 @@
       if (resetStats) {
         this.resetSessionStats();
       }
+    }
+
+    /**
+     * Detector de Mesetas Melismáticas por Cambio de Tono (inmune al vibrato):
+     * Analiza el contorno Viterbi a 25 Hz dentro de una sílaba sostenida (>= 0.68s),
+     * aplica filtro de mediana de 5 frames (200 ms) para absorber el vibrato natural y
+     * detecta únicamente saltos reales de nota (>= 2 semitonos) en su instante exacto.
+     */
+    _splitSustainedSyllableByPitchPlateaus(dsp, rawStartSec, rawEndSec, userOffsetSec, baseMidi, snapFn) {
+      if (!dsp || !dsp.midiFrames) return null;
+      const rawDur = rawEndSec - rawStartSec;
+      if (rawDur < 0.68) return null;
+
+      const fps = dsp.frameHz || 100;
+      const stepF = Math.max(1, Math.round(0.04 * fps)); // 25 Hz (40 ms)
+      const fStart = Math.max(0, Math.floor((rawStartSec + 0.03) * fps));
+      const fEnd = Math.min(dsp.midiFrames.length - 1, Math.ceil((rawEndSec - 0.03) * fps));
+      if (fEnd - fStart < stepF * 10) return null;
+
+      const vDb = dsp.vocEnergyDb;
+      const vClar = dsp.rawClarityFrames;
+      const thVoc = Number.isFinite(dsp.thVoc) ? dsp.thVoc : -32;
+
+      const pts = [];
+      for (let f = fStart; f <= fEnd; f += stepF) {
+        const m = dsp.midiFrames[f];
+        if (m < 44 || m > 84) continue;
+        const clar = vClar ? Math.max(0.15, vClar[f] || 0.35) : 0.6;
+        const eDb = vDb ? vDb[f] : thVoc;
+        const eW = Math.max(0.18, Math.min(3.2, (eDb - (thVoc - 6.0)) / 10.0));
+        pts.push({ sec: f / fps, rawM: m, m, w: clar * eW });
+      }
+      if (pts.length < 10) return null;
+
+      // Filtro de mediana de 5 puntos (~200ms) -> absorbe vibrato 4.5-7 Hz preservando escalones melismáticos nítidos
+      const nPts = pts.length;
+      const medWin = [];
+      for (let i = 0; i < nPts; i++) {
+        medWin.length = 0;
+        const lo = Math.max(0, i - 2);
+        const hi = Math.min(nPts - 1, i + 2);
+        for (let j = lo; j <= hi; j++) medWin.push(pts[j].rawM);
+        medWin.sort((a, b) => a - b);
+        pts[i].m = medWin[medWin.length >> 1];
+      }
+
+      const weightedMedian = (i0, i1) => {
+        const arr = [];
+        let totW = 0;
+        for (let i = i0; i <= i1; i++) {
+          arr.push({ m: pts[i].m, w: pts[i].w });
+          totW += pts[i].w;
+        }
+        if (arr.length === 0 || totW <= 0) return { med: baseMidi, totW: 0 };
+        arr.sort((a, b) => a.m - b.m);
+        const half = totW * 0.5;
+        let acc = 0;
+        for (let i = 0; i < arr.length; i++) {
+          acc += arr[i].w;
+          if (acc >= half) return { med: arr[i].m, totW };
+        }
+        return { med: arr[arr.length - 1].m, totW };
+      };
+
+      const l1Error = (i0, i1, targetM) => {
+        let err = 0;
+        for (let i = i0; i <= i1; i++) {
+          err += pts[i].w * Math.abs(pts[i].m - targetM);
+        }
+        return err;
+      };
+
+      const minPlateauSec = 0.22;
+      const minPlateauPts = 4;
+      const maxSegs = rawDur >= 2.2 ? 4 : (rawDur >= 1.3 ? 3 : 2);
+
+      const segmentIndices = (i0, i1, budget) => {
+        const span = pts[i1].sec - pts[i0].sec;
+        const { med: mAll, totW } = weightedMedian(i0, i1);
+        const cAll = snapFn(mAll, 0.5 * (pts[i0].sec + pts[i1].sec));
+        if (budget <= 1 || span < (minPlateauSec * 2 + 0.02) || (i1 - i0 + 1) < (minPlateauPts * 2)) {
+          return [{ i0, i1, midi: cAll }];
+        }
+
+        const errAll = l1Error(i0, i1, cAll);
+        let bestK = -1;
+        let bestGain = 0;
+        let bestCL = cAll;
+        let bestCR = cAll;
+
+        for (let k = i0 + minPlateauPts - 1; k <= i1 - minPlateauPts; k++) {
+          const leftDur = pts[k].sec - pts[i0].sec;
+          const rightDur = pts[i1].sec - pts[k + 1].sec;
+          if (leftDur < minPlateauSec || rightDur < minPlateauSec) continue;
+
+          const { med: mL } = weightedMedian(i0, k);
+          const { med: mR } = weightedMedian(k + 1, i1);
+          const cL = snapFn(mL, 0.5 * (pts[i0].sec + pts[k].sec));
+          const cR = snapFn(mR, 0.5 * (pts[k + 1].sec + pts[i1].sec));
+          const stepSt = Math.abs(cR - cL);
+          if (stepSt < 2 || stepSt > 7) continue;
+
+          const errSplit = l1Error(i0, k, cL) + l1Error(k + 1, i1, cR);
+          const gain = errAll - errSplit;
+          if (gain > bestGain) {
+            bestGain = gain;
+            bestK = k;
+            bestCL = cL;
+            bestCR = cR;
+          }
+        }
+
+        // Exigir reducción media real >= 0.42 semitonos por muestra para confirmar cambio de nota genuino
+        if (bestK === -1 || bestGain < 0.42 * totW) {
+          return [{ i0, i1, midi: cAll }];
+        }
+
+        if (budget <= 2) {
+          return [
+            { i0, i1: bestK, midi: bestCL },
+            { i0: bestK + 1, i1, midi: bestCR }
+          ];
+        }
+
+        const leftSpan = pts[bestK].sec - pts[i0].sec;
+        const rightSpan = pts[i1].sec - pts[bestK + 1].sec;
+        const leftBudget = leftSpan >= rightSpan ? Math.ceil(budget * 0.5) : Math.floor(budget * 0.5);
+        const rightBudget = Math.max(1, budget - leftBudget);
+        return [
+          ...segmentIndices(i0, bestK, Math.max(1, leftBudget)),
+          ...segmentIndices(bestK + 1, i1, rightBudget)
+        ];
+      };
+
+      const rawSegs = segmentIndices(0, nPts - 1, maxSegs);
+      if (rawSegs.length < 2) return null;
+
+      // Fusionar segmentos adyacentes que cuantizaron a la misma nota MIDI
+      const merged = [];
+      for (const seg of rawSegs) {
+        const prev = merged.length > 0 ? merged[merged.length - 1] : null;
+        if (prev && Math.abs(prev.midi - seg.midi) < 1) {
+          prev.i1 = seg.i1;
+        } else {
+          merged.push({ ...seg });
+        }
+      }
+      if (merged.length < 2) return null;
+
+      const stageStart = Math.max(0, rawStartSec - userOffsetSec);
+      const stageEnd = Math.max(stageStart + 0.24, rawEndSec - userOffsetSec);
+      const outSegs = [];
+      for (let mIdx = 0; mIdx < merged.length; mIdx++) {
+        const cur = merged[mIdx];
+        const next = merged[mIdx + 1];
+        const s = mIdx === 0
+          ? stageStart
+          : Math.max(stageStart + 0.18, 0.5 * (pts[merged[mIdx - 1].i1].sec + pts[cur.i0].sec) - userOffsetSec);
+        const rawE = next
+          ? (0.5 * (pts[cur.i1].sec + pts[next.i0].sec) - userOffsetSec)
+          : stageEnd;
+        const e = next
+          ? Math.max(s + 0.16, Math.min(stageEnd - 0.18, rawE - 0.012))
+          : Math.max(s + 0.16, stageEnd);
+        outSegs.push({ s: +s.toFixed(3), e: +e.toFixed(3), midi: cur.midi });
+      }
+      return outSegs;
     }
 
     _sampleMonotonicMidiInWindow(dsp, startSec, endSec) {
@@ -13086,15 +14147,15 @@
         const wasRecentlyVoiced = Boolean(
           this._wasMicVoiced &&
           this._lastVoicedWallMs > 0 &&
-          (nowMs - this._lastVoicedWallMs) <= 220
+          (nowMs - this._lastVoicedWallMs) <= 260
         );
         const onsetGate = Math.max(0.0042, Math.min(0.068, effectiveFloor * gateMult));
-        const sustainGate = onsetGate * 0.62;
+        const sustainGate = onsetGate * 0.60;
         gateThreshold = wasRecentlyVoiced ? sustainGate : onsetGate;
         this._lastGateThresholdRms = onsetGate;
         this.liveGateThreshold = onsetGate;
 
-        const minClarity = wasRecentlyVoiced ? 0.56 : 0.62;
+        const minClarity = wasRecentlyVoiced ? 0.50 : 0.62;
         const rawFrameVoiced = (
           rms >= gateThreshold &&
           detectedFreqHz >= 75 &&
@@ -13142,7 +14203,7 @@
       }
 
       if (!isFrameVoiced) {
-        if (nowMs - this._lastVoicedWallMs <= 120 && Number.isFinite(this._lastVoicedMidi) && rms >= gateThreshold * 0.72) {
+        if (nowMs - this._lastVoicedWallMs <= 185 && Number.isFinite(this._lastVoicedMidi) && rms >= gateThreshold * 0.64) {
           this.liveUserMidi = this._lastVoicedMidi;
           return;
         }
@@ -13359,7 +14420,7 @@
         if (curPeakVal > nMax) nMax = curPeakVal;
       }
 
-      if (keyMaxima.length === 0 || nMax < 0.62) return null;
+      if (keyMaxima.length === 0 || nMax < 0.48) return null;
 
       // Key-Maxima k = 0.88: elegir el PRIMER máximo local que supere 0.88 * nMax
       const threshold = 0.88 * nMax;
@@ -13489,9 +14550,14 @@
         this._sampleLiveVoiceOrGuide(curSec, activeNote, nowMs);
       }
 
-      // Evaluación Melódica Pura contra la nota real del cantante (con flexibilidad automática de octava)
+      // Evaluación Melódica Pura contra la nota real del cantante (100% independiente de FPS para sílabas sostenidas)
       if (isPlaying && activeNote) {
         activeNote.totalFrames++;
+        const noteDurSec = Math.max(0.10, activeNote.endSec - activeNote.startSec);
+        const isSustainedNote = noteDurSec >= 0.80;
+        const fpsNorm = Math.min(2.5, Math.max(0.4, dtSec * 60));
+        if (!Number.isFinite(activeNote.hitSec)) activeNote.hitSec = 0;
+
         if (Number.isFinite(this.liveUserMidi)) {
           const directDelta = this.liveUserMidi - activeNote.midi;
           const octaveFlexDelta = this.octaveRegisterMode === 'auto'
@@ -13502,30 +14568,36 @@
           this.liveSemitoneDelta = evalDelta;
           this.sungFramesCount++;
 
-          if (absDelta <= 1.05) {
+          const perfectTol = isSustainedNote ? 1.15 : 1.05;
+          const goodTol = isSustainedNote ? 2.08 : 2.0;
+
+          if (absDelta <= perfectTol) {
             this.liveStatusText = 'AFINACIÓN EXACTA';
             this.liveStatusTier = 'perfect';
-            activeNote.hitFrames += 1.20;
+            activeNote.hitFrames += 1.20 * fpsNorm;
+            activeNote.hitSec += dtSec * 1.22;
             this.tunedFramesCount += 1.0;
             this.streak++;
             this.maxStreak = Math.max(this.maxStreak, this.streak);
             this.feverMeter = Math.min(100, this.feverMeter + dtSec * 20);
-            this.score += Math.round((activeNote.isGolden ? 28 : 16) * this.multiplier);
-          } else if (absDelta <= 2.0) {
+            this.score += Math.round((activeNote.isGolden ? 28 : 16) * fpsNorm * this.multiplier);
+          } else if (absDelta <= goodTol) {
             this.liveStatusText = 'AFINADO';
             this.liveStatusTier = 'good';
-            activeNote.hitFrames += 0.94;
+            activeNote.hitFrames += 0.94 * fpsNorm;
+            activeNote.hitSec += dtSec * 0.96;
             this.tunedFramesCount += 0.88;
             this.streak++;
             this.maxStreak = Math.max(this.maxStreak, this.streak);
             this.feverMeter = Math.min(100, this.feverMeter + dtSec * 12);
-            this.score += Math.round((activeNote.isGolden ? 18 : 10) * this.multiplier);
-          } else if (absDelta <= 3.0) {
+            this.score += Math.round((activeNote.isGolden ? 18 : 10) * fpsNorm * this.multiplier);
+          } else if (absDelta <= 3.05) {
             this.liveStatusText = evalDelta > 0 ? 'CASI · BAJA' : 'CASI · SUBE';
             this.liveStatusTier = 'near';
-            activeNote.hitFrames += 0.45;
+            activeNote.hitFrames += 0.45 * fpsNorm;
+            activeNote.hitSec += dtSec * 0.48;
             this.tunedFramesCount += 0.45;
-            this.score += Math.round(5 * this.multiplier);
+            this.score += Math.round(5 * fpsNorm * this.multiplier);
           } else {
             this.liveStatusText = evalDelta > 0 ? 'AGUDO · BAJA' : 'GRAVE · SUBE';
             this.liveStatusTier = 'off';
@@ -13534,8 +14606,8 @@
           }
         }
 
-        const spanFrames = Math.max(6, (activeNote.endSec - activeNote.startSec) * 46);
-        activeNote.fillRatio = Math.min(1, activeNote.hitFrames / spanFrames);
+        const targetFillSec = Math.max(0.09, noteDurSec * 0.80);
+        activeNote.fillRatio = Math.min(1, activeNote.hitSec / targetFillSec);
 
         if (activeNote.isGolden && !activeNote.goldenAwarded && activeNote.fillRatio >= 0.68) {
           activeNote.goldenAwarded = true;
@@ -13587,7 +14659,7 @@
               const n = pw.syllables[ni];
               fillSum += n.fillRatio;
               count++;
-              if (n.hitFrames > 0) userAttempted = true;
+              if ((n.hitSec || 0) > 0 || n.hitFrames > 0) userAttempted = true;
             }
             if (count > 0 && userAttempted) {
               const avgFill = fillSum / count;
@@ -13992,21 +15064,25 @@
         });
       }
 
-      // 2. Conectores melódicos suaves (curvas Bézier) entre sílabas consecutivas de la misma frase
+      // 2. Conectores melódicos suaves (curvas Bézier) entre sílabas consecutivas y enlaces melismáticos sostenidos
       ctx.save();
-      ctx.strokeStyle = 'rgba(148, 163, 184, 0.22)';
-      ctx.lineWidth = 1.5;
       for (let i = 1; i < visNotes.length; i++) {
         const prev = visNotes[i - 1];
         const curr = visNotes[i];
-        if ((curr.n.startSec - prev.n.endSec) > 0.55) continue;
+        const isMelLink = Boolean(curr.n.isMelismaTail && curr.n.lineIdx === prev.n.lineIdx && curr.n.wordIdx === prev.n.wordIdx);
+        if (!isMelLink && (curr.n.startSec - prev.n.endSec) > 0.55) continue;
         if (curr.n.lineIdx !== prev.n.lineIdx) continue;
         const gapX = curr.x1 - prev.x2;
-        if (gapX <= 1) continue;
-        if (gapX < 6 && Math.abs(curr.cy - prev.cy) > semitoneStepH * 4.5) continue;
-        const midX = 0.5 * (prev.x2 + curr.x1);
+        if (!isMelLink && gapX <= 1) continue;
+        if (!isMelLink && gapX < 6 && Math.abs(curr.cy - prev.cy) > semitoneStepH * 4.5) continue;
+        const startX = isMelLink ? Math.min(prev.x2, curr.x1 - 2) : prev.x2;
+        const midX = 0.5 * (startX + curr.x1);
+        ctx.strokeStyle = isMelLink
+          ? (curr.n.isGolden ? 'rgba(250, 204, 21, 0.72)' : 'rgba(56, 189, 248, 0.65)')
+          : 'rgba(148, 163, 184, 0.22)';
+        ctx.lineWidth = isMelLink ? 2.4 : 1.5;
         ctx.beginPath();
-        ctx.moveTo(prev.x2, prev.cy);
+        ctx.moveTo(startX, prev.cy);
         ctx.bezierCurveTo(midX, prev.cy, midX, curr.cy, curr.x1, curr.cy);
         ctx.stroke();
       }
