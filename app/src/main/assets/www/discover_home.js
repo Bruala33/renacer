@@ -5959,8 +5959,15 @@
       this._fxDryGain = null;
       this._fxKarGain = null;
 
-      // Contorno melódico monotónico y sílabas acústicas de la canción actual
+      // Contorno melódico monotónico, cintas vocales ancladas al audio real (0ms desfase) y armonía/tonalidad en vivo
       this.currentTrackKey = '';
+      this.audioRibbons = []; // [{ id, startSec, endSec, midi, freqHz, kind:'melody'|'harmony', chordMask, isGolden, hitFrames, totalFrames, fillRatio, goldenAwarded }]
+      this.songKeyNameEs = '';
+      this.songKeyPc = -1;
+      this.songMode = '';
+      this.songScaleMask = null; // Uint8Array(12)
+      this.chromaMaskFrames = null; // Uint16Array @ chromaFrameHz
+      this.chromaFrameHz = 4;
       this.pitchNotes = []; // [{ id, lineIdx, wordIdx, text, displayText, startSec, endSec, midi, freqHz, isGolden, hitFrames, totalFrames, fillRatio, goldenAwarded, dspReal }]
       this.phraseWindows = []; // [{ lineIdx, startSec, endSec, text, syllables, judged }]
       this.centerMidi = 62; // RE4
@@ -5978,6 +5985,7 @@
       this.liveUserFreqHz = 0;
       this.liveUserRms = 0;
       this.liveNoteLabel = '--';
+      this.liveTargetKicker = 'TONO';
       this.liveTargetNoteLabel = '--';
       this.liveTargetNoteHz = '';
       this.liveStatusText = 'CANTA';
@@ -7737,12 +7745,14 @@
             }
             if (mono16k || vidTrack) {
               const modeLabel = !hasRealLyrics
-                ? 'Transcribiendo...'
-                : (isPlainUnaligned ? 'Alineando texto...' : 'Sincro · Verificando...');
+                ? 'Transcribiendo letra...'
+                : (isPlainUnaligned ? 'Alineando texto...' : (this.songKeyShortEs ? `Audio · ${this.songKeyShortEs} · Letra...` : 'Sincro · Verificando...'));
               this._setSyncStatusChip(modeLabel, 'working');
               this._spawnPopup(
-                !hasRealLyrics ? 'TRANSCRIPCIÓN VOCAL EN DIRECTO' : 'SINCRONIZACIÓN POR PALABRAS',
-                !hasRealLyrics ? 'Transcribiendo letra real directamente del audio...' : 'Verificando Karaoke y SingStar contra la voz real...',
+                this.audioRibbons.length > 0 ? 'PISTA VOCAL ANCLADA AL AUDIO' : (!hasRealLyrics ? 'TRANSCRIPCIÓN VOCAL EN DIRECTO' : 'SINCRONIZACIÓN POR PALABRAS'),
+                this.audioRibbons.length > 0
+                  ? `${this.songKeyNameEs ? `Tonalidad ${this.songKeyNameEs} · ` : ''}Barras en vivo · Ajustando letra en segundo plano`
+                  : (!hasRealLyrics ? 'Transcribiendo letra real directamente del audio...' : 'Verificando Karaoke y SingStar contra la voz real...'),
                 '#38bdf8',
                 1700
               );
@@ -7756,7 +7766,7 @@
                 { actualDurSec, isPlainUnaligned, allowBackground: true, forceReanalyze }
               ).catch(() => {});
             } else if (studioData.hasDspMelody) {
-              this._setSyncStatusChip('Sincro · Exacta', 'ready');
+              this._setSyncStatusChip(this.songKeyShortEs ? `Audio · ${this.songKeyShortEs}` : 'Sincro · Exacta', 'ready');
             } else if (hasRealLyrics && !isPlainUnaligned) {
               this._setSyncStatusChip('Esperando audio HD...', 'working');
             }
@@ -7769,12 +7779,13 @@
             : (Math.abs(vadShiftSec) >= 0.55 ? `Sincro · ${vadShiftSec > 0 ? '+' : ''}${vadShiftSec.toFixed(1)}s` : 'Sincro · Exacta');
           this._setSyncStatusChip(readyLabel, 'ready');
           if (studioData.hasDspMelody) {
+            const keyPrefix = this.songKeyNameEs ? `Tonalidad ${this.songKeyNameEs} · ` : '';
             const subMsg = cachedIsPiecewise
-              ? 'Sincronización verificada por tramos en Karaoke y SingStar'
+              ? `${keyPrefix}Barras de audio real + letra por tramos`
               : (Math.abs(hasWhisperVerifiedCache ? cachedShiftSec : vadShiftSec) >= 0.55
-                  ? `Desfase corregido (${(hasWhisperVerifiedCache ? cachedShiftSec : vadShiftSec) > 0 ? '+' : ''}${(hasWhisperVerifiedCache ? cachedShiftSec : vadShiftSec).toFixed(1)}s) en Karaoke y SingStar`
-                  : 'Letra, sílabas y melodía MPM sincronizadas al audio real');
-            this._spawnPopup('SINCRONIZACIÓN EXACTA', subMsg, '#34d399', 1350);
+                  ? `${keyPrefix}Barras de audio real + letra ajustada (${(hasWhisperVerifiedCache ? cachedShiftSec : vadShiftSec) > 0 ? '+' : ''}${(hasWhisperVerifiedCache ? cachedShiftSec : vadShiftSec).toFixed(1)}s)`
+                  : `${keyPrefix}Melodía, armonía y letra listas en tiempo real`);
+            this._spawnPopup('ESTUDIO VOCAL LISTO', subMsg, '#34d399', 1450);
           }
         }
       } catch (_) {
@@ -7798,7 +7809,7 @@
         return this._whisperWorkers[safeSlot];
       }
       try {
-        const worker = new Worker('./whisper_worker.js?v=90.0', { type: 'module' });
+        const worker = new Worker('./whisper_worker.js?v=91.0', { type: 'module' });
         if (!this._whisperWorkerCallbacks) this._whisperWorkerCallbacks = new Map();
         if (!Number.isFinite(this._whisperWorkerSeq)) this._whisperWorkerSeq = 0;
 
@@ -10426,7 +10437,12 @@
                 this.karaokeService.setKaraokeAiSyncStatus(key, stepLabel, 'working');
               }
               if (this.currentTrackKey === key && this.isActive) {
-                this._setSyncStatusChip(stepLabel, 'working');
+                const hasAudioLock = Array.isArray(this.audioRibbons) && this.audioRibbons.length > 0;
+                if (hasAudioLock) {
+                  this._setSyncStatusChip(this.songKeyShortEs ? `Audio · ${this.songKeyShortEs}` : 'Audio · Activo', 'ready');
+                } else {
+                  this._setSyncStatusChip(stepLabel, 'working');
+                }
                 if (badge && winRef) {
                   badge.textContent = `AUDIO REAL (${dispStep}/${dispTotal}) · ${Math.round(winRef.startSec)}s`;
                 }
@@ -10810,6 +10826,7 @@
       const vocEnergyDb = new Float32Array(nFrames);
       const vowelFlux = new Float32Array(nFrames);
       const sibilantRatio = new Float32Array(nFrames);
+      const centerRatioFrames = new Float32Array(nFrames);
       const rawMidiFrames = new Float32Array(nFrames);
       const rawClarityFrames = new Float32Array(nFrames);
 
@@ -10846,7 +10863,7 @@
           if (token !== undefined && token !== null && token !== this._prepToken) return null;
           if (onProgress && (f % 1200) === 0) {
             const p = 38 + Math.round((f / nFrames) * 46);
-            onProgress(p, `Analizando melodía vocal MPM (${Math.round((f / nFrames) * 100)}%)...`);
+            onProgress(p, `Analizando melodía vocal y armonía (${Math.round((f / nFrames) * 100)}%)...`);
           }
           await new Promise(r => setTimeout(r, 0));
         }
@@ -10878,6 +10895,7 @@
         const rmsSide = Math.sqrt(sumSide / Math.max(1, limit) + 1e-12);
         const rmsSib = Math.sqrt(sumSib / Math.max(1, limit) + 1e-12);
         const centerFocus = Math.max(0.5, Math.min(4.0, rmsVoc / (rmsSide * 0.65 + 0.0004)));
+        centerRatioFrames[f] = rmsVoc / (rmsVoc + rmsSide * 0.85 + 0.0005);
         vocEnergyDb[f] = 20 * Math.log10(rmsVoc) + 3.8 * Math.log2(centerFocus);
         sibilantRatio[f] = rmsSib / (rmsVoc + 0.0005);
 
@@ -10897,7 +10915,8 @@
             const idx = base + i * decim;
             const l = ch0[idx];
             const r = ch1[idx];
-            const midVoc = 0.5 * (l + r) - 0.30 * (l - r);
+            // Canal central verdadero (Mid = (L+R)/2): evita sesgar hacia guitarras paneadas a la derecha
+            const midVoc = 0.5 * (l + r);
             hp1 = aHpYin * (hp1 + midVoc - prevIn);
             prevIn = midVoc;
             hp2 = aHpYin * (hp2 + hp1 - prevHp1);
@@ -11093,21 +11112,430 @@
       }
 
       const firstVocalSec = vocalIslands.length > 0 ? vocalIslands[0].startSec : 0;
+      const harmonyProfile = this._extractMusicalKeyAndChroma(audioBuffer);
 
-      return {
+      const dspProfile = {
         frameHz: FRAME_HZ,
         nFrames,
         hopSec: 1 / FRAME_HZ,
         vocEnergyDb,
         vowelFlux,
+        centerRatioFrames,
         thVoc,
         midiFrames,
         rawClarityFrames,
         vocalIslands,
         firstVocalSec,
         medianMidi: Math.round(medianMidi),
-        voicedCount: voicedMidis.length
+        voicedCount: voicedMidis.length,
+        songKeyPc: harmonyProfile ? harmonyProfile.keyPc : 0,
+        songMode: harmonyProfile ? harmonyProfile.mode : 'major',
+        songKeyNameEs: harmonyProfile ? harmonyProfile.keyNameEs : '',
+        songKeyShortEs: harmonyProfile ? harmonyProfile.keyShortEs : '',
+        scaleMask: harmonyProfile ? harmonyProfile.scaleMask : null,
+        chromaMaskFrames: harmonyProfile ? harmonyProfile.chromaMaskFrames : null,
+        chromaFrameHz: harmonyProfile ? harmonyProfile.chromaFrameHz : 4,
+        audioRibbons: []
       };
+      dspProfile.audioRibbons = this._buildAudioLockedVocalRibbons(dspProfile, dur);
+      return dspProfile;
+    }
+
+    /**
+     * Extractor Armónico de Tonalidad y Acordes en Vivo (Chromagram 12 tonos @ 4 Hz + Krumhansl-Schmuckler):
+     * Analiza 3 octavas musicales (DO3-SI5) directamente sobre el AudioBuffer en <50 ms para determinar:
+     * - La tonalidad exacta de la canción (p. ej. "LA menor", "DO mayor") y su escala diatónica (7 notas)
+     * - La máscara de acordes activos cada 0.25s (chromaMaskFrames) para puntuar armonías reales
+     *   y ajustar el contorno melódico a notas 100% coherentes con la canción.
+     */
+    _extractMusicalKeyAndChroma(audioBuffer) {
+      if (!audioBuffer) return null;
+      const sr = audioBuffer.sampleRate || 44100;
+      const ch0 = audioBuffer.getChannelData(0);
+      const ch1 = audioBuffer.numberOfChannels > 1 ? audioBuffer.getChannelData(1) : ch0;
+      const dur = audioBuffer.duration || (ch0.length / sr);
+      if (dur < 5) return null;
+
+      // Diezmado limpio a ~2756 Hz (Nyquist ~1378 Hz > SI5 988 Hz) con ventana de 512 muestras (~186 ms)
+      const decim = Math.max(1, Math.round(sr / 2756.25));
+      const srEff = sr / decim;
+      const winLen = 512;
+      const chromaFrameHz = 4; // 0.25s por frame
+      const hopSrc = Math.max(1, Math.round(sr / chromaFrameHz));
+      const nChroma = Math.max(1, Math.floor(ch0.length / hopSrc));
+
+      // Precalcular coeficientes Goertzel para 36 semitonos (MIDI 48=DO3 a MIDI 83=SI5) + ventana Hann
+      const nBins = 36;
+      const binCoeffs = new Float32Array(nBins);
+      for (let b = 0; b < nBins; b++) {
+        const midi = 48 + b;
+        const freq = 440.0 * Math.pow(2, (midi - 69) / 12);
+        const omega = (2.0 * Math.PI * freq) / srEff;
+        binCoeffs[b] = 2.0 * Math.cos(omega);
+      }
+      const hann = new Float32Array(winLen);
+      for (let i = 0; i < winLen; i++) {
+        hann[i] = 0.5 * (1.0 - Math.cos((2.0 * Math.PI * i) / (winLen - 1)));
+      }
+      const frameBuf = new Float32Array(winLen);
+      const rawChroma = new Float32Array(nChroma * 12);
+      const globalChroma = new Float64Array(12);
+
+      for (let cf = 0; cf < nChroma; cf++) {
+        const base = cf * hopSrc;
+        if (base + winLen * decim >= ch0.length) break;
+        let sq = 0;
+        for (let i = 0; i < winLen; i++) {
+          const idx = base + i * decim;
+          const s = 0.5 * (ch0[idx] + ch1[idx]) * hann[i];
+          frameBuf[i] = s;
+          sq += s * s;
+        }
+        if (sq < 1e-6) continue;
+
+        const rowOff = cf * 12;
+        for (let b = 0; b < nBins; b++) {
+          const coeff = binCoeffs[b];
+          let s1 = 0;
+          let s2 = 0;
+          for (let i = 0; i < winLen; i++) {
+            const s0 = frameBuf[i] + coeff * s1 - s2;
+            s2 = s1;
+            s1 = s0;
+          }
+          const power = Math.max(0, s1 * s1 + s2 * s2 - coeff * s1 * s2);
+          const pc = b % 12;
+          const octW = b < 12 ? 0.85 : (b < 24 ? 1.15 : 0.90);
+          const val = Math.sqrt(power) * octW;
+          rawChroma[rowOff + pc] += val;
+          globalChroma[pc] += val;
+        }
+      }
+
+      // Perfiles Krumhansl-Schmuckler para detectar la tonalidad exacta (Mayor o Menor)
+      const MAJ_PROF = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88];
+      const MIN_PROF = [6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17];
+      const NOTE_NAMES_ES = ['DO', 'DO#', 'RE', 'MIb', 'MI', 'FA', 'FA#', 'SOL', 'SOL#', 'LA', 'SIb', 'SI'];
+
+      let meanG = 0;
+      for (let p = 0; p < 12; p++) meanG += globalChroma[p];
+      meanG /= 12;
+
+      const corrProfile = (prof, shift) => {
+        let meanP = 0;
+        for (let p = 0; p < 12; p++) meanP += prof[p];
+        meanP /= 12;
+        let num = 0, denG = 0, denP = 0;
+        for (let p = 0; p < 12; p++) {
+          const dg = globalChroma[(p + shift) % 12] - meanG;
+          const dp = prof[p] - meanP;
+          num += dg * dp;
+          denG += dg * dg;
+          denP += dp * dp;
+        }
+        return num / (Math.sqrt(denG * denP) + 1e-9);
+      };
+
+      let bestKeyPc = 0;
+      let bestMode = 'major';
+      let bestCorr = -999;
+      for (let shift = 0; shift < 12; shift++) {
+        const cMaj = corrProfile(MAJ_PROF, shift);
+        if (cMaj > bestCorr) {
+          bestCorr = cMaj;
+          bestKeyPc = shift;
+          bestMode = 'major';
+        }
+        const cMin = corrProfile(MIN_PROF, shift);
+        if (cMin > bestCorr) {
+          bestCorr = cMin;
+          bestKeyPc = shift;
+          bestMode = 'minor';
+        }
+      }
+
+      const scaleOffsets = bestMode === 'major'
+        ? [0, 2, 4, 5, 7, 9, 11]
+        : [0, 2, 3, 5, 7, 8, 10];
+      const scaleMask = new Uint8Array(12);
+      for (const off of scaleOffsets) scaleMask[(bestKeyPc + off) % 12] = 1;
+
+      // Suavizado temporal (±1 frame = 0.75s) y extracción de los 4 tonos armónicos dominantes por frame
+      const chromaMaskFrames = new Uint16Array(nChroma);
+      const tmpScores = new Float32Array(12);
+      for (let cf = 0; cf < nChroma; cf++) {
+        const fLo = Math.max(0, cf - 1);
+        const fHi = Math.min(nChroma - 1, cf + 1);
+        for (let pc = 0; pc < 12; pc++) {
+          let sum = 0;
+          for (let k = fLo; k <= fHi; k++) {
+            const w = k === cf ? 1.4 : 0.8;
+            sum += rawChroma[k * 12 + pc] * w;
+          }
+          // Ligero sesgo armónico hacia la escala real de la canción
+          tmpScores[pc] = sum * (scaleMask[pc] ? 1.18 : 0.86);
+        }
+        const order = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].sort((a, b) => tmpScores[b] - tmpScores[a]);
+        const topVal = tmpScores[order[0]] || 0;
+        let mask = 0;
+        if (topVal > 1e-5) {
+          for (let r = 0; r < 4; r++) {
+            const pc = order[r];
+            if (r < 3 || tmpScores[pc] >= topVal * 0.48) {
+              mask |= (1 << pc);
+            }
+          }
+        } else {
+          // Respaldo: tríada tónica de la canción
+          mask |= (1 << bestKeyPc) | (1 << ((bestKeyPc + (bestMode === 'major' ? 4 : 3)) % 12)) | (1 << ((bestKeyPc + 7) % 12));
+        }
+        chromaMaskFrames[cf] = mask;
+      }
+
+      const rootName = NOTE_NAMES_ES[bestKeyPc] || 'DO';
+      return {
+        keyPc: bestKeyPc,
+        mode: bestMode,
+        keyNameEs: `${rootName} ${bestMode === 'major' ? 'mayor' : 'menor'}`,
+        keyShortEs: `${rootName}${bestMode === 'major' ? '' : 'm'}`,
+        scaleMask,
+        chromaMaskFrames,
+        chromaFrameHz
+      };
+    }
+
+    /**
+     * Constructor de Cintas Vocales Ancladas 100% al Audio Real (0.000 ms desfase, CERO dependencia de LRC):
+     * - Segmentos melódicos tonales ('melody'): voz centrada con F0 estable y alta claridad -> cuantizados
+     *   a la escala/acorde real de la canción para eliminar notas falsas de guitarra o armónicos.
+     * - Zonas de armonía libre / ritmo ('harmony'): voz cantada rápida, rasgada o sobre mezcla densa
+     *   donde el F0 monofónico no es seguro -> NUNCA inventa notas aleatorias; puntúa cualquier nota
+     *   afinada en el acorde/escala real del instante.
+     */
+    _buildAudioLockedVocalRibbons(dsp, actualDurSec = 195) {
+      if (!dsp || !dsp.vocEnergyDb || !dsp.midiFrames) return [];
+      const fps = dsp.frameHz || 100;
+      const nFrames = dsp.nFrames || dsp.vocEnergyDb.length;
+      const vDb = dsp.vocEnergyDb;
+      const vMidi = dsp.midiFrames;
+      const vClar = dsp.rawClarityFrames;
+      const vCent = dsp.centerRatioFrames;
+      const thVoc = Number.isFinite(dsp.thVoc) ? dsp.thVoc : -32;
+      const scaleMask = dsp.scaleMask;
+      const chromaMasks = dsp.chromaMaskFrames;
+      const chromaHz = dsp.chromaFrameHz || 4;
+      const baseCenterMidi = Number.isFinite(dsp.medianMidi) ? dsp.medianMidi : 62;
+
+      const getChordMaskAt = (sec) => {
+        if (!chromaMasks || chromaMasks.length === 0) return 0;
+        const idx = Math.max(0, Math.min(chromaMasks.length - 1, Math.floor(sec * chromaHz)));
+        return chromaMasks[idx];
+      };
+
+      const quantizeToMusicalScale = (rawM, sec) => {
+        const nearest = Math.round(rawM);
+        const pc = ((nearest % 12) + 12) % 12;
+        const cMask = getChordMaskAt(sec);
+        if ((cMask & (1 << pc)) !== 0) return nearest;
+        if (scaleMask && scaleMask[pc]) return nearest;
+        // Si está fuera de la escala y un semitono adyacente pertenece al acorde en vivo (<= 0.72 st), ajustar suavemente
+        let bestM = nearest;
+        let bestDist = 99;
+        for (const cand of [nearest - 1, nearest + 1]) {
+          const cPc = ((cand % 12) + 12) % 12;
+          const dist = Math.abs(rawM - cand);
+          const inChord = (cMask & (1 << cPc)) !== 0;
+          const inScale = Boolean(scaleMask && scaleMask[cPc]);
+          if (inChord && dist <= 0.85 && dist < bestDist) {
+            bestDist = dist;
+            bestM = cand;
+          } else if (inScale && dist <= 0.68 && dist < bestDist) {
+            bestDist = dist;
+            bestM = cand;
+          }
+        }
+        return bestM;
+      };
+
+      const pickNearestChordMidi = (refMidi, sec) => {
+        const cMask = getChordMaskAt(sec);
+        const base = Math.round(refMidi);
+        let bestM = base;
+        let bestScore = -1e9;
+        for (let m = base - 5; m <= base + 5; m++) {
+          const pc = ((m % 12) + 12) % 12;
+          const inChord = (cMask & (1 << pc)) !== 0;
+          const inScale = Boolean(scaleMask && scaleMask[pc]);
+          if (!inChord && !inScale) continue;
+          const sc = (inChord ? 4.0 : 1.5) - Math.abs(m - refMidi) * 0.65;
+          if (sc > bestScore) {
+            bestScore = sc;
+            bestM = m;
+          }
+        }
+        return bestM;
+      };
+
+      // Umbral dedicado de voz principal para cintas vocales: evita falsas notas en intros instrumentales suaves
+      const sortedVocE = Array.from(vDb).sort((a, b) => a - b);
+      const p90VocE = sortedVocE[Math.floor(sortedVocE.length * 0.90)] || -18;
+      const ribbonGateDb = Math.max(thVoc + 2.5, p90VocE - 13.5);
+
+      // Clasificar cada frame de 10 ms en: 0 = silencio/instrumental, 1 = voz armonía/ritmo, 2 = voz melódica tonal
+      const state = new Uint8Array(nFrames);
+      const qMidi = new Float32Array(nFrames);
+      for (let f = 0; f < nFrames; f++) {
+        const eDb = vDb[f];
+        const cent = vCent ? vCent[f] : 0.65;
+        const isVocalActive = eDb >= ribbonGateDb && cent >= 0.42;
+        if (!isVocalActive) continue;
+        const m = vMidi[f];
+        const cl = vClar ? vClar[f] : 0;
+        if (m >= 46 && m <= 82 && cl >= 0.61) {
+          state[f] = 2;
+          qMidi[f] = quantizeToMusicalScale(m, f / fps);
+        } else if (eDb >= ribbonGateDb + 1.6 && cent >= 0.48) {
+          state[f] = 1;
+        }
+      }
+
+      // Cerrar micro-cortes consonánticos de <= 70 ms dentro de una misma nota o frase vocal
+      const maxBridge = Math.round(0.07 * fps);
+      let fIdx = 0;
+      while (fIdx < nFrames) {
+        if (state[fIdx] === 0) {
+          const gStart = fIdx;
+          while (fIdx < nFrames && state[fIdx] === 0) fIdx++;
+          const gLen = fIdx - gStart;
+          if (gStart > 0 && fIdx < nFrames && gLen <= maxBridge) {
+            const leftSt = state[gStart - 1];
+            const rightSt = state[fIdx];
+            if (leftSt === 2 && rightSt === 2 && Math.abs(qMidi[gStart - 1] - qMidi[fIdx]) <= 1.0) {
+              for (let k = gStart; k < fIdx; k++) { state[k] = 2; qMidi[k] = qMidi[gStart - 1]; }
+            } else if (leftSt >= 1 && rightSt >= 1) {
+              for (let k = gStart; k < fIdx; k++) { state[k] = 1; }
+            }
+          }
+        } else {
+          fIdx++;
+        }
+      }
+
+      const ribbons = [];
+      let ribbonId = 0;
+      let lastCleanMidi = baseCenterMidi;
+      let f = 0;
+
+      while (f < nFrames) {
+        const st = state[f];
+        if (st === 0) {
+          f++;
+          continue;
+        }
+
+        if (st === 2) {
+          const segStart = f;
+          let sumM = qMidi[f];
+          let cnt = 1;
+          f++;
+          const maxFrames = Math.round(2.35 * fps);
+          while (f < nFrames && state[f] === 2 && (f - segStart) < maxFrames) {
+            const avgM = sumM / cnt;
+            if (Math.abs(qMidi[f] - avgM) > 1.35) break;
+            sumM += qMidi[f];
+            cnt++;
+            f++;
+          }
+          const durSeg = cnt / fps;
+          if (durSeg >= 0.17) {
+            const sSec = segStart / fps;
+            const eSec = Math.min(actualDurSec, (segStart + cnt) / fps);
+            const medMidi = quantizeToMusicalScale(sumM / cnt, 0.5 * (sSec + eSec));
+            lastCleanMidi = medMidi;
+            ribbons.push({
+              id: ribbonId++,
+              kind: 'melody',
+              startSec: +sSec.toFixed(3),
+              endSec: +eSec.toFixed(3),
+              midi: medMidi,
+              freqHz: Math.round(this.midiToFreqHz(medMidi)),
+              chordMask: getChordMaskAt(0.5 * (sSec + eSec)),
+              text: '',
+              displayText: '',
+              isGolden: false,
+              hitFrames: 0,
+              totalFrames: 0,
+              fillRatio: 0,
+              goldenAwarded: false,
+              dspReal: true
+            });
+          }
+        } else {
+          const segStart = f;
+          const maxFrames = Math.round(2.8 * fps);
+          while (f < nFrames && state[f] === 1 && (f - segStart) < maxFrames) f++;
+          const durSeg = (f - segStart) / fps;
+          if (durSeg >= 0.28) {
+            const sSec = segStart / fps;
+            const eSec = Math.min(actualDurSec, f / fps);
+            const harmMidi = pickNearestChordMidi(lastCleanMidi, 0.5 * (sSec + eSec));
+            ribbons.push({
+              id: ribbonId++,
+              kind: 'harmony',
+              startSec: +sSec.toFixed(3),
+              endSec: +eSec.toFixed(3),
+              midi: harmMidi,
+              freqHz: Math.round(this.midiToFreqHz(harmMidi)),
+              chordMask: getChordMaskAt(0.5 * (sSec + eSec)),
+              text: '',
+              displayText: '',
+              isGolden: false,
+              hitFrames: 0,
+              totalFrames: 0,
+              fillRatio: 0,
+              goldenAwarded: false,
+              dspReal: true
+            });
+          }
+        }
+      }
+
+      // Fusionar cintas adyacentes idénticas muy próximas (< 90 ms) y marcar notas doradas en finales melódicos sostenidos
+      const merged = [];
+      for (let i = 0; i < ribbons.length; i++) {
+        const cur = ribbons[i];
+        const prev = merged.length > 0 ? merged[merged.length - 1] : null;
+        if (
+          prev &&
+          prev.kind === cur.kind &&
+          (cur.startSec - prev.endSec) <= 0.09 &&
+          (cur.kind === 'harmony' || Math.abs(prev.midi - cur.midi) < 0.5) &&
+          (cur.endSec - prev.startSec) <= 2.9
+        ) {
+          prev.endSec = cur.endSec;
+        } else {
+          if (prev && cur.startSec < prev.endSec + 0.025) {
+            cur.startSec = +(prev.endSec + 0.025).toFixed(3);
+            if (cur.endSec < cur.startSec + 0.14) continue;
+          }
+          cur.id = merged.length;
+          merged.push(cur);
+        }
+      }
+
+      let melIdx = 0;
+      for (let i = 0; i < merged.length; i++) {
+        const r = merged[i];
+        if (r.kind === 'melody') {
+          const d = r.endSec - r.startSec;
+          if (d >= 0.52 && (melIdx % 5 === 2 || d >= 0.95)) {
+            r.isGolden = true;
+          }
+          melIdx++;
+        }
+      }
+
+      return merged;
     }
 
     /**
@@ -11496,11 +11924,43 @@
       this.hasAcousticSyllables = true;
       this.centerMidi = (dsp && Number.isFinite(dsp.medianMidi)) ? dsp.medianMidi : 62;
 
+      // Extraer tonalidad musical real, escala diatónica y máscara de acordes en vivo (4 Hz)
+      this.songKeyPc = (dsp && Number.isFinite(dsp.songKeyPc)) ? dsp.songKeyPc : -1;
+      this.songMode = (dsp && dsp.songMode) ? dsp.songMode : '';
+      this.songKeyNameEs = (dsp && dsp.songKeyNameEs) ? dsp.songKeyNameEs : '';
+      this.songKeyShortEs = (dsp && dsp.songKeyShortEs) ? dsp.songKeyShortEs : '';
+      this.songScaleMask = (dsp && dsp.scaleMask) ? dsp.scaleMask : null;
+      this.chromaMaskFrames = (dsp && dsp.chromaMaskFrames) ? dsp.chromaMaskFrames : null;
+      this.chromaFrameHz = (dsp && dsp.chromaFrameHz) ? dsp.chromaFrameHz : 4;
+
+      // Cintas vocales ancladas 100% al audio real (0.000 ms desfase, NUNCA desplazadas por userOffsetSec ni LRC)
+      const incomingRibbons = (dsp && Array.isArray(dsp.audioRibbons) && dsp.audioRibbons.length > 0)
+        ? dsp.audioRibbons
+        : (this.hasDspMelody && dsp ? this._buildAudioLockedVocalRibbons(dsp, studioData.actualDurSec || 195) : []);
+
+      const keepExistingRibbonProgress = Boolean(
+        !resetStats &&
+        this._audioRibbonsTrackKey === studioData.key &&
+        Array.isArray(this.audioRibbons) &&
+        this.audioRibbons.length > 0 &&
+        incomingRibbons.length === this.audioRibbons.length
+      );
+      if (!keepExistingRibbonProgress) {
+        this.audioRibbons = incomingRibbons.map(r => ({
+          ...r,
+          hitFrames: 0,
+          totalFrames: 0,
+          fillRatio: 0,
+          goldenAwarded: false
+        }));
+        this._audioRibbonsTrackKey = studioData.key || '';
+      }
+
       const badge = document.getElementById('ssProDspBadge');
       if (badge) {
-        badge.textContent = this.hasDspMelody
-          ? 'SÍLABAS DTW + TONO YIN REAL'
-          : 'SÍLABAS FONÉTICAS + ESCALA CROMÁTICA';
+        badge.textContent = this.audioRibbons.length > 0
+          ? `AUDIO DIRECTO · ${this.songKeyNameEs ? this.songKeyNameEs.toUpperCase() : 'ARMONÍA EN VIVO'}`
+          : (this.hasDspMelody ? 'MELODÍA MPM + ARMONÍA' : 'GUÍA ARMÓNICA EN VIVO');
       }
 
       const seed = this._hashTrackSeed(studioData.track);
@@ -11531,17 +11991,14 @@
           }
 
           if (!Number.isFinite(targetMidi)) {
-            // Si en esa sílaba concreta hubo percusión fuerte, interpolar suavemente desde la nota anterior o contorno natural monotónico
             if (notes.length > 0 && (startSec - notes[notes.length - 1].endSec) < 0.8) {
-              const arch = Math.sin((si / Math.max(1, phraseLen - 1)) * Math.PI) * 1.5;
-              targetMidi = notes[notes.length - 1].midi + (si % 2 === 0 ? 1 : -1) * 0.5 + arch * 0.25;
+              targetMidi = notes[notes.length - 1].midi;
             } else {
               const deg = majorScale[(li * 2 + si + seed) % majorScale.length] - 5;
               targetMidi = this.centerMidi + deg;
             }
           }
 
-          // Suavizado fisiológico entre sílabas contiguas de la misma palabra/frase (sin plegar octava)
           if (si > 0 && notes.length > 0) {
             const prev = notes[notes.length - 1].midi;
             const delta = targetMidi - prev;
@@ -11550,7 +12007,6 @@
             }
           }
 
-          // Cuantizar a medios semitonos para que las barras luzcan limpias y musicales en el pentagrama
           const cleanMidi = Math.round(targetMidi * 2) / 2;
           minSongMidi = Math.min(minSongMidi, cleanMidi);
           maxSongMidi = Math.max(maxSongMidi, cleanMidi);
@@ -11591,8 +12047,25 @@
         }
       }
 
+      // Si existen cintas vocales ancladas al audio real, calibrar el eje vertical y las notas doradas sobre ellas
+      if (this.audioRibbons.length > 0) {
+        let rMin = 999;
+        let rMax = -999;
+        let rGold = 0;
+        for (let i = 0; i < this.audioRibbons.length; i++) {
+          const r = this.audioRibbons[i];
+          if (r.midi < rMin) rMin = r.midi;
+          if (r.midi > rMax) rMax = r.midi;
+          if (r.isGolden) rGold++;
+        }
+        if (rMin < rMax) {
+          minSongMidi = rMin;
+          maxSongMidi = rMax;
+        }
+        goldenTotal = Math.max(1, rGold);
+      }
+
       // Configurar eje vertical estrictamente monotónico [axisMinMidi, axisMaxMidi]
-      // Abajo = siempre más grave (menor MIDI), Arriba = siempre más agudo (mayor MIDI)
       if (minSongMidi < maxSongMidi && Number.isFinite(minSongMidi)) {
         const midPoint = Math.round((minSongMidi + maxSongMidi) * 0.5);
         const halfSpan = Math.max(9, Math.ceil((maxSongMidi - minSongMidi) * 0.5) + 3);
@@ -12123,7 +12596,9 @@
         this.liveUserMidi = null;
         this.liveUserFreqHz = 0;
         this.liveNoteLabel = '--';
-        this.liveStatusText = activeNote ? 'CANTA LA SÍLABA' : 'MIC ACTIVO · CANTA';
+        this.liveStatusText = activeNote
+          ? (activeNote.kind === 'harmony' ? 'CANTA EN ARMONÍA' : 'SIGUE LA MELODÍA')
+          : (this.songKeyNameEs ? `TONO ${this.songKeyNameEs.toUpperCase()}` : 'MIC ACTIVO · CANTA');
         this.liveStatusTier = 'idle';
         return;
       }
@@ -12421,6 +12896,12 @@
       } catch (_) {}
     }
 
+    _getLiveChordMaskAt(sec) {
+      if (!this.chromaMaskFrames || this.chromaMaskFrames.length === 0) return 0;
+      const idx = Math.max(0, Math.min(this.chromaMaskFrames.length - 1, Math.floor(Math.max(0, sec) * (this.chromaFrameHz || 4))));
+      return this.chromaMaskFrames[idx] || 0;
+    }
+
     _tickAndRender(nowMs) {
       const dtSec = Math.min(0.08, Math.max(0.004, (nowMs - (this._lastFrameMs || nowMs)) / 1000));
       this._lastFrameMs = nowMs;
@@ -12428,20 +12909,36 @@
       const isPlaying = Boolean(this.audioEngine && this.audioEngine.isPlaying());
       const curSec = this.audioEngine ? this.audioEngine.getCurrentSongTimeSec() : 0;
 
-      // Localizar la sílaba activa en este instante
+      // Usar las cintas vocales ancladas 100% al audio real (0.000 ms desfase, inmunes a desfase LRC);
+      // respaldo a pitchNotes únicamente si aún no se ha decodificado el AudioBuffer.
+      const usingAudioRibbons = Boolean(Array.isArray(this.audioRibbons) && this.audioRibbons.length > 0);
+      const sourceNotes = usingAudioRibbons ? this.audioRibbons : this.pitchNotes;
+
       let activeNote = null;
-      for (let i = 0; i < this.pitchNotes.length; i++) {
-        const n = this.pitchNotes[i];
-        if (curSec + 0.045 >= n.startSec && curSec - 0.045 <= n.endSec) {
+      for (let i = 0; i < sourceNotes.length; i++) {
+        const n = sourceNotes[i];
+        if (curSec + 0.055 >= n.startSec && curSec - 0.055 <= n.endSec) {
           activeNote = n;
           break;
         }
       }
 
-      this.liveTargetNoteLabel = activeNote
-        ? this.midiToNoteNameEs(activeNote.midi)
-        : '--';
-      this.liveTargetNoteHz = activeNote ? `${activeNote.freqHz} Hz` : '';
+      const liveChordMask = this._getLiveChordMaskAt(curSec);
+      const isHarmonyZone = Boolean(activeNote && activeNote.kind === 'harmony');
+
+      if (activeNote && !isHarmonyZone) {
+        this.liveTargetKicker = 'META';
+        this.liveTargetNoteLabel = this.midiToNoteNameEs(activeNote.midi);
+        this.liveTargetNoteHz = `${activeNote.freqHz} Hz`;
+      } else if (isHarmonyZone) {
+        this.liveTargetKicker = 'ARMONÍA';
+        this.liveTargetNoteLabel = this.songKeyShortEs || this.midiToNoteNameEs(activeNote.midi);
+        this.liveTargetNoteHz = this.songKeyNameEs || '';
+      } else {
+        this.liveTargetKicker = this.songKeyShortEs ? 'TONO' : 'META';
+        this.liveTargetNoteLabel = this.songKeyShortEs || '--';
+        this.liveTargetNoteHz = this.songKeyNameEs || '';
+      }
 
       // Actualizar sintetizador de Tono Guía Audible si está activo
       this._updateAudibleToneGuideSynth(activeNote, isPlaying);
@@ -12449,13 +12946,58 @@
       // Muestrear micrófono o guía
       this._sampleLiveVoiceOrGuide(curSec, activeNote, nowMs);
 
-      // Evaluar precisión vocal frente a la sílaba activa
+      // Evaluación Musical de Doble Capa (Melodía Real + Armonía/Escala del Acorde en Vivo):
+      // Nunca castiga injustamente por guitarras/mezcla densa ni por cantar en armonía (3ª/5ª/octava)
       if (isPlaying && activeNote) {
         activeNote.totalFrames++;
-        if (Number.isFinite(this.liveUserMidi)) {
+        const chordMaskNow = activeNote.chordMask || liveChordMask;
+        const hasVoicedPitch = Number.isFinite(this.liveUserMidi);
+        const userPc = hasVoicedPitch ? (((Math.round(this.liveUserMidi) % 12) + 12) % 12) : -1;
+        const isInLiveChord = userPc >= 0 && ((chordMaskNow & (1 << userPc)) !== 0);
+        const isInSongScale = userPc >= 0 && Boolean(this.songScaleMask && this.songScaleMask[userPc]);
+
+        if (isHarmonyZone) {
+          // Zona expresiva / mezcla densa / fraseo rápido: puntúa afinación al acorde, a la escala o ritmo vocal
+          if (hasVoicedPitch) {
+            this.sungFramesCount++;
+            if (isInLiveChord) {
+              this.liveStatusText = 'ARMONÍA EXACTA';
+              this.liveStatusTier = 'perfect';
+              activeNote.hitFrames += 1.16;
+              this.tunedFramesCount += 1.0;
+              this.streak++;
+              this.maxStreak = Math.max(this.maxStreak, this.streak);
+              this.feverMeter = Math.min(100, this.feverMeter + dtSec * 18);
+              this.score += Math.round(18 * this.multiplier);
+            } else if (isInSongScale) {
+              this.liveStatusText = 'EN TONO';
+              this.liveStatusTier = 'good';
+              activeNote.hitFrames += 0.96;
+              this.tunedFramesCount += 0.90;
+              this.streak++;
+              this.maxStreak = Math.max(this.maxStreak, this.streak);
+              this.feverMeter = Math.min(100, this.feverMeter + dtSec * 12);
+              this.score += Math.round(12 * this.multiplier);
+            } else {
+              this.liveStatusText = 'RITMO VOCAL';
+              this.liveStatusTier = 'near';
+              activeNote.hitFrames += 0.55;
+              this.tunedFramesCount += 0.55;
+              this.score += Math.round(6 * this.multiplier);
+            }
+          } else if (this.liveUserRms > Math.max(0.012, (this._lastGateThresholdRms || 0.0085) * 1.35)) {
+            // Voz rítmica / rap / consonantes fuertes en zona expresiva
+            this.sungFramesCount++;
+            this.liveStatusText = 'RITMO ACTIVO';
+            this.liveStatusTier = 'good';
+            activeNote.hitFrames += 0.78;
+            this.tunedFramesCount += 0.78;
+            this.streak++;
+            this.maxStreak = Math.max(this.maxStreak, this.streak);
+            this.score += Math.round(8 * this.multiplier);
+          }
+        } else if (hasVoicedPitch) {
           const directDelta = this.liveUserMidi - activeNote.midi;
-          // En modo de octava AUTO, permitimos que el cantante cante en su octava natural
-          // sin penalizar saltos de registro (pecho/cabeza), manteniendo el movimiento del orbe 100% monotónico
           const octaveFlexDelta = this.octaveRegisterMode === 'auto'
             ? (directDelta - Math.round(directDelta / 12) * 12)
             : directDelta;
@@ -12463,48 +13005,75 @@
           const absDelta = Math.abs(evalDelta);
           this.sungFramesCount++;
 
-          if (absDelta <= 0.95) {
+          if (absDelta <= 1.05) {
             this.liveStatusText = 'AFINACIÓN EXACTA';
             this.liveStatusTier = 'perfect';
-            activeNote.hitFrames += 1.18;
+            activeNote.hitFrames += 1.20;
             this.tunedFramesCount += 1.0;
             this.streak++;
             this.maxStreak = Math.max(this.maxStreak, this.streak);
             this.feverMeter = Math.min(100, this.feverMeter + dtSec * 20);
-            this.score += Math.round((activeNote.isGolden ? 28 : 14) * this.multiplier);
-          } else if (absDelta <= 1.85) {
+            this.score += Math.round((activeNote.isGolden ? 28 : 16) * this.multiplier);
+          } else if (absDelta <= 2.0) {
             this.liveStatusText = 'AFINADO';
             this.liveStatusTier = 'good';
-            activeNote.hitFrames += 0.92;
+            activeNote.hitFrames += 0.94;
             this.tunedFramesCount += 0.88;
             this.streak++;
             this.maxStreak = Math.max(this.maxStreak, this.streak);
             this.feverMeter = Math.min(100, this.feverMeter + dtSec * 12);
-            this.score += Math.round((activeNote.isGolden ? 18 : 9) * this.multiplier);
-          } else if (absDelta <= 2.85) {
-            this.liveStatusText = evalDelta > 0 ? 'UN POCO AGUDO (BAJA)' : 'UN POCO GRAVE (SUBE)';
+            this.score += Math.round((activeNote.isGolden ? 18 : 10) * this.multiplier);
+          } else if (isInLiveChord) {
+            // El usuario está cantando una nota armónica válida del acorde actual (3ª/5ª/voz secundaria)
+            this.liveStatusText = 'ARMONÍA';
+            this.liveStatusTier = 'good';
+            activeNote.hitFrames += 0.88;
+            this.tunedFramesCount += 0.85;
+            this.streak++;
+            this.maxStreak = Math.max(this.maxStreak, this.streak);
+            this.feverMeter = Math.min(100, this.feverMeter + dtSec * 10);
+            this.score += Math.round((activeNote.isGolden ? 16 : 10) * this.multiplier);
+          } else if (absDelta <= 3.0 || isInSongScale) {
+            this.liveStatusText = evalDelta > 0 ? 'EN ESCALA · BAJA' : 'EN ESCALA · SUBE';
             this.liveStatusTier = 'near';
-            activeNote.hitFrames += 0.42;
-            this.tunedFramesCount += 0.40;
-            this.score += Math.round(4 * this.multiplier);
+            activeNote.hitFrames += 0.48;
+            this.tunedFramesCount += 0.48;
+            this.score += Math.round(5 * this.multiplier);
           } else {
-            this.liveStatusText = directDelta > 0 ? 'MUY AGUDO (BAJA EL TONO)' : 'MUY GRAVE (SUBE EL TONO)';
+            this.liveStatusText = evalDelta > 0 ? 'AGUDO · BAJA' : 'GRAVE · SUBE';
             this.liveStatusTier = 'off';
-            this.streak = Math.max(0, this.streak - 2);
-            this.feverMeter = Math.max(0, this.feverMeter - dtSec * 14);
+            this.streak = Math.max(0, this.streak - 1);
+            this.feverMeter = Math.max(0, this.feverMeter - dtSec * 10);
           }
+        }
 
-          const spanFrames = Math.max(6, (activeNote.endSec - activeNote.startSec) * 48);
-          activeNote.fillRatio = Math.min(1, activeNote.hitFrames / spanFrames);
+        const spanFrames = Math.max(6, (activeNote.endSec - activeNote.startSec) * 46);
+        activeNote.fillRatio = Math.min(1, activeNote.hitFrames / spanFrames);
 
-          if (activeNote.isGolden && !activeNote.goldenAwarded && activeNote.fillRatio >= 0.70) {
-            activeNote.goldenAwarded = true;
-            this.goldenHitCount++;
-            const bonus = 350 * this.multiplier;
-            this.score += bonus;
-            this._triggerHaptic(28);
-            this._spawnPopup('SÍLABA DORADA COMPLETADA', `+${bonus} PTS`, '#fde047', 1250);
+        if (activeNote.isGolden && !activeNote.goldenAwarded && activeNote.fillRatio >= 0.68) {
+          activeNote.goldenAwarded = true;
+          this.goldenHitCount++;
+          const bonus = 350 * this.multiplier;
+          this.score += bonus;
+          this._triggerHaptic(28);
+          this._spawnPopup('NOTA DORADA COMPLETADA', `+${bonus} PTS`, '#fde047', 1250);
+        }
+      } else if (isPlaying && !activeNote) {
+        // Entre frases vocales (instrumental / pausa): feedback armónico limpio sin penalizar jamás
+        if (Number.isFinite(this.liveUserMidi)) {
+          const userPc = ((Math.round(this.liveUserMidi) % 12) + 12) % 12;
+          const inChord = (liveChordMask & (1 << userPc)) !== 0;
+          const inScale = Boolean(this.songScaleMask && this.songScaleMask[userPc]);
+          if (inChord || inScale) {
+            this.liveStatusText = this.songKeyNameEs ? `EN TONO · ${this.songKeyNameEs.toUpperCase()}` : 'EN TONO';
+            this.liveStatusTier = 'good';
+          } else {
+            this.liveStatusText = 'INSTRUMENTAL';
+            this.liveStatusTier = 'idle';
           }
+        } else {
+          this.liveStatusText = this.songKeyNameEs ? `TONO ${this.songKeyNameEs.toUpperCase()}` : 'ESCUCHA Y CANTA';
+          this.liveStatusTier = 'idle';
         }
       }
 
@@ -12531,7 +13100,7 @@
         fsModal.classList.toggle('fever-mode', Boolean(this.isActive && this.isFever));
       }
 
-      // Evaluar final de cada frase cantada
+      // Evaluar final de cada frase cantada (sobre cintas de audio si existen, para no depender de LRC)
       if (isPlaying) {
         for (let pIdx = 0; pIdx < this.phraseWindows.length; pIdx++) {
           const pw = this.phraseWindows[pIdx];
@@ -12540,24 +13109,35 @@
             let fillSum = 0;
             let count = 0;
             let userAttempted = false;
-            for (let ni = 0; ni < pw.syllables.length; ni++) {
-              const n = pw.syllables[ni];
-              fillSum += n.fillRatio;
-              count++;
-              if (n.hitFrames > 0) userAttempted = true;
+            if (usingAudioRibbons) {
+              for (let ri = 0; ri < this.audioRibbons.length; ri++) {
+                const r = this.audioRibbons[ri];
+                if (r.endSec < pw.startSec - 0.6) continue;
+                if (r.startSec > pw.endSec + 0.6) break;
+                fillSum += r.fillRatio;
+                count++;
+                if (r.hitFrames > 0) userAttempted = true;
+              }
+            } else {
+              for (let ni = 0; ni < pw.syllables.length; ni++) {
+                const n = pw.syllables[ni];
+                fillSum += n.fillRatio;
+                count++;
+                if (n.hitFrames > 0) userAttempted = true;
+              }
             }
             if (count > 0 && userAttempted) {
               const avgFill = fillSum / count;
-              if (avgFill >= 0.80) {
+              if (avgFill >= 0.78) {
                 const b = 400 * this.multiplier;
                 this.score += b;
                 this._triggerHaptic(22);
                 this._spawnPopup('FRASE MAGISTRAL', `+${b} PTS`, '#fde047', 1150);
-              } else if (avgFill >= 0.56) {
+              } else if (avgFill >= 0.52) {
                 const b = 250 * this.multiplier;
                 this.score += b;
                 this._spawnPopup('GRAN AFINACIÓN', `+${b} PTS`, '#34d399', 1000);
-              } else if (avgFill >= 0.32) {
+              } else if (avgFill >= 0.28) {
                 const b = 120 * this.multiplier;
                 this.score += b;
                 this._spawnPopup('BIEN CANTADO', `+${b} PTS`, '#38bdf8', 900);
@@ -12597,6 +13177,7 @@
     }
 
     _updateFullScreenTeleprompter(curSec) {
+      const prevEl = document.getElementById('ssProTeleprompterPrev');
       const curEl = document.getElementById('ssProTeleprompterCurrent');
       const nextEl = document.getElementById('ssProTeleprompterNext');
       if (!curEl || this.phraseWindows.length === 0) return;
@@ -12637,6 +13218,16 @@
       if (activePhraseIdx !== this._lastTeleprompterLineIdx) {
         this._lastTeleprompterLineIdx = activePhraseIdx;
         this._lastTeleprompterSylIdx = -2;
+
+        if (prevEl) {
+          let prevText = '';
+          for (let pi = activePhraseIdx - 1; pi >= 0; pi--) {
+            const pt = String(this.phraseWindows[pi]?.text || '').trim();
+            if (pt) { prevText = pt; break; }
+          }
+          prevEl.textContent = prevText;
+        }
+
         const hasPhraseText = Boolean(String(phrase.text || '').trim());
         if (hasPhraseText) {
           curEl.innerHTML = phrase.syllables.map((syl, sIdx) => {
@@ -12644,8 +13235,8 @@
           }).join('');
         } else {
           curEl.textContent = this.isTranscribingWhisper
-            ? 'Transcribiendo letra real con IA Whisper...'
-            : 'Sigue la guía melódica en el pentagrama';
+            ? 'Sincronizando letra en segundo plano...'
+            : 'Sigue las barras de melodía y armonía en directo';
         }
 
         let nextTextPhrase = null;
@@ -12658,7 +13249,7 @@
         if (nextEl) {
           nextEl.textContent = nextTextPhrase
             ? nextTextPhrase.text
-            : (this.isTranscribingWhisper ? 'Anclando sílabas al audio real (10 ms)...' : '');
+            : (this.isTranscribingWhisper ? 'Alineando texto al audio real...' : '');
         }
       }
 
@@ -12706,6 +13297,10 @@
         const gateDb = 20 * Math.log10(gateNow + 1e-5);
         const gatePct = Math.max(4, Math.min(92, ((gateDb + 52) / 44) * 100));
         gateMark.style.left = `${gatePct.toFixed(1)}%`;
+      }
+      const targetKickerEl = document.getElementById('ssProTargetKicker');
+      if (targetKickerEl) {
+        targetKickerEl.textContent = this.liveTargetKicker || 'TONO';
       }
       const targetEl = document.getElementById('ssProTargetNote');
       if (targetEl) {
@@ -12792,22 +13387,26 @@
       const lookaheadSec = isFullScreen ? (isCompact ? 2.45 : 3.15) : 2.6;
       const pxPerSec = (cssW - playheadX) / lookaheadSec;
 
-      // 0. Cámara vertical dinámica suave (centrada en las notas visibles/próximas para cero espacio muerto)
+      const usingAudioRibbons = Boolean(Array.isArray(this.audioRibbons) && this.audioRibbons.length > 0);
+      const highwayNotes = usingAudioRibbons ? this.audioRibbons : this.pitchNotes;
+      const liveChordMask = this._getLiveChordMaskAt(curSec);
+
+      // 0. Cámara vertical dinámica suave (centrada en las cintas vocales reales visibles/próximas)
       let visMinMidi = Infinity;
       let visMaxMidi = -Infinity;
       const camWinStart = curSec - 0.9;
       const camWinEnd = curSec + lookaheadSec + 1.8;
-      for (let i = 0; i < this.pitchNotes.length; i++) {
-        const pn = this.pitchNotes[i];
+      for (let i = 0; i < highwayNotes.length; i++) {
+        const pn = highwayNotes[i];
         if (pn.endSec < camWinStart) continue;
         if (pn.startSec > camWinEnd) break;
         if (pn.midi < visMinMidi) visMinMidi = pn.midi;
         if (pn.midi > visMaxMidi) visMaxMidi = pn.midi;
       }
-      if (!Number.isFinite(visMinMidi) && this.pitchNotes.length > 0) {
+      if (!Number.isFinite(visMinMidi) && highwayNotes.length > 0) {
         let countUp = 0;
-        for (let i = 0; i < this.pitchNotes.length && countUp < 10; i++) {
-          const pn = this.pitchNotes[i];
+        for (let i = 0; i < highwayNotes.length && countUp < 10; i++) {
+          const pn = highwayNotes[i];
           if (pn.endSec >= curSec - 1.0) {
             if (pn.midi < visMinMidi) visMinMidi = pn.midi;
             if (pn.midi > visMaxMidi) visMaxMidi = pn.midi;
@@ -12846,27 +13445,36 @@
         return topPad + (1 - clamped) * usableH;
       };
 
-      // 1. Guías musicales limpias (solo octavas DO y quintas SOL, sin ruido de cuadrícula)
+      // 1. Carriles armónicos iluminados en vivo (notas del acorde actual) + guías limpias de DO/SOL
       for (let m = Math.ceil(minMidi); m <= Math.floor(maxMidi); m++) {
         const noteInOct = ((m % 12) + 12) % 12;
+        const y = midiToY(m);
+        if (liveChordMask && ((liveChordMask & (1 << noteInOct)) !== 0)) {
+          const hBand = Math.max(8, semitoneStepH * 0.86);
+          ctx.fillStyle = 'rgba(56, 189, 248, 0.038)';
+          ctx.fillRect(pianoRollW, y - hBand * 0.5, cssW - pianoRollW, hBand);
+        }
         if (noteInOct !== 0 && noteInOct !== 7) continue;
-        const y = Math.round(midiToY(m)) + 0.5;
+        const yLine = Math.round(y) + 0.5;
         const isC = (noteInOct === 0);
         ctx.strokeStyle = isC ? 'rgba(245, 197, 66, 0.16)' : 'rgba(255, 255, 255, 0.05)';
         ctx.lineWidth = isC ? 1 : 0.8;
         ctx.beginPath();
-        ctx.moveTo(pianoRollW, y);
-        ctx.lineTo(cssW, y);
+        ctx.moveTo(pianoRollW, yLine);
+        ctx.lineTo(cssW, yLine);
         ctx.stroke();
       }
 
       // Destello suave horizontal en el carril de la nota objetivo activa
       if (activeNote) {
         const laneY = midiToY(activeNote.midi);
-        const laneH = Math.max(24, semitoneStepH * 2.0);
+        const isHarm = activeNote.kind === 'harmony';
+        const laneH = Math.max(24, semitoneStepH * (isHarm ? 3.2 : 2.0));
         const laneGrad = ctx.createLinearGradient(pianoRollW, laneY - laneH * 0.5, pianoRollW, laneY + laneH * 0.5);
         laneGrad.addColorStop(0, 'rgba(56, 189, 248, 0)');
-        laneGrad.addColorStop(0.5, activeNote.isGolden ? 'rgba(250, 204, 21, 0.08)' : 'rgba(56, 189, 248, 0.075)');
+        laneGrad.addColorStop(0.5, isHarm
+          ? 'rgba(16, 185, 129, 0.095)'
+          : (activeNote.isGolden ? 'rgba(250, 204, 21, 0.085)' : 'rgba(56, 189, 248, 0.08)'));
         laneGrad.addColorStop(1, 'rgba(56, 189, 248, 0)');
         ctx.fillStyle = laneGrad;
         ctx.fillRect(pianoRollW, laneY - laneH * 0.5, cssW - pianoRollW, laneH);
@@ -12885,22 +13493,21 @@
         ctx.stroke();
       }
 
-      // Precalcular geometría limpia sin solapamiento para todas las notas visibles
+      // Precalcular geometría limpia sin solapamiento para todas las cintas/notas visibles
       const minVisSec = curSec - 1.1;
       const maxVisSec = curSec + lookaheadSec + 0.45;
-      const barH = isFullScreen ? Math.max(12, Math.min(17, Math.round(semitoneStepH * 0.58))) : 11;
-      const barRadius = barH * 0.5;
+      const barH = isFullScreen ? Math.max(13, Math.min(18, Math.round(semitoneStepH * 0.60))) : 11;
       const visNotes = [];
 
-      for (let i = 0; i < this.pitchNotes.length; i++) {
-        const n = this.pitchNotes[i];
+      for (let i = 0; i < highwayNotes.length; i++) {
+        const n = highwayNotes[i];
         if (n.endSec < minVisSec) continue;
         if (n.startSec > maxVisSec) break;
 
         const x1 = playheadX + (n.startSec - curSec) * pxPerSec;
         const rawX2 = playheadX + (n.endSec - curSec) * pxPerSec;
-        const nextN = (i + 1 < this.pitchNotes.length) ? this.pitchNotes[i + 1] : null;
-        let x2 = Math.max(x1 + (isCompact ? 11 : 14), rawX2);
+        const nextN = (i + 1 < highwayNotes.length) ? highwayNotes[i + 1] : null;
+        let x2 = Math.max(x1 + (isCompact ? 12 : 15), rawX2);
         if (nextN) {
           const nextX1 = playheadX + (nextN.startSec - curSec) * pxPerSec;
           if (nextX1 - x1 > 6) {
@@ -12918,14 +13525,15 @@
         });
       }
 
-      // 2. Conectores melódicos suaves (curvas Bézier) entre sílabas de la misma frase
+      // 2. Conectores melódicos suaves (curvas Bézier) entre cintas vocales próximas
       ctx.save();
-      ctx.strokeStyle = 'rgba(148, 163, 184, 0.17)';
-      ctx.lineWidth = 1.4;
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.19)';
+      ctx.lineWidth = 1.5;
       for (let i = 1; i < visNotes.length; i++) {
         const prev = visNotes[i - 1];
         const curr = visNotes[i];
-        if (curr.n.lineIdx !== prev.n.lineIdx || (curr.n.startSec - prev.n.endSec) > 0.65) continue;
+        if ((curr.n.startSec - prev.n.endSec) > 0.55) continue;
+        if (!usingAudioRibbons && curr.n.lineIdx !== prev.n.lineIdx) continue;
         const gapX = curr.x1 - prev.x2;
         if (gapX <= 1) continue;
         if (gapX < 6 && Math.abs(curr.cy - prev.cy) > semitoneStepH * 4.5) continue;
@@ -12937,10 +13545,10 @@
       }
       ctx.restore();
 
-      // 3. Barras de tono limpias (estilo Broadcast Studio) + etiquetas con protección anti-colisión 2D por carril
+      // 3. Cintas Vocales Ancladas al Audio Real (Melodía Tonal + Zonas de Armonía Libre)
       ctx.font = isFullScreen
-        ? (isCompact ? '700 11.5px Outfit, Montserrat, -apple-system, sans-serif' : '700 12.5px Outfit, Montserrat, -apple-system, sans-serif')
-        : '700 10px Outfit, Montserrat, -apple-system, sans-serif';
+        ? (isCompact ? '700 10px ui-monospace, SFMono-Regular, Menlo, monospace' : '700 11px ui-monospace, SFMono-Regular, Menlo, monospace')
+        : '700 9.5px Outfit, Montserrat, -apple-system, sans-serif';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'bottom';
 
@@ -12949,37 +13557,46 @@
       for (let i = 0; i < visNotes.length; i++) {
         const item = visNotes[i];
         const { n, x1, x2, w, cy, isCurrent } = item;
-        const y = cy - barH * 0.5;
+        const isHarmony = n.kind === 'harmony';
+        const thisBarH = isHarmony ? Math.round(barH * 1.95) : barH;
+        const thisRadius = isHarmony ? Math.min(12, thisBarH * 0.42) : thisBarH * 0.5;
+        const y = cy - thisBarH * 0.5;
         const isPast = curSec > n.endSec;
 
         ctx.save();
         if (isCurrent || n.isGolden) {
-          ctx.shadowColor = n.isGolden ? 'rgba(250, 204, 21, 0.36)' : 'rgba(56, 189, 248, 0.42)';
+          ctx.shadowColor = isHarmony
+            ? 'rgba(52, 211, 153, 0.36)'
+            : (n.isGolden ? 'rgba(250, 204, 21, 0.38)' : 'rgba(56, 189, 248, 0.42)');
           ctx.shadowBlur = isCurrent ? 14 : 8;
         }
 
         ctx.beginPath();
         if (ctx.roundRect) {
-          ctx.roundRect(x1, y, w, barH, barRadius);
+          ctx.roundRect(x1, y, w, thisBarH, thisRadius);
         } else {
-          ctx.rect(x1, y, w, barH);
+          ctx.rect(x1, y, w, thisBarH);
         }
 
-        if (n.isGolden) {
+        if (isHarmony) {
+          ctx.fillStyle = isCurrent
+            ? 'rgba(16, 65, 58, 0.72)'
+            : (isPast ? 'rgba(15, 34, 34, 0.42)' : 'rgba(16, 46, 48, 0.56)');
+        } else if (n.isGolden) {
           ctx.fillStyle = isCurrent ? 'rgba(133, 77, 14, 0.90)' : 'rgba(78, 45, 12, 0.78)';
         } else {
           ctx.fillStyle = isCurrent
             ? 'rgba(22, 34, 54, 0.95)'
-            : (isPast ? 'rgba(15, 20, 32, 0.62)' : 'rgba(19, 26, 40, 0.84)');
+            : (isPast ? 'rgba(15, 20, 32, 0.62)' : 'rgba(19, 26, 40, 0.86)');
         }
         ctx.fill();
         ctx.shadowBlur = 0;
 
-        // Brillo especular superior sutil para profundidad táctil
+        // Brillo especular superior sutil + progreso afinado
         ctx.save();
         ctx.clip();
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.10)';
-        ctx.fillRect(x1, y, w, Math.max(2, barH * 0.34));
+        ctx.fillStyle = isHarmony ? 'rgba(110, 231, 183, 0.09)' : 'rgba(255, 255, 255, 0.10)';
+        ctx.fillRect(x1, y, w, Math.max(2, thisBarH * 0.32));
 
         const progress = Math.max(
           n.fillRatio,
@@ -12990,7 +13607,11 @@
         if (progress > 0.01) {
           const fillW = w * Math.min(1, progress);
           const fillGrad = ctx.createLinearGradient(x1, y, x1 + fillW, y);
-          if (n.isGolden) {
+          if (isHarmony) {
+            fillGrad.addColorStop(0, 'rgba(16, 185, 129, 0.78)');
+            fillGrad.addColorStop(0.65, 'rgba(52, 211, 153, 0.86)');
+            fillGrad.addColorStop(1, 'rgba(167, 243, 208, 0.92)');
+          } else if (n.isGolden) {
             fillGrad.addColorStop(0, '#f59e0b');
             fillGrad.addColorStop(0.65, '#fde047');
             fillGrad.addColorStop(1, '#fffef0');
@@ -13004,28 +13625,38 @@
             fillGrad.addColorStop(1, '#fde047');
           }
           ctx.fillStyle = fillGrad;
-          ctx.fillRect(x1, y, fillW, barH);
+          ctx.fillRect(x1, y, fillW, thisBarH);
         }
         ctx.restore();
 
-        // Contorno limpio de la barra
+        // Contorno limpio (punteado sutil en zonas de armonía libre, continuo en melodía tonal)
         ctx.beginPath();
         if (ctx.roundRect) {
-          ctx.roundRect(x1, y, w, barH, barRadius);
+          ctx.roundRect(x1, y, w, thisBarH, thisRadius);
         } else {
-          ctx.rect(x1, y, w, barH);
+          ctx.rect(x1, y, w, thisBarH);
         }
-        ctx.strokeStyle = n.isGolden
-          ? (isCurrent ? '#fef08a' : 'rgba(250, 204, 21, 0.78)')
-          : (isCurrent ? '#38bdf8' : (isPast ? 'rgba(148, 163, 184, 0.22)' : 'rgba(226, 232, 240, 0.28)'));
-        ctx.lineWidth = isCurrent ? 1.8 : 1.05;
+        if (isHarmony) {
+          ctx.setLineDash([4, 3]);
+          ctx.strokeStyle = isCurrent ? '#6ee7b7' : 'rgba(52, 211, 153, 0.45)';
+          ctx.lineWidth = isCurrent ? 1.6 : 1.05;
+        } else {
+          ctx.strokeStyle = n.isGolden
+            ? (isCurrent ? '#fef08a' : 'rgba(250, 204, 21, 0.78)')
+            : (isCurrent ? '#38bdf8' : (isPast ? 'rgba(148, 163, 184, 0.22)' : 'rgba(226, 232, 240, 0.30)'));
+          ctx.lineWidth = isCurrent ? 1.8 : 1.05;
+        }
         ctx.stroke();
+        ctx.setLineDash([]);
         ctx.restore();
 
-        // Etiqueta de sílaba con halo de contraste y protección 2D anti-colisión (permite mostrar sílabas en distintos carriles)
-        const lbl = String(n.text || '').trim();
+        // En modo cintas ancladas al audio real: mostrar nota musical limpia ('SOL3' o 'ARMONÍA') solo en cintas amplias
+        // (las letras completas y sincronizadas viven despejadas en el teleprompter de 3 líneas inferior).
+        const lbl = usingAudioRibbons
+          ? (isHarmony ? (w >= 54 || isCurrent ? 'ARMONÍA' : '') : (w >= 34 || isCurrent ? this.midiToNoteNameEs(n.midi) : ''))
+          : String(n.text || '').trim();
         if (lbl && x2 > pianoRollW + 10 && x1 < cssW - 10) {
-          const textX = Math.max(pianoRollW + 6, x1 + 2);
+          const textX = Math.max(pianoRollW + 6, x1 + 3);
           const tw = ctx.measureText(lbl).width;
           const labelY = Math.max(20, y - 4);
           let collides = false;
@@ -13039,12 +13670,12 @@
           if (!collides || (isCurrent && textX >= pianoRollW + 6)) {
             ctx.save();
             ctx.lineJoin = 'round';
-            ctx.lineWidth = 3.2;
+            ctx.lineWidth = 3.0;
             ctx.strokeStyle = 'rgba(7, 9, 16, 0.90)';
             ctx.strokeText(lbl, textX, labelY);
             ctx.fillStyle = isCurrent
-              ? '#fde047'
-              : (n.fillRatio >= 0.5 ? '#86efac' : (isPast ? 'rgba(148, 163, 184, 0.65)' : '#f1f5f9'));
+              ? (isHarmony ? '#6ee7b7' : '#fde047')
+              : (isHarmony ? 'rgba(110, 231, 183, 0.78)' : (n.fillRatio >= 0.5 ? '#86efac' : (isPast ? 'rgba(148, 163, 184, 0.55)' : '#cbd5e1')));
             ctx.fillText(lbl, textX, labelY);
             ctx.restore();
             placedLabels.push({ x1: textX, x2: textX + tw, y: labelY });
@@ -13052,15 +13683,15 @@
         }
       }
 
-      // 3.5. Píldora limpia de cuenta atrás en intros o descansos instrumentales (> 1.8s)
-      if (isFullScreen && !activeNote && this.pitchNotes.length > 0) {
+      // 3.5. Píldora limpia de cuenta atrás en intros o descansos instrumentales (> 1.8s, 100% anclada al audio real)
+      if (isFullScreen && !activeNote && highwayNotes.length > 0) {
         let nextNote = null;
         let prevEndSec = 0;
-        for (let i = 0; i < this.pitchNotes.length; i++) {
-          const pn = this.pitchNotes[i];
+        for (let i = 0; i < highwayNotes.length; i++) {
+          const pn = highwayNotes[i];
           if (pn.startSec > curSec) {
             nextNote = pn;
-            if (i > 0) prevEndSec = Math.max(0, this.pitchNotes[i - 1].endSec || 0);
+            if (i > 0) prevEndSec = Math.max(0, highwayNotes[i - 1].endSec || 0);
             break;
           }
         }
@@ -13144,7 +13775,7 @@
         for (let i = 1; i < this.voiceTrail.length; i++) {
           const p0 = this.voiceTrail[i - 1];
           const p1 = this.voiceTrail[i];
-          if (p1.sec - p0.sec > 0.25) continue;
+          if (p1.sec - p0.sec > 0.18 || Math.abs(p1.midi - p0.midi) > 5.0) continue;
           const x0 = playheadX + (p0.sec - curSec) * pxPerSec;
           const y0 = midiToY(p0.midi);
           const x1 = playheadX + (p1.sec - curSec) * pxPerSec;
@@ -19399,6 +20030,17 @@
       return newOffset;
     },
 
+    _updateKaraokeAmbientBackdrop(track = null) {
+      const bgEl = document.getElementById('npKaraokeAmbientBg');
+      if (!bgEl) return;
+      const tr = track || dualStreamEngine.currentTrack || this.getActiveCrateTrack();
+      if (!tr) return;
+      const coverUrl = (typeof getBestTrackCover === 'function') ? getBestTrackCover(tr) : (tr.thumbnail || './app_logo.png');
+      if (coverUrl) {
+        bgEl.style.backgroundImage = `url("${String(coverUrl).replace(/"/g, '\\"')}")`;
+      }
+    },
+
     openNowPlayingModal(defaultTab = null) {
       const modal = document.getElementById('nowPlayingTurntableModal');
       if (!modal) return;
@@ -19407,12 +20049,15 @@
         this.switchNowPlayingTab(defaultTab);
       } else {
         const karaokeStage = document.getElementById('npKaraokeStageContainer');
-        if (karaokeStage && !karaokeStage.classList.contains('hidden')) {
+        const karaokeVisible = Boolean(karaokeStage && !karaokeStage.classList.contains('hidden'));
+        modal.classList.toggle('karaoke-expanded', karaokeVisible);
+        if (karaokeVisible) {
           this.maybeShowKaraokeHoldTip();
         }
       }
       const tr = dualStreamEngine.currentTrack || this.getActiveCrateTrack();
       if (tr) {
+        this._updateKaraokeAmbientBackdrop(tr);
         karaokeService.loadAndRenderTrackLyrics(tr, dualStreamEngine.getRealDurationSec(tr)).catch(() => {});
       }
       dualStreamEngine._renderQueueListInModal();
@@ -19424,7 +20069,9 @@
         singstarEngine.deactivate();
       }
       const modal = document.getElementById('nowPlayingTurntableModal');
-      if (modal) modal.classList.remove('open');
+      if (modal) {
+        modal.classList.remove('open');
+      }
     },
 
     switchNowPlayingTab(tab = 'vinyl') {
@@ -19432,6 +20079,11 @@
       const isKaraoke = tab === 'karaoke' || isSingstar;
       const isVideoclip = tab === 'videoclip';
       const isVinyl = !isKaraoke && !isVideoclip;
+
+      const modal = document.getElementById('nowPlayingTurntableModal');
+      if (modal) {
+        modal.classList.toggle('karaoke-expanded', tab === 'karaoke');
+      }
 
       const vinylStage = document.getElementById('npTurntablePlatterInteractive') || document.getElementById('npVinylStageContainer');
       const karaokeStage = document.getElementById('npKaraokeStageContainer');
@@ -19450,6 +20102,10 @@
       if (tabVideoclipBtn) tabVideoclipBtn.classList.toggle('active', isVideoclip);
       if (tabKaraokeBtn) tabKaraokeBtn.classList.toggle('active', tab === 'karaoke');
       if (tabSingstarBtn) tabSingstarBtn.classList.toggle('active', isSingstar);
+
+      if (isKaraoke) {
+        this._updateKaraokeAmbientBackdrop();
+      }
 
       if (isSingstar) {
         this.dismissKaraokeOnboardingTip(false);

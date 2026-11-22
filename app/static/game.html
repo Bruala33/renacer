@@ -25,7 +25,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./style.css?v=90.0">
+  <link rel="stylesheet" href="./style.css?v=91.0">
   <script>
     // ===================================================
     // SISTEMA DE INTERNACIONALIZACIÓN (i18n: ES / EN)
@@ -5045,24 +5045,25 @@
           <div id="npVideoclipIframeBox" class="w-full h-full flex items-center justify-center text-xs text-gray-400">Cargando videoclip...</div>
         </div>
 
-        <!-- Vista 2: Escenario de Letras Sincronizadas tipo Karaoke + Modo SingStar Profesional -->
+        <!-- Vista 2: Escenario Editorial de Letras Sincronizadas tipo Karaoke (Expandido) -->
         <div id="npKaraokeStageContainer" class="np-karaoke-stage hidden">
-          <div class="np-karaoke-toolbar" style="display:flex; align-items:center; justify-content:space-between; gap:5px; flex-wrap:wrap; row-gap:4px;">
-            <div style="display:flex; align-items:center; gap:4px; min-width:0; flex-wrap:wrap;">
-              <button id="npSingstarToggleBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleSingStarMode()" class="np-karaoke-tool-btn np-singstar-toggle-btn" title="Activar Modo SingStar con micrófono y pista de afinación en tiempo real">
+          <div id="npKaraokeAmbientBg" class="np-karaoke-ambient-bg" aria-hidden="true"></div>
+          <div class="np-karaoke-toolbar">
+            <div class="np-karaoke-toolbar-left">
+              <button id="npSingstarToggleBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleSingStarMode()" class="np-karaoke-tool-btn np-singstar-toggle-btn hidden" aria-hidden="true" tabindex="-1">
                 <span class="np-singstar-mic-dot"></span>
                 <span id="npSingstarToggleLabel">SingStar</span>
               </button>
-              <button id="npKaraokeTranslateBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleKaraokeTranslation()" class="np-karaoke-tool-btn" style="padding:4px 8px;" title="Mostrar traducción debajo de cada verso en el idioma de la app">
+              <button id="npKaraokeTranslateBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleKaraokeTranslation()" class="np-karaoke-tool-btn" title="Mostrar traducción debajo de cada verso en el idioma de la app">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>
                 <span id="npKaraokeTranslateLabel">Traducir</span>
               </button>
               <span id="npKaraokeAiSyncChip" class="np-karaoke-ai-chip hidden" title="Sincronización automática con análisis acústico real"></span>
             </div>
-            <div style="display:flex; align-items:center; gap:3px; flex-shrink:0;">
-              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.adjustKaraokeOffset(-0.5)" class="np-karaoke-tool-btn" style="padding:4px 7px; font-size:10.5px; font-weight:800;" title="Retrasar letra 0.5s">-0.5s</button>
-              <button id="npKaraokeOffsetBadge" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.resetKaraokeOffset()" class="np-karaoke-tool-btn" style="padding:4px 6px; font-size:10px; font-weight:700; min-width:38px; justify-content:center;" title="Toca una frase para saltar · Mantén pulsada una frase cuando suene para sincronizarla · Pulsa aquí para restablecer">0.0s</button>
-              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.adjustKaraokeOffset(0.5)" class="np-karaoke-tool-btn" style="padding:4px 7px; font-size:10.5px; font-weight:800;" title="Adelantar letra 0.5s">+0.5s</button>
+            <div class="np-karaoke-sync-group" title="Ajuste rápido de desfase de letra · O mantén pulsada una frase cuando suene">
+              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.adjustKaraokeOffset(-0.5)" class="np-karaoke-sync-btn" title="Retrasar letra 0.5s">-0.5s</button>
+              <button id="npKaraokeOffsetBadge" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.resetKaraokeOffset()" class="np-karaoke-sync-btn np-karaoke-sync-val" title="Toca una frase para saltar · Mantén pulsada una frase cuando suene para sincronizarla · Pulsa aquí para restablecer">0.0s</button>
+              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.adjustKaraokeOffset(0.5)" class="np-karaoke-sync-btn" title="Adelantar letra 0.5s">+0.5s</button>
             </div>
           </div>
 
@@ -5140,7 +5141,7 @@
         </div>
 
         <!-- Información de la Pista -->
-        <div class="text-center space-y-1 px-2 w-full">
+        <div class="np-track-meta-block text-center space-y-1 px-2 w-full">
           <h2 id="npTrackTitle" class="text-lg font-black text-white leading-tight truncate">Selecciona una canción</h2>
           <p id="npTrackArtist" class="text-sm font-medium text-gray-400 truncate">Artista</p>
         </div>
@@ -5179,7 +5180,7 @@
         </div>
 
         <!-- Botón Central: Jugar al Piano -->
-        <div class="w-full max-w-[340px] pt-1">
+        <div class="np-piano-cta-wrap w-full max-w-[340px] pt-1">
           <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.playPianoFromNowPlaying()" class="crate-play-piano-btn w-full" style="height: 48px;">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <rect x="2" y="4" width="20" height="16" rx="2.5"/>
@@ -5191,7 +5192,7 @@
         </div>
 
         <!-- Acciones Extra: Guardar en Playlist / Opciones -->
-        <div class="crate-secondary-actions w-full max-w-[340px]">
+        <div class="np-extra-actions-wrap crate-secondary-actions w-full max-w-[340px]">
           <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openAddToPlaylistFromNowPlaying()" class="crate-sec-btn">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             <span class="truncate">Añadir a Playlist</span>
@@ -5255,8 +5256,8 @@
 
         <span id="ssProMicStatus" onclick="window.SingStarVocalEngine && window.SingStarVocalEngine._ensureMicrophoneActive(true)" class="np-singstar-pitch-status singstar-fs-mic-status" title="Toca para activar o calibrar el micrófono">CANTA</span>
 
-        <div class="singstar-fs-target-badge" title="Nota objetivo de la sílaba actual">
-          <span class="singstar-fs-target-kicker">META</span>
+        <div class="singstar-fs-target-badge" title="Nota objetivo o tonalidad armónica real del audio">
+          <span id="ssProTargetKicker" class="singstar-fs-target-kicker">TONO</span>
           <span id="ssProTargetNote" class="singstar-fs-target-note">--</span>
           <span id="ssProTargetHz" class="singstar-fs-target-hz"></span>
         </div>
@@ -5473,10 +5474,11 @@
         </div>
       </div>
 
-      <!-- 4. Dock Inferior Broadcast: Teleprompter Protagonista + Transporte Limpio -->
+      <!-- 4. Dock Inferior Broadcast: Teleprompter de 3 Líneas (Independiente de las Barras de Audio) + Transporte -->
       <div class="singstar-fs-bottom-dock">
-        <div class="singstar-fs-teleprompter" title="Toca para saltar · Mantén pulsado para sincronizar esta frase">
-          <div id="ssProTeleprompterCurrent" class="singstar-fs-lyric-current">Canta siguiendo las barras de tono</div>
+        <div class="singstar-fs-teleprompter" title="Toca para saltar · Mantén pulsado para sincronizar esta frase con el audio">
+          <div id="ssProTeleprompterPrev" class="singstar-fs-lyric-prev"></div>
+          <div id="ssProTeleprompterCurrent" class="singstar-fs-lyric-current">Canta siguiendo las barras de melodía y armonía</div>
           <div id="ssProTeleprompterNext" class="singstar-fs-lyric-next"></div>
         </div>
         <div class="singstar-fs-transport-row">
@@ -5491,10 +5493,14 @@
             <input id="ssProScrubSlider" type="range" min="0" max="100" step="0.1" value="0" oninput="window.DiscoverHomeApp && window.DiscoverHomeApp.onNowPlayingScrub(this.value)" class="np-scrubber-slider" style="flex:1;">
             <span id="ssProDurTime" class="singstar-fs-time-lbl">3:15</span>
           </div>
+          <div class="singstar-fs-lyric-nudge" title="Ajustar solo el texto de la letra sin mover las barras de tono">
+            <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.adjustKaraokeOffset(-0.5)" class="singstar-fs-nudge-btn" title="Retrasar letra 0.5s">-0.5</button>
+            <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.adjustKaraokeOffset(0.5)" class="singstar-fs-nudge-btn" title="Adelantar letra 0.5s">+0.5</button>
+          </div>
           <button id="ssProQuickVocalBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleSingStarVocalReducer()" class="singstar-fs-tool-pill singstar-fs-dock-pill" title="Atenuar la voz original del cantante">
             <span id="ssProQuickVocalLbl">Karaoke</span>
           </button>
-          <button id="ssProQuickToneBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleSingStarAudibleToneGuide()" class="singstar-fs-tool-pill singstar-fs-dock-pill" title="Escuchar el tono guía de cada sílaba">
+          <button id="ssProQuickToneBtn" type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleSingStarAudibleToneGuide()" class="singstar-fs-tool-pill singstar-fs-dock-pill" title="Escuchar el tono guía de cada frase">
             <span id="ssProQuickToneLbl">Guía</span>
           </button>
         </div>
@@ -5620,7 +5626,7 @@
   <script defer src="./songs/comm_camilo_sesto/chart.js"></script>
   <script defer src="./songs/renacer/chart.js"></script>
   <script src="./songs/catalog_top.js?v=80.0"></script>
-  <script src="./discover_home.js?v=90.0"></script>
+  <script src="./discover_home.js?v=91.0"></script>
   <script>
     let engine = null;
     let currentActiveBeatmap = null;
