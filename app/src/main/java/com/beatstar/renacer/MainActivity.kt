@@ -58,13 +58,29 @@ import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var webView: WebView
+    private class BackgroundAudioWebView(context: Context) : WebView(context) {
+        @Volatile var keepAudioAliveInBackground: Boolean = false
+
+        override fun onWindowVisibilityChanged(visibility: Int) {
+            if (visibility != View.VISIBLE && keepAudioAliveInBackground) {
+                super.onWindowVisibilityChanged(View.VISIBLE)
+                return
+            }
+            super.onWindowVisibilityChanged(visibility)
+        }
+    }
+
+    private lateinit var webView: BackgroundAudioWebView
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
     private var pendingWebPermissionRequest: PermissionRequest? = null
     private val FILE_CHOOSER_REQUEST_CODE = 1001
     private val AUDIO_PERMISSION_REQUEST_CODE = 1002
+    private val NOTIFICATION_PERMISSION_REQUEST_CODE = 1003
     private lateinit var assetLoader: WebViewAssetLoader
     private var forceSoftwareLayer: Boolean = false
+
+    @Volatile private var backgroundAudioPlaying: Boolean = false
+    @Volatile private var notificationPermRequested: Boolean = false
 
     @Volatile private var nativeMicRequested: Boolean = false
     @Volatile private var nativeMicRunning: Boolean = false
@@ -347,7 +363,7 @@ class MainActivity : AppCompatActivity() {
             View.LAYER_TYPE_HARDWARE
         }
 
-        webView = WebView(this).apply {
+        webView = BackgroundAudioWebView(this).apply {
             setBackgroundColor(Color.parseColor("#06040A"))
             setLayerType(initialLayerType, null)
             isFocusable = true
@@ -539,10 +555,94 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        MediaPlaybackService.onMediaAction = { action ->
+            dispatchNativeMediaActionToWeb(action)
+        }
+
         setContentView(webView)
         webView.clearCache(true)
-        webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html?v=94.0")
+        webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html?v=95.0")
         hideSystemUI()
+    }
+
+    fun updateNativeMediaPlaybackState(
+        playing: Boolean,
+        title: String?,
+        artist: String?,
+        album: String?,
+        durationMs: Long,
+        positionMs: Long
+    ) {
+        backgroundAudioPlaying = playing
+        if (::webView.isInitialized) {
+            webView.keepAudioAliveInBackground = playing
+        }
+
+        if (playing && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !notificationPermRequested) {
+            val hasNotifPerm = ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+            if (!hasNotifPerm) {
+                notificationPermRequested = true
+                runOnUiThread {
+                    try {
+                        ActivityCompat.requestPermissions(
+                            this,
+                            arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                            NOTIFICATION_PERMISSION_REQUEST_CODE
+                        )
+                    } catch (_: Exception) {}
+                }
+            }
+        }
+
+        val intent = Intent(this, MediaPlaybackService::class.java).apply {
+            action = MediaPlaybackService.ACTION_UPDATE_STATE
+            putExtra(MediaPlaybackService.EXTRA_PLAYING, playing)
+            if (!title.isNullOrBlank()) putExtra(MediaPlaybackService.EXTRA_TITLE, title)
+            if (!artist.isNullOrBlank()) putExtra(MediaPlaybackService.EXTRA_ARTIST, artist)
+            if (!album.isNullOrBlank()) putExtra(MediaPlaybackService.EXTRA_ALBUM, album)
+            putExtra(MediaPlaybackService.EXTRA_DURATION_MS, durationMs.coerceAtLeast(0L))
+            putExtra(MediaPlaybackService.EXTRA_POSITION_MS, positionMs.coerceAtLeast(0L))
+        }
+
+        try {
+            if (playing) {
+                ContextCompat.startForegroundService(this, intent)
+            } else if (MediaPlaybackService.isForegroundRunning) {
+                startService(intent)
+            }
+        } catch (e: Exception) {
+            Log.w("BeatstarApp", "MediaPlaybackService dispatch error: ${e.message}")
+            try {
+                if (playing) startService(intent)
+            } catch (_: Exception) {}
+        }
+    }
+
+    fun stopNativeBackgroundPlayback() {
+        backgroundAudioPlaying = false
+        if (::webView.isInitialized) {
+            webView.keepAudioAliveInBackground = false
+        }
+        try {
+            stopService(Intent(this, MediaPlaybackService::class.java))
+        } catch (_: Exception) {}
+    }
+
+    private fun dispatchNativeMediaActionToWeb(action: String) {
+        if (!::webView.isInitialized || isDestroyed) return
+        val safeAction = action.replace("\\", "").replace("'", "").replace("\n", "").replace("\r", "")
+        runOnUiThread {
+            if (!::webView.isInitialized || isDestroyed) return@runOnUiThread
+            try {
+                webView.evaluateJavascript(
+                    "if (typeof window.onNativeMediaAction === 'function') { window.onNativeMediaAction('$safeAction'); }",
+                    null
+                )
+            } catch (_: Exception) {}
+        }
     }
 
     @Volatile private var isRequestingMicPermission: Boolean = false
@@ -1094,11 +1194,15 @@ class MainActivity : AppCompatActivity() {
             stopNativeVocalMicEngine(keepRequested = nativeMicRequested)
         }
         super.onPause()
+        val keepBgMusicAlive = backgroundAudioPlaying || MediaPlaybackService.isCurrentlyPlaying
         if (::webView.isInitialized && !isRequestingMicPermission) {
             try {
+                webView.keepAudioAliveInBackground = keepBgMusicAlive
                 webView.evaluateJavascript("if (typeof window.onAppBackground === 'function') { window.onAppBackground(); }", null)
-                webView.onPause()
-                webView.pauseTimers()
+                if (!keepBgMusicAlive) {
+                    webView.onPause()
+                    webView.pauseTimers()
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -1133,6 +1237,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         cleanupWebViewVariationsSeed(this)
+        MediaPlaybackService.onMediaAction = null
+        stopNativeBackgroundPlayback()
         stopNativeVocalMicEngine(keepRequested = false)
         if (::webView.isInitialized) {
             try {
@@ -1198,6 +1304,25 @@ class MainActivity : AppCompatActivity() {
         }
 
         @JavascriptInterface
+        fun updateMediaPlaybackState(
+            playing: Boolean,
+            title: String?,
+            artist: String?,
+            album: String?,
+            durationMs: Long,
+            positionMs: Long
+        ) {
+            val act = context as? MainActivity ?: return
+            act.updateNativeMediaPlaybackState(playing, title, artist, album, durationMs, positionMs)
+        }
+
+        @JavascriptInterface
+        fun stopBackgroundPlayback() {
+            val act = context as? MainActivity ?: return
+            act.stopNativeBackgroundPlayback()
+        }
+
+        @JavascriptInterface
         fun vibrate(milliseconds: Long) {
             val dur = milliseconds.coerceIn(1L, 100L)
             hapticExecutor.execute {
@@ -1224,7 +1349,7 @@ class MainActivity : AppCompatActivity() {
                     pInfo.versionCode
                 }
             } catch (e: Exception) {
-                89
+                94
             }
         }
 

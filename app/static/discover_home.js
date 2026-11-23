@@ -3065,8 +3065,23 @@
           window._lyricsAnalysisAudioCtx = new AudioCtx();
         }
         const ctx = window._lyricsAnalysisAudioCtx;
-        const ab = await blob.slice(0).arrayBuffer();
-        const audioBuf = await ctx.decodeAudioData(ab.slice(0));
+        const cachedPcm = window._sharedLastDecodedPcm;
+        let audioBuf = (cachedPcm && cachedPcm.blobSize === blob.size && cachedPcm.audioBuf && (Date.now() - cachedPcm.ts) < 25000)
+          ? cachedPcm.audioBuf
+          : null;
+        if (!audioBuf) {
+          const ab = await blob.slice(0).arrayBuffer();
+          audioBuf = await ctx.decodeAudioData(ab.slice(0));
+          if (audioBuf) {
+            if (window._sharedLastDecodedPcmTimer) clearTimeout(window._sharedLastDecodedPcmTimer);
+            window._sharedLastDecodedPcm = { blobSize: blob.size, audioBuf, ts: Date.now() };
+            window._sharedLastDecodedPcmTimer = setTimeout(() => {
+              if (window._sharedLastDecodedPcm && (Date.now() - window._sharedLastDecodedPcm.ts) >= 20000) {
+                window._sharedLastDecodedPcm = null;
+              }
+            }, 22000);
+          }
+        }
         const env = this._computeEnvelopeFromAudioBuffer(audioBuf);
         if (env) this.dspEnvelopeCache.set(blob, env);
         return env;
@@ -4242,31 +4257,39 @@
           const isLastInWord = (p === parts.length - 1);
           const sText = parts[p];
           const hasAccent = /[áéíóúÁÉÍÓÚ]/.test(sText);
+          const coreW = w.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]+$/g, '');
           const hasPunct = /[,.;:?!…]/.test(sText);
-          const isStressed = hasAccent || (parts.length > 1 && p === parts.length - 2 && /[aeiounsAEIOUNS]$/.test(w)) || (parts.length > 1 && isLastInWord && !/[aeiounsAEIOUNS]$/.test(w));
+          const hasWordAccent = /[áéíóúÁÉÍÓÚ]/.test(coreW);
+          const isStressed = hasAccent ||
+            (!hasWordAccent && parts.length > 1 && p === parts.length - 2 && /[aeiounsAEIOUNS]$/.test(coreW)) ||
+            (!hasWordAccent && parts.length > 1 && isLastInWord && !/[aeiounsAEIOUNS]$/.test(coreW)) ||
+            (parts.length === 1 && coreW.length >= 3);
 
           let weight = 1.0;
           if (sText.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, '').length <= 2 && !hasAccent) weight = 0.84;
-          if (isStressed) weight *= 1.25;
-          if (isLastInWord) weight *= 1.14;
-          if (hasPunct) weight *= 1.38;
+          if (isStressed) weight *= 1.28;
+          if (isLastInWord) weight *= 1.10;
+          if (hasPunct) weight *= 1.32;
 
           rawSyls.push({
             rawText: sText,
+            wordIdx: wIdx,
+            isWordStart: (p === 0),
             isWordEnd: isLastInWord,
+            isStressed,
+            hasPunct,
             weight
           });
         }
       }
 
-      // 2. Agrupar únicamente sílabas dentro de una misma palabra si la frase es ultrarrápida,
-      //    NUNCA fusionando palabras distintas sin espacio para que la lectura sea 100% limpia.
+      // 2. Mantener resolución sílaba a sílaba íntegra (solo fusionar dentro de la misma palabra si excede 36 sílabas o <90ms/sílaba)
       const spanMs = Math.max(520, Number(targetDurationMs) || 2200);
-      const maxComfortableTokens = Math.max(3, Math.min(16, Math.floor(spanMs / 135)));
+      const maxComfortableTokens = Math.max(4, Math.min(36, Math.floor(spanMs / 90)));
 
       const tokens = rawSyls.map(s => ({ ...s }));
 
-      while (tokens.length > maxComfortableTokens && tokens.length > 3) {
+      while (tokens.length > maxComfortableTokens && tokens.length > 4) {
         let bestMergeIdx = -1;
         let minCombinedWeight = 1e9;
         for (let i = 0; i < tokens.length - 1; i++) {
@@ -4283,19 +4306,38 @@
         const b = tokens[bestMergeIdx + 1];
         tokens.splice(bestMergeIdx, 2, {
           rawText: a.rawText + b.rawText,
+          wordIdx: a.wordIdx,
+          isWordStart: a.isWordStart,
           isWordEnd: b.isWordEnd,
+          isStressed: Boolean(a.isStressed || b.isStressed),
+          hasPunct: Boolean(a.hasPunct || b.hasPunct),
           weight: a.weight * 0.72 + b.weight
         });
       }
 
+      // Dar prioridad de duración a la sílaba tónica de la última palabra (p. ej. "a-MAN-te" -> "man", "a-MOR" -> "mor")
       if (tokens.length > 0) {
-        tokens[tokens.length - 1].weight *= 1.30;
+        const lastWordIdx = tokens[tokens.length - 1].wordIdx;
+        let lastStressIdx = tokens.length - 1;
+        for (let i = tokens.length - 1; i >= 0 && tokens[i].wordIdx === lastWordIdx; i--) {
+          if (tokens[i].isStressed) {
+            lastStressIdx = i;
+            break;
+          }
+        }
+        tokens[lastStressIdx].weight *= 1.35;
+        tokens[lastStressIdx].isPhraseCadenceStress = true;
       }
 
       return tokens.map(t => ({
         text: t.rawText,
         displayText: t.rawText + (t.isWordEnd ? ' ' : ''),
-        isWordEnd: t.isWordEnd,
+        wordIdx: t.wordIdx,
+        isWordStart: Boolean(t.isWordStart),
+        isWordEnd: Boolean(t.isWordEnd),
+        isStressed: Boolean(t.isStressed),
+        isPhraseCadenceStress: Boolean(t.isPhraseCadenceStress),
+        hasPunct: Boolean(t.hasPunct),
         weight: t.weight
       }));
     }
@@ -7304,29 +7346,34 @@
 
       const decodeTask = (async () => {
         let arrayBuf = null;
-        let decodedBuffer = null;
-        try {
-          arrayBuf = await audioBlob.slice(0).arrayBuffer();
+        const cachedPcm = window._sharedLastDecodedPcm;
+        let decodedBuffer = (cachedPcm && cachedPcm.blobSize === blobSize && cachedPcm.audioBuf && (Date.now() - cachedPcm.ts) < 25000)
+          ? cachedPcm.audioBuf
+          : null;
+        if (!decodedBuffer) {
+          try {
+            arrayBuf = await audioBlob.slice(0).arrayBuffer();
 
-          const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
-          const AudioCtx = window.AudioContext || window.webkitAudioContext;
-          if (OfflineCtx) {
-            const offCtx = new OfflineCtx(1, 44100 * 2, 44100);
-            decodedBuffer = await Promise.race([
-              offCtx.decodeAudioData(arrayBuf.slice(0)),
-              new Promise(r => setTimeout(() => r(null), 16000))
-            ]);
-          } else if (AudioCtx) {
-            if (!window._lyricsAnalysisAudioCtx) window._lyricsAnalysisAudioCtx = new AudioCtx();
-            decodedBuffer = await Promise.race([
-              window._lyricsAnalysisAudioCtx.decodeAudioData(arrayBuf.slice(0)),
-              new Promise(r => setTimeout(() => r(null), 16000))
-            ]);
+            const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (OfflineCtx) {
+              const offCtx = new OfflineCtx(1, 44100 * 2, 44100);
+              decodedBuffer = await Promise.race([
+                offCtx.decodeAudioData(arrayBuf.slice(0)),
+                new Promise(r => setTimeout(() => r(null), 16000))
+              ]);
+            } else if (AudioCtx) {
+              if (!window._lyricsAnalysisAudioCtx) window._lyricsAnalysisAudioCtx = new AudioCtx();
+              decodedBuffer = await Promise.race([
+                window._lyricsAnalysisAudioCtx.decodeAudioData(arrayBuf.slice(0)),
+                new Promise(r => setTimeout(() => r(null), 16000))
+              ]);
+            }
+          } catch (_) {
+            decodedBuffer = null;
+          } finally {
+            arrayBuf = null;
           }
-        } catch (_) {
-          decodedBuffer = null;
-        } finally {
-          arrayBuf = null;
         }
 
         if (!decodedBuffer) return null;
@@ -7366,7 +7413,21 @@
         const mono16k = (needMono16k && !existingBundle?.mono16k)
           ? await this._extract16kHzVocalBandpassMono(decodedBuffer, null)
           : (existingBundle?.mono16k || null);
-        // Liberar el AudioBuffer estéreo 44.1/48 kHz (~80-120 MB) inmediatamente
+
+        // Si solo se extrajo mono16k (p. ej. Karaoke lanzando Whisper), conservar brevemente el AudioBuffer
+        // para que el precalentamiento STFT posterior tarde 0 ms en decodificar; liberarlo al instante una vez extraído STFT.
+        if (!vocalDspProfile && decodedBuffer) {
+          if (window._sharedLastDecodedPcmTimer) clearTimeout(window._sharedLastDecodedPcmTimer);
+          window._sharedLastDecodedPcm = { blobSize, audioBuf: decodedBuffer, ts: Date.now() };
+          window._sharedLastDecodedPcmTimer = setTimeout(() => {
+            if (window._sharedLastDecodedPcm && (Date.now() - window._sharedLastDecodedPcm.ts) >= 20000) {
+              window._sharedLastDecodedPcm = null;
+            }
+          }, 22000);
+        } else if (vocalDspProfile && window._sharedLastDecodedPcm && window._sharedLastDecodedPcm.blobSize === blobSize) {
+          window._sharedLastDecodedPcm = null;
+        }
+        // Liberar referencia local del AudioBuffer estéreo 44.1/48 kHz inmediatamente
         decodedBuffer = null;
 
         const bundle = { actualDurSec, vocalDspProfile, mono16k, karaokeDspEnvelope, blobSize };
@@ -7389,16 +7450,33 @@
 
     /**
      * Despierta automáticamente el pipeline de estudio cuando el blob completo termina de descargarse
-     * en segundo plano (elimina para siempre el caso en que SingStar abría antes de llegar el audio).
+     * en segundo plano (elimina para siempre el caso en que SingStar abría antes de llegar el audio)
+     * y precalienta SingStar en silencio si Karaoke ya dejó la letra sincronizada.
      */
     onAudioBlobReady(track, audioBlob) {
-      if (!this.isActive || !track || !(audioBlob instanceof Blob) || audioBlob.size < 40000) return;
+      if (!track || !(audioBlob instanceof Blob) || audioBlob.size < 40000) return;
       const key = this.karaokeService ? this.karaokeService._makeKey(track) : String(track.id || track.title || '');
-      if (!key || key !== this.currentTrackKey) return;
-      if (this.isPreparingSong || this.isActiveWhisperFor(key)) return;
+      if (!key) return;
 
       const cached = this.studioAnalysisCache.get(key);
-      const needsAnalysis = !cached || !cached.hasDspMelody || cached.hasPlaceholderLyrics || cached.hasUnalignedPlainLyrics || (!cached.isWhisperVerified && !cached.isVocalVadLocked);
+      if (!this.isActive) {
+        // Si Karaoke ya verificó/bloqueó esta canción antes de llegar el blob (p. ej. caché v4 o Vocal-VAD),
+        // precalentar STFT+Viterbi en silencio para que entrar en SingStar sea instantáneo (0 ms).
+        const karReady = Boolean(
+          this.karaokeService &&
+          this.karaokeService.currentTrackKey === key &&
+          (this.karaokeService.isWhisperVerifiedFor(key, 0) || cached?.isWhisperVerified || cached?.isVocalVadLocked)
+        );
+        if (karReady && (!cached || !cached.isFullySynced100 || !cached.hasStftViterbiMelody) && !this.isActiveWhisperFor(key)) {
+          this._attachBackgroundDspMelodyForActiveStage(track, key).catch(() => {});
+        }
+        return;
+      }
+
+      if (key !== this.currentTrackKey) return;
+      if (this.isPreparingSong || this.isActiveWhisperFor(key)) return;
+
+      const needsAnalysis = !cached || !cached.hasDspMelody || !cached.hasStftViterbiMelody || !cached.isFullySynced100 || cached.hasPlaceholderLyrics || cached.hasUnalignedPlainLyrics || (!cached.isWhisperVerified && !cached.isVocalVadLocked);
       if (needsAnalysis) {
         this._prepareTrackInStudio(track, false).catch(() => {});
       }
@@ -7523,6 +7601,13 @@
       if (packView) packView.classList.add('hidden');
       if (sumView) sumView.classList.add('hidden');
 
+      // Si Karaoke ya sincronizó esta pista y el precalentamiento STFT+Viterbi en segundo plano está acabando (~0.4s),
+      // esperarlo sin duplicar trabajo para entrar al instante sin re-analizar nada.
+      if (!forceReanalyze && this._bgDspKey === key && this._bgDspPromise) {
+        this._setStudioLoadingProgress(3, 82, 'Finalizando calibración vocal iniciada desde Karaoke...');
+        try { await this._bgDspPromise; } catch (_) {}
+      }
+
       // Si esta pista YA fue sincronizada al 100% con melodía vocal STFT+Viterbi, entrada instantánea
       if (!forceReanalyze && this.studioAnalysisCache.has(key)) {
         const cached = this.studioAnalysisCache.get(key);
@@ -7546,6 +7631,10 @@
             : (Math.abs(sh) >= 0.55 ? `Sincro · ${sh > 0 ? '+' : ''}${sh.toFixed(1)}s` : 'Sincro · Exacta');
           this._setSyncStatusChip(lbl, 'ready');
           this._setStudioGateMode('hidden');
+          // Si venía reproduciéndose desde Karaoke y solo esperó unos ms de precalentamiento, reanudar sin corte
+          if (this._gateWasPlayingOnEnter && this.audioEngine && typeof this.audioEngine.isPlaying === 'function' && !this.audioEngine.isPlaying() && typeof this.audioEngine.play === 'function') {
+            try { this.audioEngine.play().catch(() => {}); } catch (_) {}
+          }
           return;
         }
       }
@@ -7825,14 +7914,10 @@
         await new Promise(r => setTimeout(r, 0));
         if (token !== this._prepToken) return;
 
-        // Alinear sílabas primero para tener ventanas de frase exactas, refinar melodía vocal con Viterbi
-        // estrictamente sobre los instantes cantados de la letra y re-anclar con el contorno vocal refinado.
-        const preAlignedLines = (isWhisperVerifiedNow && finalSyncedLines[0]?.singstarSyllables)
-          ? finalSyncedLines
-          : this._alignSyllablesWithVocalProfile(key, finalSyncedLines, vocalDspProfile, actualDurSec);
-
+        // Refinar primero el contorno melódico Viterbi sobre las frases reales de la letra para limpiar
+        // F0/claridad antes de la alineación silábica final a 100 Hz (formantes Mid-Side + cambios de nota).
         if (typeof this._refineVocalMelodyWithSyncedLyrics === 'function') {
-          this._refineVocalMelodyWithSyncedLyrics(vocalDspProfile, preAlignedLines);
+          this._refineVocalMelodyWithSyncedLyrics(vocalDspProfile, finalSyncedLines);
         }
         this._setStudioLoadingProgress(3, 88, 'Melodía vocal real del cantante extraída al 100%');
         await new Promise(r => setTimeout(r, 0));
@@ -7842,7 +7927,13 @@
         // PASO 4 (88% -> 100%): CALIBRACIÓN FINAL DE SÍLABAS Y DESBLOQUEO 100%
         // =========================================================================
         this._setStudioLoadingProgress(4, 94, 'Calibrando sílabas y notas exactas del cantante...');
-        const alignedLines = preAlignedLines;
+        const alreadyFullStft = Boolean(
+          isWhisperVerifiedNow &&
+          finalSyncedLines.every(l => l && l._hasFullStftSyllables === true && Array.isArray(l.singstarSyllables) && l.singstarSyllables.length > 0)
+        );
+        const alignedLines = alreadyFullStft
+          ? finalSyncedLines
+          : this._alignSyllablesWithVocalProfile(key, finalSyncedLines, vocalDspProfile, actualDurSec);
 
         const studioData = {
           track,
@@ -7864,6 +7955,7 @@
           isFullySynced100: true
         };
         this._putStudioAnalysisCache(key, studioData);
+        this._syncCalibratedSyllablesBackToKaraoke(key, alignedLines);
         this._applyStudioAnalysisToStage(studioData, Number(this.karaokeService?.timeOffsetSec || 0), true);
 
         const readyLabel = isWhisperVerifiedNow
@@ -7904,7 +7996,7 @@
         return this._whisperWorkers[safeSlot];
       }
       try {
-        const worker = new Worker('./whisper_worker.js?v=94.0', { type: 'module' });
+        const worker = new Worker('./whisper_worker.js?v=95.0', { type: 'module' });
         if (!this._whisperWorkerCallbacks) this._whisperWorkerCallbacks = new Map();
         if (!Number.isFinite(this._whisperWorkerSeq)) this._whisperWorkerSeq = 0;
 
@@ -8697,15 +8789,22 @@
         const eDb = vDb[f];
         const strongCenter = Boolean(vCent && peakCenterRef >= 0.60);
         const centMin = strongCenter
-          ? Math.max(0.36, peakCenterRef - (deepSustain ? 0.14 : 0.22))
+          ? Math.max(0.36, peakCenterRef - (deepSustain ? 0.16 : 0.24))
           : (deepSustain ? 0.38 : 0.34);
         const centOk = !vCent || vCent[f] >= centMin;
-        const normalFloorDb = Math.max(th - 1.4, peakPhraseDb - 10.5);
+        const normalFloorDb = Math.max(th - 1.8, peakPhraseDb - 14.5);
         const deepTonalFloorDb = Math.max(th - 1.6, peakPhraseDb - 7.4);
         const deepEnergyFloorDb = Math.max(th - 0.2, peakPhraseDb - 6.8);
         if (hasTonal) {
           const tonalLock = vMidi[f] >= 45 && vClar[f] >= (deepSustain ? 0.40 : 0.36);
           if (tonalLock && centOk && eDb >= (deepSustain ? deepTonalFloorDb : normalFloorDb)) return true;
+          // En pistas con STFT real, una vocal sostenida que decae suavemente (hasta -12.5 dB) sigue siendo voz real si mantiene armónicos centrales y claridad alta
+          if (deepSustain && vocalProfile.vocalHarmonicDb && tonalLock && vClar[f] >= 0.50 && centOk) {
+            const thH = Number.isFinite(vocalProfile.thHarmDb) ? vocalProfile.thHarmDb : -30;
+            if (vocalProfile.vocalHarmonicDb[f] >= thH + 2.0 && eDb >= Math.max(th - 1.4, peakPhraseDb - 12.5)) {
+              return true;
+            }
+          }
           if (!deepSustain && eDb >= normalFloorDb && centOk) return true;
           if (deepSustain && eDb >= deepEnergyFloorDb && centOk) return true;
           return false;
@@ -8773,9 +8872,125 @@
     }
 
     /**
+     * Detector de Fin Real de Frase Vocal (puentea respiraciones internas <= 0.78s y extiende sostenidos finales):
+     * A diferencia de `_extendVoicedTailSec` (pensado para una palabra final continua sin pausas internas),
+     * recorre toda la frase multi-palabra hasta su último bloque vocal genuino sin cortarse por respiraciones,
+     * comas o pasajes cantados en piano (-19 dB bajo un agudo fuerte), deteniéndose ante pausas instrumentales
+     * entre versos y encadenando después `_extendVoicedTailSec` para seguir notas sostenidas largas.
+     */
+    _findPhraseVocalEndSec(vocalProfile, startSec, hintEndSec, hardMaxEndSec, naturalMaxDur = 3.2, estSylCount = 6) {
+      const safeHint = Math.max(startSec + 0.42, Math.min(hardMaxEndSec, hintEndSec));
+      if (!vocalProfile || !vocalProfile.vocEnergyDb || hardMaxEndSec <= startSec + 0.45) {
+        return safeHint;
+      }
+      const fHz = vocalProfile.frameHz || 100;
+      const vDb = vocalProfile.vocEnergyDb;
+      const vMidi = vocalProfile.midiFrames;
+      const vClar = vocalProfile.rawClarityFrames;
+      const vCent = vocalProfile.centerRatioFrames;
+      const vHarm = vocalProfile.vocalHarmonicDb;
+      const nF = vDb.length;
+      const thVoc = Number.isFinite(vocalProfile.thVoc) ? vocalProfile.thVoc : -32;
+      const thHarm = Number.isFinite(vocalProfile.thHarmDb) ? vocalProfile.thHarmDb : -30;
+      const hasTonal = Boolean(vMidi && vClar && vMidi.length >= nF && vClar.length >= nF);
+      const hasHarm = Boolean(vHarm && vHarm.length >= nF);
+
+      const fStart = Math.max(0, Math.min(nF - 1, Math.floor(startSec * fHz)));
+      const fHardMax = Math.max(fStart, Math.min(nF - 1, Math.ceil(hardMaxEndSec * fHz)));
+      const fHint = Math.max(fStart + Math.round(0.42 * fHz), Math.min(fHardMax, Math.round(safeHint * fHz)));
+
+      // Medir niveles vocales reales de la frase completa dentro de [fStart .. fHint]
+      const dbVals = [];
+      const harmVals = [];
+      const centVals = [];
+      for (let f = fStart; f <= fHint; f += 2) {
+        dbVals.push(vDb[f]);
+        if (hasHarm && vHarm[f] > -55) harmVals.push(vHarm[f]);
+        if (vCent) centVals.push(vCent[f]);
+      }
+      dbVals.sort((a, b) => a - b);
+      const peakDb = dbVals.length > 0 ? dbVals[Math.floor(dbVals.length * 0.85)] : thVoc;
+      let peakHarm = thHarm;
+      if (harmVals.length > 4) {
+        harmVals.sort((a, b) => a - b);
+        peakHarm = harmVals[Math.floor(harmVals.length * 0.85)];
+      }
+      let peakCent = 0.50;
+      if (centVals.length > 4) {
+        centVals.sort((a, b) => a - b);
+        peakCent = centVals[Math.floor(centVals.length * 0.80)];
+      }
+
+      // Permitir el rango dinámico humano real dentro de una misma frase (hasta ~19.5 dB entre frase suave y clímax)
+      // exigiendo confirmación armónica Mid-Side + F0 cuando el pasaje baja de energía.
+      const strongDbFloor = Math.max(thVoc - 1.8, peakDb - 11.5);
+      const softDbFloor = Math.max(thVoc - 1.6, peakDb - 19.5);
+      const harmFloor = Math.max(thHarm - 1.5, peakHarm - 14.5);
+      const centMin = peakCent >= 0.60 ? Math.max(0.36, peakCent - 0.28) : 0.34;
+
+      const isPhraseVoiced = (f) => {
+        const eDb = vDb[f];
+        if (eDb < softDbFloor) return false;
+        if (vCent && vCent[f] < centMin) return false;
+        if (hasHarm && hasTonal) {
+          if (vHarm[f] >= harmFloor && vMidi[f] >= 45 && vClar[f] >= 0.42) return true;
+          return eDb >= strongDbFloor && vHarm[f] >= (thHarm - 2.0);
+        }
+        if (hasTonal) {
+          return (eDb >= strongDbFloor) || (vMidi[f] >= 45 && vClar[f] >= 0.45 && eDb >= Math.max(thVoc - 1.2, peakDb - 14.5));
+        }
+        return eDb >= strongDbFloor;
+      };
+
+      // Recorrer la ventana de la frase puenteando respiraciones internas (<= 0.82s), pero cortando
+      // ante pausas instrumentales largas entre versos una vez cubierta la duración mínima de la frase.
+      const minExpectedSec = Math.min(
+        safeHint - startSec,
+        Math.max(0.85, Math.min(naturalMaxDur * 0.65, estSylCount * 0.135))
+      );
+      const minExpectedF = Math.min(fHint, fStart + Math.round(minExpectedSec * fHz));
+      const maxBreathGapF = Math.round(0.82 * fHz);
+      const minClusterF = Math.round(0.10 * fHz);
+
+      let lastCommittedVoicedF = fStart + Math.round(0.40 * fHz);
+      let curClusterLen = 0;
+      let unvoicedRun = 0;
+
+      for (let f = fStart; f <= fHint; f++) {
+        if (isPhraseVoiced(f)) {
+          curClusterLen++;
+          unvoicedRun = 0;
+          if (curClusterLen >= minClusterF) {
+            lastCommittedVoicedF = f;
+          }
+        } else {
+          curClusterLen = 0;
+          unvoicedRun++;
+          if (f >= minExpectedF && unvoicedRun >= maxBreathGapF) {
+            break;
+          }
+        }
+      }
+
+      const tailSeedSec = Math.max(
+        startSec + 0.42,
+        Math.min(safeHint, (lastCommittedVoicedF + 2) / fHz)
+      );
+
+      // Desde el final real de la última palabra activa, extender si el cantante sostiene la nota final
+      return this._extendVoicedTailSec(
+        vocalProfile,
+        startSec,
+        tailSeedSec,
+        hardMaxEndSec,
+        Math.max(naturalMaxDur, (safeHint - startSec) * 0.94)
+      );
+    }
+
+    /**
      * Subdivide una palabra individual en sus sílabas fonéticas naturales y ancla cada sílaba
      * dentro de la ventana acústica exacta [wordStartSec, wordEndSec] utilizando los picos
-     * de apertura vocálica a 100 Hz (10 ms) + detección de sílaba tónica sostenida (Viterbi 1D).
+     * de apertura vocálica a 100 Hz (10 ms) + flujo de formantes Mid-Side + detección de sílaba tónica sostenida (Viterbi 1D).
      * En palabras largas sostenidas (p. ej. "a-MAAAAN-te" 3.0s), mantiene nítidas las sílabas
      * átonas (0.15-0.32s) y asigna a la sílaba sostenida toda su meseta vocálica real.
      */
@@ -8807,6 +9022,9 @@
       const fHz = vocalProfile.frameHz || 100;
       const vDb = vocalProfile.vocEnergyDb;
       const vFlux = vocalProfile.vowelFlux;
+      const vFormFlux = vocalProfile.vocalFormantFlux;
+      const vHarm = vocalProfile.vocalHarmonicDb;
+      const hasFormant = Boolean(vFormFlux && vFormFlux.length >= vFlux.length);
       const thVoc = Number.isFinite(vocalProfile.thVoc) ? vocalProfile.thVoc : -32;
       const f0 = Math.max(0, Math.floor(wordStartSec * fHz));
       const f1 = Math.min(vFlux.length - 1, Math.ceil(wordEndSec * fHz));
@@ -8841,14 +9059,22 @@
           for (let m = 0; m < M; m++) {
             const fAbs = f0 + m;
             const eDb = vDb[fAbs];
-            const flux = vFlux[fAbs] || 0;
+            const rawFlux = vFlux[fAbs] || 0;
+            const formFlux = hasFormant ? (vFormFlux[fAbs] || 0) : rawFlux;
+            const effFlux = hasFormant ? (formFlux * 0.72 + Math.min(6.0, rawFlux) * 0.28) : rawFlux;
             const voiced = eDb >= (thVoc - 2.4);
-            const ePrev = vDb[Math.max(0, fAbs - 4)];
-            const eNext = vDb[Math.min(nAll - 1, fAbs + 4)];
-            const plateau = (voiced && flux < 0.85 && Math.abs(eDb - ePrev) < 2.0 && Math.abs(eDb - eNext) < 2.0) ? 1 : 0;
+            let plateau = 0;
+            if (hasFormant) {
+              const hStable = !vHarm || (Math.abs(vHarm[fAbs] - vHarm[Math.max(0, fAbs - 5)]) < 3.4 && Math.abs(vHarm[fAbs] - vHarm[Math.min(nAll - 1, fAbs + 5)]) < 3.4);
+              plateau = (voiced && formFlux < 1.25 && hStable) ? 1 : 0;
+            } else {
+              const ePrev = vDb[Math.max(0, fAbs - 4)];
+              const eNext = vDb[Math.min(nAll - 1, fAbs + 4)];
+              plateau = (voiced && rawFlux < 0.85 && Math.abs(eDb - ePrev) < 2.0 && Math.abs(eDb - eNext) < 2.0) ? 1 : 0;
+            }
             isPlateau[m] = plateau;
             prefPlateau[m + 1] = prefPlateau[m] + plateau;
-            onsetCdf[m + 1] = onsetCdf[m] + (plateau ? 0.04 : (voiced ? (0.14 + Math.min(8.0, flux) * 1.2) : 0.04));
+            onsetCdf[m + 1] = onsetCdf[m] + (plateau ? 0.04 : (voiced ? (0.14 + Math.min(8.0, effFlux) * 1.2) : 0.04));
           }
 
           const totAct = onsetCdf[M] || 1;
@@ -8898,7 +9124,8 @@
               const fAbs = f0 + m;
               const dev = Math.abs(fAbs - idealFrames[k]) / devScale;
               const plateauPen = isPlateau[m] ? 2.45 : 0;
-              const emit = vFlux[fAbs] * 1.65 + (vDb[fAbs] - thVoc) * 0.12 - dev * dev * 1.15 - plateauPen;
+              const emitFlux = hasFormant ? ((vFormFlux[fAbs] || 0) * 0.72 + Math.min(6.0, vFlux[fAbs] || 0) * 0.28) : (vFlux[fAbs] || 0);
+              const emit = emitFlux * 1.65 + (vDb[fAbs] - thVoc) * 0.12 - dev * dev * 1.15 - plateauPen;
 
               const pMin = (k - 1) * minStepS;
               const pMax = ms - minStepS;
@@ -10318,6 +10545,7 @@
             for (const sObj of wSyls) syls.push(sObj);
           }
 
+          const hasFullStftNow = Boolean(vocalProfile && vocalProfile.hasStftViterbiMelody && vocalProfile.vocalFormantFlux);
           const lineStartFinal = syls.length > 0 ? syls[0].startSec : +dl.startSec.toFixed(3);
           const lineEndFinal = syls.length > 0 ? syls[syls.length - 1].endSec : +dl.endSec.toFixed(3);
           finalLines.push({
@@ -10327,6 +10555,7 @@
             _origTimeSec: lineStartFinal,
             _whisperRefined: true,
             _isWhisperAligned: true,
+            _hasFullStftSyllables: hasFullStftNow,
             _hasAcousticGeneratedWords: false,
             timeSec: lineStartFinal,
             endTimeSec: lineEndFinal,
@@ -10335,6 +10564,7 @@
             singstarSyllables: syls
           });
         } else {
+          const hardNextSec = (li + 1 < draftLines.length) ? draftLines[li + 1].startSec : undefined;
           const placeholderObj = {
             ...rl.origRef,
             _rawLrcTimeSec: rl.rawStart,
@@ -10342,6 +10572,7 @@
             _origTimeSec: +dl.startSec.toFixed(3),
             _whisperRefined: true,
             _isWhisperAligned: true,
+            _hardNextLineStartSec: Number.isFinite(hardNextSec) ? +hardNextSec.toFixed(3) : undefined,
             timeSec: +dl.startSec.toFixed(3),
             endTimeSec: +dl.endSec.toFixed(3),
             text: rl.text
@@ -10353,6 +10584,7 @@
       }
 
       if (unanchoredDraftObjs.length > 0) {
+        const hasFullStftNow = Boolean(vocalProfile && vocalProfile.hasStftViterbiMelody && vocalProfile.vocalFormantFlux);
         const dspAlignedSubset = this._alignSyllablesWithVocalProfile(key, unanchoredDraftObjs, vocalProfile, actualDurSec);
         for (let u = 0; u < unanchoredIndicesToDsp.length; u++) {
           const targetIdx = unanchoredIndicesToDsp[u];
@@ -10364,7 +10596,8 @@
               _rawLrcTimeSec: finalLines[targetIdx]._rawLrcTimeSec,
               _rawLrcEndTimeSec: finalLines[targetIdx]._rawLrcEndTimeSec,
               _whisperRefined: true,
-              _isWhisperAligned: true
+              _isWhisperAligned: true,
+              _hasFullStftSyllables: hasFullStftNow
             };
           }
         }
@@ -10925,7 +11158,7 @@
             if (this.karaokeService && this.karaokeService.isWhisperVerifiedFor(key, durReal)) {
               return this.karaokeService.cache.get(key) || null;
             }
-            return await this._transcribeTrackAudioWithWhisper(
+            const resLines = await this._transcribeTrackAudioWithWhisper(
               track,
               key,
               decoded.mono16k,
@@ -10938,6 +11171,19 @@
                 allowBackground: true
               }
             );
+            // Una vez Karaoke completó Whisper, precalentar STFT+Viterbi en silencio (reutilizando AudioBuffer -> 0 ms decode)
+            // para que entrar en SingStar cargue instantáneamente y ambos modos compartan sílabas a 100 Hz.
+            if (Array.isArray(resLines) && resLines.length >= 2 && !this.isActive) {
+              const curCached = this.studioAnalysisCache.get(key);
+              const isStillCurrent = Boolean(
+                (this.karaokeService && this.karaokeService.currentTrackKey === key) ||
+                (this.audioEngine && this.audioEngine.currentTrack && this.karaokeService?._makeKey(this.audioEngine.currentTrack) === key)
+              );
+              if (isStillCurrent && (!curCached || !curCached.isFullySynced100 || !curCached.hasStftViterbiMelody)) {
+                this._attachBackgroundDspMelodyForActiveStage(track, key).catch(() => {});
+              }
+            }
+            return resLines;
           }
 
           // Sin blob local (p. ej. streaming yt_bridge): intentar respaldo Whisper por videoId en servidor
@@ -11062,6 +11308,7 @@
             alignMeta.isPiecewise ||
             (Number(alignMeta.bucketSpreadSec) >= 0.90 && Number(alignMeta.bucketCount) >= 2)
           );
+          const hasMergedStft = Boolean(mergedDsp && mergedDsp.voicedCount >= 10 && mergedDsp.hasStftViterbiMelody);
           const studioData = {
             track,
             key,
@@ -11069,6 +11316,7 @@
             dspContour: mergedDsp,
             acousticLines: alignedStage,
             hasDspMelody: Boolean(mergedDsp && mergedDsp.voicedCount >= 10),
+            hasStftViterbiMelody: hasMergedStft,
             hasAcousticSyllables: true,
             hasPlaceholderLyrics: false,
             hasUnalignedPlainLyrics: false,
@@ -11078,7 +11326,8 @@
             spreadSec: Number(alignMeta.spreadSec) || 0,
             bucketCount: Number(alignMeta.bucketCount) || 0,
             shiftSec: Number(alignMeta.shiftSec) || 0,
-            slope: Number(alignMeta.slope) || 1.0
+            slope: Number(alignMeta.slope) || 1.0,
+            isFullySynced100: Boolean(isComplete && verifiedNow && hasMergedStft && alignedStage.length >= 2)
           };
           this._putStudioAnalysisCache(key, studioData);
 
@@ -12163,6 +12412,17 @@
 
       const salienceGrid = new Uint8Array(nSalFrames * N_BINS);
       const salienceContrast = new Float32Array(nSalFrames);
+      const salFormantFlux25 = new Float32Array(nSalFrames);
+      const salHarmDb25 = new Float32Array(nSalFrames).fill(-60);
+      const formantBandEdgesHz = [220, 380, 580, 850, 1200, 1650, 2200, 2850, 3600];
+      const formantBandBins = new Int16Array(formantBandEdgesHz.length);
+      for (let b = 0; b < formantBandEdgesHz.length; b++) {
+        formantBandBins[b] = Math.max(2, Math.min(maxBin, Math.round(formantBandEdgesHz[b] / binHz)));
+      }
+      const curFormant = new Float32Array(8);
+      const prevFormant = new Float32Array(8);
+      let prevFormantValid = false;
+      let prevSalHarmDb = -60;
       const reBuf = new Float32Array(fftN);
       const imBuf = new Float32Array(fftN);
       const cMag = new Float32Array(maxBin + 10);
@@ -12182,7 +12442,11 @@
         }
 
         const f100 = Math.min(nFrames - 1, Math.round((sf / SAL_HZ) * FRAME_HZ));
-        if (vocEnergyDb[f100] < thVoc - 5.0) continue;
+        if (vocEnergyDb[f100] < thVoc - 5.0) {
+          prevFormantValid = false;
+          prevSalHarmDb = -60;
+          continue;
+        }
 
         const centerSrc = Math.round((sf + 0.5) * salHopSrc);
         const startSrc = Math.max(0, Math.min(ch0.length - fftN * decim - 1, centerSrc - halfSpanSrc));
@@ -12292,6 +12556,37 @@
           sumSal += sal;
         }
 
+        // Flujo espectral de formantes vocales aisladas (8 bandas 220-3600 Hz sobre canal central Mid-Side):
+        // casi 0 durante vocales sostenidas (incluso con vibrato/batería) y picos limpios en cambios de sílaba.
+        let formNormSq = 0;
+        for (let b = 0; b < 8; b++) {
+          const b0 = formantBandBins[b];
+          const b1 = Math.max(b0, formantBandBins[b + 1]);
+          let bSum = 0;
+          for (let k = b0; k <= b1; k++) bSum += cMag[k];
+          const vLog = Math.log1p(bSum * 0.45);
+          curFormant[b] = vLog;
+          formNormSq += vLog * vLog;
+        }
+        const harmDbNow = maxSal > 1e-5 ? (20.0 * Math.log10(maxSal + 1e-5)) : -60;
+        salHarmDb25[sf] = harmDbNow;
+        if (formNormSq > 1e-6) {
+          const invN = 1.0 / Math.sqrt(formNormSq);
+          let dot = 0;
+          for (let b = 0; b < 8; b++) {
+            curFormant[b] *= invN;
+            if (prevFormantValid) dot += curFormant[b] * prevFormant[b];
+          }
+          const cosDist = prevFormantValid ? Math.max(0, 1.0 - Math.min(1.0, dot)) : 0.14;
+          const harmRise = prevFormantValid ? Math.max(0, harmDbNow - prevSalHarmDb) : Math.max(0, Math.min(8, harmDbNow + 32));
+          salFormantFlux25[sf] = cosDist * 22.0 + Math.min(4.2, harmRise * 0.42);
+          for (let b = 0; b < 8; b++) prevFormant[b] = curFormant[b];
+          prevFormantValid = true;
+        } else {
+          prevFormantValid = false;
+        }
+        prevSalHarmDb = harmDbNow;
+
         if (maxSal > 1e-5) {
           const invMax = 255.0 / maxSal;
           const rowOff = sf * N_BINS;
@@ -12300,6 +12595,25 @@
           }
           salienceContrast[sf] = maxSal / ((sumSal / N_BINS) + 1e-6);
         }
+      }
+
+      // Interpolar suavemente flujo de formantes y energía armónica vocal de 25 Hz a 100 Hz
+      const vocalFormantFlux = new Float32Array(nFrames);
+      const vocalHarmonicDb = new Float32Array(nFrames).fill(-60);
+      const validHarmSamples = [];
+      for (let sf = 0; sf < nSalFrames; sf++) {
+        if (salHarmDb25[sf] > -55) validHarmSamples.push(salHarmDb25[sf]);
+      }
+      validHarmSamples.sort((a, b) => a - b);
+      const p85Harm = validHarmSamples.length > 10 ? validHarmSamples[Math.floor(validHarmSamples.length * 0.85)] : -12;
+      const thHarmDb = Math.max(-42, p85Harm - 17.5);
+      for (let f = 0; f < nFrames; f++) {
+        const pos = (f / FRAME_HZ) * SAL_HZ;
+        const s0 = Math.max(0, Math.min(nSalFrames - 1, Math.floor(pos)));
+        const s1 = Math.min(nSalFrames - 1, s0 + 1);
+        const frac = pos - s0;
+        vocalFormantFlux[f] = salFormantFlux25[s0] * (1 - frac) + salFormantFlux25[s1] * frac;
+        vocalHarmonicDb[f] = salHarmDb25[s0] * (1 - frac) + salHarmDb25[s1] * frac;
       }
 
       const harmonyProfile = this._extractMusicalKeyAndChroma(audioBuffer);
@@ -12311,6 +12625,9 @@
         hopSec: 1 / FRAME_HZ,
         vocEnergyDb,
         vowelFlux,
+        vocalFormantFlux,
+        vocalHarmonicDb,
+        thHarmDb,
         centerRatioFrames,
         thVoc,
         midiFrames,
@@ -12875,13 +13192,22 @@
         // Ancla temporal constante y verificada (SIN deformación decaying de intro)
         const anchoredBaseSec = Math.max(0, Number(line.timeSec) || origTimeSec);
 
-        let nextAnchoredSec = Math.min(actualDurSec, anchoredBaseSec + 3.8);
+        const defaultEndSpan = Math.max(
+          anchoredBaseSec + 6.8,
+          Number.isFinite(Number(line.endTimeSec)) && Number(line.endTimeSec) > anchoredBaseSec
+            ? (Number(line.endTimeSec) + 2.0)
+            : (anchoredBaseSec + 6.8)
+        );
+        let nextAnchoredSec = Math.min(actualDurSec, defaultEndSpan);
         if (vi + 1 < validIndices.length) {
           const nextLine = workLines[validIndices[vi + 1]];
           const nextSec = Number(nextLine.timeSec);
           if (Number.isFinite(nextSec)) {
             nextAnchoredSec = Math.max(anchoredBaseSec + 0.50, nextSec);
           }
+        }
+        if (Number.isFinite(Number(line._hardNextLineStartSec)) && Number(line._hardNextLineStartSec) > anchoredBaseSec + 0.45) {
+          nextAnchoredSec = Math.min(nextAnchoredSec, Number(line._hardNextLineStartSec));
         }
 
         // NUNCA permitir que prevLineEndSec arrastre la línea actual más allá de su ancla real
@@ -12891,8 +13217,12 @@
         );
         const maxWindowEndSec = Math.max(rawStartSec + 0.42, Math.min(nextAnchoredSec - 0.04, rawStartSec + 9.5));
 
+        const hasFullStftProf = Boolean(vocalProfile && vocalProfile.hasStftViterbiMelody && vocalProfile.vocalFormantFlux);
+        const canUpgradeAcousticWords = Boolean(line._hasAcousticGeneratedWords && hasFullStftProf && !line._hasFullStftSyllables);
+
         // Caso A: La línea tiene timestamps verificados por palabra o sílaba coherentes con rawStartSec
         const hasCoherentVerifiedWords = Boolean(
+          !canUpgradeAcousticWords &&
           (!line._hasAcousticGeneratedWords || line._whisperRefined) &&
           Array.isArray(line.words) &&
           line.words.length >= 2 &&
@@ -12958,15 +13288,17 @@
               timeSec: syls[0].startSec,
               endTimeSec: syls[syls.length - 1].endSec,
               words: syls.map(s => ({ timeSec: s.startSec, endSec: s.endSec, text: s.displayText })),
+              _hasFullStftSyllables: hasFullStftProf,
               singstarSyllables: syls
             });
             continue;
           }
         }
 
-        // Caso B: Ajuste micro-acústico acotado [-160ms, +220ms] sin deriva acumulativa + Viterbi-DTW consciente de sostenidos
+        // Caso B: Ajuste micro-acústico acotado [-160ms, +220ms] sin deriva acumulativa + Viterbi-DTW consciente de sostenidos y formantes STFT
         const rawWords = cleanText.split(/\s+/).filter(Boolean);
-        const naturalMaxDur = Math.max(0.65, Math.min(4.6, rawWords.length * 0.40 + 0.34));
+        const estSylCount = Math.max(2, rawWords.reduce((a, w) => a + Math.max(1, Math.round(w.length / 2.5)), 0));
+        const naturalMaxDur = Math.max(0.65, Math.min(6.4, rawWords.length * 0.44 + 0.42));
         const rawLineHintDur = Number.isFinite(Number(line.endTimeSec)) && Number(line.endTimeSec) > rawStartSec + 0.35
           ? Math.min(9.5, Number(line.endTimeSec) - rawStartSec)
           : naturalMaxDur;
@@ -12981,12 +13313,14 @@
           const fSearch0 = Math.max(0, Math.floor(searchMinSec * fHz));
           const fSearch1 = Math.min(vocalProfile.vocEnergyDb.length - 1, Math.ceil(Math.max(searchMinSec + 0.05, searchMaxSec) * fHz));
           const th = vocalProfile.thVoc - 1.2;
+          const vFormOnset = vocalProfile.vocalFormantFlux;
 
           let bestOnsetF = -1;
           let bestOnsetScore = -1e9;
           for (let f = fSearch0; f <= fSearch1; f++) {
             const eDb = vocalProfile.vocEnergyDb[f];
-            const flux = vocalProfile.vowelFlux ? vocalProfile.vowelFlux[f] : 0;
+            const rawFl = vocalProfile.vowelFlux ? vocalProfile.vowelFlux[f] : 0;
+            const flux = (vFormOnset && f < vFormOnset.length) ? (vFormOnset[f] * 0.65 + Math.min(6.0, rawFl) * 0.35) : rawFl;
             if (eDb >= th) {
               const distSec = Math.abs((f / fHz) - rawStartSec);
               const score = flux * 1.5 + (eDb - th) * 0.35 - distSec * 6.5;
@@ -13002,13 +13336,14 @@
             if (Math.abs(candidateStart - rawStartSec) <= 0.24) {
               vocalStartSec = Math.max(prevLineEndSec, candidateStart - 0.01);
             }
-            const seedEndSec = vocalStartSec + Math.min(naturalMaxDur * 0.48, 0.72);
-            vocalEndSec = this._extendVoicedTailSec(
+            const hintEndSec = Math.min(maxWindowEndSec, vocalStartSec + Math.max(naturalMaxDur, rawLineHintDur));
+            vocalEndSec = this._findPhraseVocalEndSec(
               vocalProfile,
               vocalStartSec,
-              seedEndSec,
+              hintEndSec,
               maxWindowEndSec,
-              Math.max(naturalMaxDur, rawLineHintDur * 0.92)
+              Math.max(naturalMaxDur, rawLineHintDur * 0.92),
+              estSylCount
             );
           }
         }
@@ -13016,7 +13351,7 @@
         const spanMs = Math.max(420, Math.round((vocalEndSec - vocalStartSec) * 1000));
         const tokens = (this.karaokeService && typeof this.karaokeService.tokenizePhraseIntoNaturalSyllables === 'function')
           ? this.karaokeService.tokenizePhraseIntoNaturalSyllables(cleanText, spanMs)
-          : rawWords.map(w => ({ text: w, displayText: w + ' ', weight: 1.0, isWordEnd: true }));
+          : rawWords.map((w, idx) => ({ text: w, displayText: w + ' ', wordIdx: idx, isWordStart: true, isWordEnd: true, isStressed: true, isPhraseCadenceStress: idx === rawWords.length - 1, hasPunct: /[,.;:?!…]/.test(w), weight: 1.0 }));
 
         const K = tokens.length;
         if (K === 0) continue;
@@ -13026,7 +13361,11 @@
           const fHz = vocalProfile.frameHz || 100;
           const vDb = vocalProfile.vocEnergyDb;
           const vFlux = vocalProfile.vowelFlux;
+          const vFormFlux = vocalProfile.vocalFormantFlux;
+          const vHarm = vocalProfile.vocalHarmonicDb;
           const vMidi = vocalProfile.midiFrames;
+          const vClar = vocalProfile.rawClarityFrames;
+          const hasFormant = Boolean(vFormFlux && vFormFlux.length >= vFlux.length);
           const thVoc = Number.isFinite(vocalProfile.thVoc) ? vocalProfile.thVoc : -32;
           const f0 = Math.max(0, Math.floor(vocalStartSec * fHz));
           const f1 = Math.min(vFlux.length - 1, Math.ceil(vocalEndSec * fHz));
@@ -13034,16 +13373,20 @@
           const minStepFrames = Math.max(Math.round(0.075 * fHz), Math.min(Math.round(0.17 * fHz), Math.floor(M / (K + 0.5))));
 
           if (M >= K * minStepFrames) {
-            // 1) Densidad de actividad de ataques vocálicos + detección de mesetas sostenidas (bajo flujo, energía/tono estables)
+            // 1) Densidad de ataques vocálicos/formánticos + detección real de mesetas sostenidas (inmune a vibrato y percusión)
             const onsetCdf = new Float32Array(M + 1);
+            const effFluxArr = new Float32Array(M);
             const isSustainPlateau = new Uint8Array(M);
             const prefSustain = new Int32Array(M + 1);
             const nAllF = vDb.length;
+            let linePeakDb = thVoc;
 
             for (let m = 0; m < M; m++) {
               const fAbs = f0 + m;
               const eDb = vDb[fAbs];
-              const flux = vFlux[fAbs] || 0;
+              if (eDb > linePeakDb) linePeakDb = eDb;
+              const rawFlux = vFlux[fAbs] || 0;
+              const formFlux = hasFormant ? (vFormFlux[fAbs] || 0) : rawFlux;
               const voiced = eDb >= (thVoc - 2.4);
               let pitchChangeBoost = 0;
               if (vMidi && fAbs >= 4 && fAbs + 4 < nAllF) {
@@ -13052,20 +13395,31 @@
                 if (mPrev >= 45 && mNext >= 45) {
                   const dP = Math.abs(mNext - mPrev);
                   if (dP >= 1.35 && dP <= 10.0) {
-                    pitchChangeBoost = Math.min(2.0, dP * 0.42);
+                    pitchChangeBoost = Math.min(2.2, dP * 0.45);
                   }
                 }
               }
-              const ePrev = vDb[Math.max(0, fAbs - 5)];
-              const eNext = vDb[Math.min(nAllF - 1, fAbs + 5)];
-              const flatEnergy = Math.abs(eDb - ePrev) < 2.0 && Math.abs(eDb - eNext) < 2.0;
-              const plateau = (voiced && flux < 0.88 && flatEnergy && pitchChangeBoost === 0) ? 1 : 0;
+              let plateau = 0;
+              if (hasFormant) {
+                const harmStable = !vHarm || (Math.abs(vHarm[fAbs] - vHarm[Math.max(0, fAbs - 5)]) < 3.4 && Math.abs(vHarm[fAbs] - vHarm[Math.min(nAllF - 1, fAbs + 5)]) < 3.4);
+                plateau = (voiced && formFlux < 1.25 && harmStable && pitchChangeBoost === 0) ? 1 : 0;
+              } else {
+                const ePrev = vDb[Math.max(0, fAbs - 5)];
+                const eNext = vDb[Math.min(nAllF - 1, fAbs + 5)];
+                const flatEnergy = Math.abs(eDb - ePrev) < 2.0 && Math.abs(eDb - eNext) < 2.0;
+                plateau = (voiced && rawFlux < 0.88 && flatEnergy && pitchChangeBoost === 0) ? 1 : 0;
+              }
               isSustainPlateau[m] = plateau;
               prefSustain[m + 1] = prefSustain[m] + plateau;
 
+              const effFlux = hasFormant
+                ? (formFlux * 0.72 + Math.min(6.0, rawFlux) * 0.28 + pitchChangeBoost * 0.65)
+                : (rawFlux + pitchChangeBoost * 0.55);
+              effFluxArr[m] = effFlux;
+
               const act = plateau
                 ? 0.045
-                : (voiced ? (0.14 + Math.min(8.0, flux) * 1.15 + pitchChangeBoost) : 0.035);
+                : (voiced ? (0.14 + Math.min(8.0, effFlux) * 1.15) : 0.035);
               onsetCdf[m + 1] = onsetCdf[m] + act;
             }
 
@@ -13084,9 +13438,9 @@
 
             const totalW = tokens.reduce((acc, t) => acc + (Number(t.weight) || 1.0), 0) || K;
             const avgSylDurSec = (vocalEndSec - vocalStartSec) / Math.max(1, K);
-            // En frases con notas sostenidas (promedio > 0.30s/sílaba), priorizar el CDF real de ataques vocálicos
+            // En frases con notas sostenidas (promedio > 0.28s/sílaba), priorizar el CDF real de ataques vocálicos
             // para que las sílabas rápidas previas queden en su tiempo exacto y la sílaba sostenida absorba la meseta.
-            const cdfBlend = Math.max(0.25, Math.min(0.84, (avgSylDurSec - 0.18) * 1.45));
+            const cdfBlend = Math.max(0.28, Math.min(0.84, (avgSylDurSec - 0.16) * 1.45));
             const idealFrames = new Array(K);
             let cumW = 0;
             for (let k = 0; k < K; k++) {
@@ -13102,7 +13456,7 @@
               }
             }
 
-            // 2) Programación dinámica Viterbi consciente de sostenidos (submuestreo 20 ms si M > 320 para < 2 ms)
+            // 2) Programación dinámica Viterbi consciente de sostenidos y acento tónico (submuestreo 20 ms si M > 320 para < 2 ms)
             const stride = M > 320 ? 2 : 1;
             const Ms = Math.ceil(M / stride);
             const minStepS = Math.max(1, Math.floor(minStepFrames / stride));
@@ -13114,7 +13468,7 @@
               const fAbs = f0 + m;
               const dev = Math.abs(fAbs - idealFrames[0]) / Math.max(7, M * 0.18);
               if (dev <= 1.35) {
-                dp[ms] = vFlux[fAbs] * 1.35 + (vDb[fAbs] - thVoc) * 0.16 - dev * dev * 3.8;
+                dp[ms] = effFluxArr[m] * 1.35 + (vDb[fAbs] - thVoc) * 0.16 - dev * dev * 3.8;
               }
             }
 
@@ -13122,18 +13476,20 @@
             for (let k = 1; k < K; k++) {
               const expGapF = Math.max(minStepFrames, idealFrames[k] - idealFrames[k - 1]);
               const expGapS = Math.max(minStepS, expGapF / stride);
-              const maxGapS = Math.min(Ms - 1, Math.max(Math.round(expGapS * 3.0), maxSustainSpanS));
-              const devScale = Math.max(10, M * 0.32);
+              const maxGapS = Math.min(Ms - 1, Math.max(Math.round(expGapS * 3.2), maxSustainSpanS));
+              const devScale = Math.max(10, M * 0.34);
+              const prevTok = tokens[k - 1];
+              const isPrevSustainCand = Boolean(prevTok.isStressed || prevTok.isPhraseCadenceStress || prevTok.hasPunct);
 
               for (let ms = k * minStepS; ms < Ms - (K - 1 - k) * minStepS; ms++) {
                 const m = Math.min(M - 1, ms * stride);
                 const fAbs = f0 + m;
                 const globalDev = Math.abs(fAbs - idealFrames[k]) / devScale;
-                if (globalDev > 2.35) continue;
+                if (globalDev > 2.45) continue;
 
                 // Penalizar fuertemente cortar una nueva sílaba en medio de una meseta vocal sostenida estable
-                const plateauPen = isSustainPlateau[m] ? 2.25 : 0;
-                const emission = vFlux[fAbs] * 1.48 + (vDb[fAbs] - thVoc) * 0.14 - globalDev * globalDev * 1.55 - plateauPen;
+                const plateauPen = isSustainPlateau[m] ? 2.35 : 0;
+                const emission = effFluxArr[m] * 1.48 + (vDb[fAbs] - thVoc) * 0.14 - globalDev * globalDev * 1.45 - plateauPen;
 
                 const prevMin = Math.max((k - 1) * minStepS, ms - maxGapS);
                 const prevMax = ms - minStepS;
@@ -13144,17 +13500,25 @@
                   const prevVal = dp[(k - 1) * Ms + pms];
                   if (prevVal <= -1e8) continue;
                   const gapS = ms - pms;
+                  const gapSec = (gapS * stride) / fHz;
                   const gapDiff = (gapS - expGapS) / Math.max(3, expGapS * 0.62);
-                  let transPen = gapDiff * gapDiff * 1.55;
-                  // Si la sílaba anterior se alarga sobre una meseta vocal sostenida real, liberar la penalización
-                  if (gapS > expGapS * 1.15) {
+                  let transPen = gapDiff * gapDiff * 1.50;
+                  // Evaluar si la sílaba anterior descansa sobre una meseta vocal sostenida real
+                  let sustainFrac = 0;
+                  if (gapS > expGapS * 1.12) {
                     const pm = Math.min(M - 1, pms * stride);
                     const innerLen = Math.max(1, (m - 2) - (pm + 2));
                     const sustainCnt = (m - 2 > pm + 2) ? (prefSustain[m - 2] - prefSustain[pm + 2]) : 0;
-                    const sustainFrac = sustainCnt / innerLen;
-                    if (sustainFrac >= 0.45) {
-                      transPen *= Math.max(0.16, 1.0 - sustainFrac * 0.88);
+                    sustainFrac = sustainCnt / innerLen;
+                    if (sustainFrac >= 0.42) {
+                      const minFloor = isPrevSustainCand ? 0.12 : 0.22;
+                      transPen *= Math.max(minFloor, 1.0 - sustainFrac * 0.88);
                     }
+                  }
+                  // Evitar que una sílaba interna átona no-final absorba una meseta ajena cuando no es sostenida real
+                  if (!isPrevSustainCand && !prevTok.isWordEnd && gapSec > 0.46 && sustainFrac < 0.65) {
+                    const over = (gapSec - 0.42) / 0.26;
+                    transPen += over * over * 1.15;
                   }
                   const cand = prevVal - transPen;
                   if (cand > bestPrevScore) {
@@ -13169,12 +13533,44 @@
               }
             }
 
+            // 3) Puntuar explícitamente la duración de la ÚLTIMA sílaba [ms .. M-1]:
+            //    evita aplastar finales sostenidos ("a-MOOOOR", "sa-BEEEER") a 80 ms y mantiene átonas finales ("-te", "-da") nítidas.
+            const lastTok = tokens[K - 1];
+            const lastIsSustainCand = Boolean(lastTok.isStressed || lastTok.isPhraseCadenceStress);
+            const expLastF = Math.max(minStepFrames, (f1 - idealFrames[K - 1]));
+            const expLastS = Math.max(minStepS, expLastF / stride);
+            const minLastF = Math.max(4, Math.min(minStepFrames, Math.round(0.09 * fHz)));
+
             let bestEndMs = -1;
             let bestEndVal = -1e9;
             for (let ms = (K - 1) * minStepS; ms < Ms; ms++) {
-              const v = dp[(K - 1) * Ms + ms];
-              if (v > bestEndVal) {
-                bestEndVal = v;
+              const baseV = dp[(K - 1) * Ms + ms];
+              if (baseV <= -1e8) continue;
+              const mStart = Math.min(M - 1, ms * stride);
+              const tailF = (M - 1) - mStart;
+              if (tailF < minLastF) continue;
+              const tailS = tailF / stride;
+              const tailSec = tailF / fHz;
+              const innerLen = Math.max(1, (M - 2) - (mStart + 2));
+              const sustainFrac = (M - 2 > mStart + 2) ? ((prefSustain[M - 2] - prefSustain[mStart + 2]) / innerLen) : 0;
+
+              let tailPen = 0;
+              const tailDiff = (tailS - expLastS) / Math.max(3, expLastS * 0.66);
+              tailPen = tailDiff * tailDiff * 1.35;
+              if (tailS > expLastS * 1.12 && sustainFrac >= 0.42) {
+                if (lastIsSustainCand) {
+                  tailPen *= Math.max(0.10, 1.0 - sustainFrac * 0.90);
+                } else if (sustainFrac >= 0.72) {
+                  tailPen *= 0.30;
+                }
+              }
+              if (!lastIsSustainCand && tailSec > 0.44 && sustainFrac < 0.72) {
+                const over = (tailSec - 0.36) / 0.25;
+                tailPen += over * over * 1.30;
+              }
+              const score = baseV - tailPen;
+              if (score > bestEndVal) {
+                bestEndVal = score;
                 bestEndMs = ms;
               }
             }
@@ -13186,24 +13582,52 @@
                 chosenFrames[k] = f0 + Math.min(M - 1, curMs * stride);
                 curMs = back[k * Ms + curMs];
               }
-              // Refinamiento fino a 10 ms exactos sobre picos de ataque vocálico
+              // Refinamiento fino a 10 ms exactos sobre picos de ataque vocálico/formántico
               if (stride > 1) {
                 for (let k = 1; k < K; k++) {
                   const loF = Math.max(chosenFrames[k - 1] + minStepFrames, chosenFrames[k] - 3);
-                  const hiF = Math.min((k + 1 < K ? chosenFrames[k + 1] - minStepFrames : f1 - minStepFrames), chosenFrames[k] + 3);
+                  const hiF = Math.min((k + 1 < K ? chosenFrames[k + 1] - minStepFrames : f1 - minLastF), chosenFrames[k] + 3);
                   let bF = chosenFrames[k];
                   let bSc = -1e9;
                   for (let f = loF; f <= hiF; f++) {
-                    const sc = vFlux[f] * 1.5 - (isSustainPlateau[f - f0] ? 2.0 : 0);
+                    const mIdx = Math.max(0, Math.min(M - 1, f - f0));
+                    const sc = effFluxArr[mIdx] * 1.5 - (isSustainPlateau[mIdx] ? 2.0 : 0);
                     if (sc > bSc) { bSc = sc; bF = f; }
                   }
                   chosenFrames[k] = bF;
                 }
               }
+
+              // Recorte limpio de pausas respiratorias internas entre palabras (sin estirar barras sobre silencios >= 160 ms)
+              const breathFloorDb = Math.max(thVoc - 2.0, linePeakDb - 11.5);
+              const minBreathF = Math.round(0.16 * fHz);
+
               for (let k = 0; k < K; k++) {
                 const sSec = chosenFrames[k] / fHz;
                 const nextSec = (k + 1 < K) ? (chosenFrames[k + 1] / fHz) : vocalEndSec;
-                const eSec = Math.max(sSec + 0.085, Math.min(vocalEndSec, nextSec - 0.012));
+                let eSec = (k + 1 < K)
+                  ? Math.max(sSec + 0.085, Math.min(vocalEndSec, nextSec - 0.012))
+                  : Math.max(sSec + 0.085, vocalEndSec);
+
+                if (k + 1 < K && tokens[k].isWordEnd && (eSec - sSec) >= 0.42) {
+                  const fStopScan = chosenFrames[k] + Math.max(minStepFrames, Math.round(0.14 * fHz));
+                  let unvoicedTail = 0;
+                  for (let f = chosenFrames[k + 1] - 2; f >= fStopScan; f--) {
+                    const tonalOk = Boolean(vMidi && vMidi[f] >= 45 && (!vClar || vClar[f] >= 0.38));
+                    if (vDb[f] < breathFloorDb && !tonalOk) {
+                      unvoicedTail++;
+                    } else {
+                      break;
+                    }
+                  }
+                  if (unvoicedTail >= minBreathF) {
+                    const trimmedEnd = (chosenFrames[k + 1] - unvoicedTail + 2) / fHz;
+                    if (trimmedEnd >= sSec + 0.14 && trimmedEnd < eSec - 0.10) {
+                      eSec = trimmedEnd;
+                    }
+                  }
+                }
+
                 syls.push({
                   text: String(tokens[k].text || tokens[k].displayText || '').trim(),
                   displayText: tokens[k].displayText || (tokens[k].text + (tokens[k].isWordEnd ? ' ' : '')),
@@ -13248,6 +13672,7 @@
           endTimeSec: syls[syls.length - 1].endSec,
           words: syncedLineWords,
           _hasAcousticGeneratedWords: true,
+          _hasFullStftSyllables: hasFullStftProf,
           singstarSyllables: syls
         });
       }
@@ -13613,11 +14038,13 @@
           const cL = snapFn(mL, 0.5 * (pts[i0].sec + pts[k].sec));
           const cR = snapFn(mR, 0.5 * (pts[k + 1].sec + pts[i1].sec));
           const stepSt = Math.abs(cR - cL);
-          if (stepSt < 2 || stepSt > 7) continue;
+          const isValidSemitoneStep = (stepSt === 1 && leftDur >= 0.45 && rightDur >= 0.45 && Math.abs(mR - mL) >= 0.85);
+          if ((!isValidSemitoneStep && stepSt < 2) || stepSt > 7) continue;
 
           const errSplit = l1Error(i0, k, cL) + l1Error(k + 1, i1, cR);
           const gain = errAll - errSplit;
-          if (gain > bestGain) {
+          const reqGain = isValidSemitoneStep ? (0.34 * totW) : (0.42 * totW);
+          if (gain >= reqGain && gain > bestGain) {
             bestGain = gain;
             bestK = k;
             bestCL = cL;
@@ -13625,8 +14052,7 @@
           }
         }
 
-        // Exigir reducción media real >= 0.42 semitonos por muestra para confirmar cambio de nota genuino
-        if (bestK === -1 || bestGain < 0.42 * totW) {
+        if (bestK === -1) {
           return [{ i0, i1, midi: cAll }];
         }
 
@@ -13719,10 +14145,42 @@
     }
 
     /**
+     * Sincroniza de vuelta hacia KaraokeLyricsService las sílabas calibradas a 100 Hz (STFT + formantes)
+     * para que el barrido sílaba a sílaba de Karaoke y las barras de SingStar vayan 100% a la par al milisegundo.
+     */
+    _syncCalibratedSyllablesBackToKaraoke(key, calibratedLines) {
+      if (!key || !this.karaokeService || !Array.isArray(calibratedLines) || calibratedLines.length < 2) return;
+      const clean = calibratedLines.filter(
+        l => l && !l._isAcousticVocalIsland && !l._isFallbackPlaceholder && String(l.text || '').trim().length > 0
+      );
+      if (clean.length < 2) return;
+      const cloned = clean.map(l => ({
+        ...l,
+        words: Array.isArray(l.words) ? l.words.map(w => ({ ...w })) : undefined,
+        singstarSyllables: Array.isArray(l.singstarSyllables) ? l.singstarSyllables.map(s => ({ ...s })) : undefined
+      }));
+      if (this.karaokeService.cache) {
+        this.karaokeService.cache.set(key, cloned);
+      }
+      if (this.karaokeService.currentTrackKey === key) {
+        this.karaokeService.currentLyrics = cloned.map(l => ({ ...l, elasticOffsetSec: 0 }));
+        this.karaokeService.activeLineIndex = -1;
+        try {
+          this.karaokeService.renderLinesToDom({ skipSingStarNotify: true });
+          const curSec = this.audioEngine ? (this.audioEngine.getCurrentSongTimeSec() || 0) : (this.karaokeService._lastSyncAudioSec || 0);
+          if (typeof this.karaokeService.syncTime === 'function') {
+            this.karaokeService.syncTime(curSec, { forceScroll: false });
+          }
+        } catch (_) {}
+      }
+    }
+
+    /**
      * Acoplamiento en vivo garantizado desde Karaoke -> SingStar:
      * Recibe calibraciones IA Whisper, Vocal-VAD rígido, caché v4 o anclas manuales del usuario,
-     * preserva SIEMPRE la melodía vocal real (`dspContour` MPM) si existe y actualiza al instante
-     * las barras de tono, las sílabas del teleprompter y la píldora de estado de SingStar.
+     * preserva SIEMPRE la melodía vocal real (`dspContour` STFT+Viterbi) si existe, precalienta
+     * silenciosamente STFT+Viterbi al 100% en cuanto Karaoke bloquea la pista (para que SingStar
+     * cargue instantáneamente sin puerta ni esperas) y mantiene ambos modos 100% a la par.
      */
     syncFromKaraokeCalibration(track, key, alignedLines, meta = {}) {
       if (!key || !Array.isArray(alignedLines) || alignedLines.length === 0) return false;
@@ -13747,12 +14205,24 @@
             : (existing?.dspContour || null));
 
       const dur = Number(meta.audioDurSec) || existing?.actualDurSec || (this.audioEngine ? (this.audioEngine.getRealDurationSec(track) || 195) : 195);
-      const hasReadySyls = !isUserCalibration && isWhisperIncoming && cleanLines.every(
-        l => Array.isArray(l.singstarSyllables) && l.singstarSyllables.length > 0
+      const hasFullDsp = Boolean(effDsp && effDsp.voicedCount >= 10);
+      const hasStftDsp = Boolean(hasFullDsp && effDsp.hasStftViterbiMelody);
+
+      if (hasStftDsp && typeof this._refineVocalMelodyWithSyncedLyrics === 'function' && (!effDsp.isLyricViterbiRefined || isUserCalibration || isWhisperIncoming)) {
+        try { this._refineVocalMelodyWithSyncedLyrics(effDsp, cleanLines); } catch (_) {}
+      }
+
+      const hasReadyFullSyls = !isUserCalibration && isWhisperIncoming && cleanLines.every(
+        l => Array.isArray(l.singstarSyllables) && l.singstarSyllables.length > 0 && (!hasStftDsp || l._hasFullStftSyllables === true)
       );
-      const acousticLines = hasReadySyls
+      const acousticLines = hasReadyFullSyls
         ? cleanLines.map(l => ({ ...l }))
         : this._alignSyllablesWithVocalProfile(key, cleanLines, effDsp, dur);
+
+      const isWhisperFinal = Boolean(isWhisperIncoming || (isUserCalibration && existing?.isWhisperVerified));
+      const isVadFinal = Boolean(meta.isVocalVadLocked || existing?.isVocalVadLocked);
+      const isCompleteSync = Boolean((isWhisperFinal || isVadFinal || isUserCalibration) && meta.isComplete !== false);
+      const isFullyReady100 = Boolean(isCompleteSync && hasStftDsp && acousticLines.length >= 2);
 
       const studioData = {
         ...(existing || {}),
@@ -13761,21 +14231,27 @@
         actualDurSec: dur,
         dspContour: effDsp,
         acousticLines,
-        hasDspMelody: Boolean(effDsp && effDsp.voicedCount >= 10),
+        hasDspMelody: hasFullDsp,
+        hasStftViterbiMelody: hasStftDsp,
         hasAcousticSyllables: true,
         hasPlaceholderLyrics: false,
         hasUnalignedPlainLyrics: false,
         isAudioTranscribed: Boolean(isWhisperIncoming || existing?.isAudioTranscribed),
-        isWhisperVerified: Boolean(isWhisperIncoming || (isUserCalibration && existing?.isWhisperVerified)),
-        isVocalVadLocked: Boolean(meta.isVocalVadLocked || existing?.isVocalVadLocked),
+        isWhisperVerified: isWhisperFinal,
+        isVocalVadLocked: isVadFinal,
         vadShiftSec: Number.isFinite(Number(meta.vadShiftSec)) ? Number(meta.vadShiftSec) : (existing?.vadShiftSec || 0),
         isPiecewise: Boolean(meta.isPiecewise || existing?.isPiecewise),
         spreadSec: Number.isFinite(Number(meta.spreadSec)) ? Number(meta.spreadSec) : (existing?.spreadSec || 0),
         bucketCount: Number.isFinite(Number(meta.bucketCount)) ? Number(meta.bucketCount) : (existing?.bucketCount || 0),
         shiftSec: Number.isFinite(Number(meta.shiftSec)) ? Number(meta.shiftSec) : (existing?.shiftSec || 0),
-        slope: Number.isFinite(Number(meta.slope)) ? Number(meta.slope) : (existing?.slope || 1.0)
+        slope: Number.isFinite(Number(meta.slope)) ? Number(meta.slope) : (existing?.slope || 1.0),
+        isFullySynced100: isFullyReady100
       };
       this._putStudioAnalysisCache(key, studioData);
+
+      if (hasStftDsp && acousticLines.length >= 2 && !isUserCalibration) {
+        this._syncCalibratedSyllablesBackToKaraoke(key, acousticLines);
+      }
 
       if (this.isActive && this.currentTrackKey === key) {
         const effOff = Number(this.karaokeService?.timeOffsetSec || 0);
@@ -13787,7 +14263,17 @@
         if (meta.statusLabel) {
           this._setSyncStatusChip(meta.statusLabel, meta.statusState || 'ready');
         }
-        if (!studioData.hasDspMelody && studioData.track) {
+        if ((!studioData.hasDspMelody || !studioData.hasStftViterbiMelody) && studioData.track) {
+          this._attachBackgroundDspMelodyForActiveStage(studioData.track, key).catch(() => {});
+        }
+      } else if (isCompleteSync && !isFullyReady100 && studioData.track) {
+        // Karaoke ya terminó de sincronizar esta canción: precalentar STFT+Viterbi + sílabas 100 Hz en segundo plano
+        // (reutilizando el AudioBuffer ya decodificado -> 0 ms de re-decodificación) para que SingStar cargue instantáneo.
+        const isCurrentPlayingTrack = Boolean(
+          (this.karaokeService && this.karaokeService.currentTrackKey === key) ||
+          (this.audioEngine && this.audioEngine.currentTrack && this.karaokeService?._makeKey(this.audioEngine.currentTrack) === key)
+        );
+        if (isCurrentPlayingTrack && !this.isActiveWhisperFor(key)) {
           this._attachBackgroundDspMelodyForActiveStage(studioData.track, key).catch(() => {});
         }
       }
@@ -13795,72 +14281,103 @@
     }
 
     /**
-     * Extrae la curva melódica vocal MPM (F0) en segundo plano sin reiniciar ni interferir con Whisper,
-     * para que SingStar siempre muestre la melodía real cantada incluso al entrar en mitad de la
-     * calibración iniciada desde Karaoke.
+     * Extrae la curva melódica vocal STFT+Viterbi y calibra las sílabas a 100 Hz en segundo plano
+     * sin reiniciar ni interferir con Whisper, marcando la pista lista al 100% (`isFullySynced100 = true`)
+     * para que entrar en SingStar tras Karaoke sea instantáneo y ambos modos compartan sílabas idénticas.
      */
     async _attachBackgroundDspMelodyForActiveStage(track, key) {
-      if (!track || !key || this._bgDspKey === key) return false;
+      if (!track || !key) return false;
+      if (this._bgDspKey === key && this._bgDspPromise) {
+        return await this._bgDspPromise;
+      }
       const existing = this.studioAnalysisCache.get(key);
-      if (existing && existing.hasDspMelody && existing.dspContour && existing.dspContour.voicedCount >= 10) {
+      if (existing && existing.hasDspMelody && existing.hasStftViterbiMelody && existing.isFullySynced100 && existing.dspContour && existing.dspContour.voicedCount >= 10) {
         return true;
       }
+
       this._bgDspKey = key;
-      try {
-        let blob = null;
-        if (this.audioEngine) {
-          if (this.audioEngine.currentTrack && this.karaokeService?._makeKey(this.audioEngine.currentTrack) === key && this.audioEngine.fullTrackBlob && this.audioEngine.fullTrackBlob.size >= 40000) {
-            blob = this.audioEngine.fullTrackBlob;
-          } else if (typeof this.audioEngine._getCachedFullBlobForTrack === 'function') {
-            blob = this.audioEngine._getCachedFullBlobForTrack(track);
+      const bgTask = (async () => {
+        try {
+          let blob = null;
+          if (this.audioEngine) {
+            if (this.audioEngine.currentTrack && this.karaokeService?._makeKey(this.audioEngine.currentTrack) === key && this.audioEngine.fullTrackBlob && this.audioEngine.fullTrackBlob.size >= 40000) {
+              blob = this.audioEngine.fullTrackBlob;
+            } else if (typeof this.audioEngine._getCachedFullBlobForTrack === 'function') {
+              blob = this.audioEngine._getCachedFullBlobForTrack(track);
+            }
+          }
+          if (!blob || blob.size < 40000) {
+            const stKar = this.karaokeService?.trackCalibrationState?.get(key);
+            if (stKar && stKar.audioBlob instanceof Blob && stKar.audioBlob.size >= 40000) {
+              blob = stKar.audioBlob;
+            }
+          }
+          if (!blob || blob.size < 40000) return false;
+
+          const decoded = await this._decodeAudioBlobSinglePass(track, key, blob, null, null, {
+            needPitchProfile: true,
+            needMono16k: false
+          });
+          if (!decoded || !decoded.vocalDspProfile || decoded.vocalDspProfile.voicedCount < 10) return false;
+
+          const latest = this.studioAnalysisCache.get(key);
+          const curLines = latest?.acousticLines || this.karaokeService?.cache?.get(key) || this.karaokeService?.currentLyrics || [];
+          if (!Array.isArray(curLines) || curLines.length === 0 || this._isPlaceholderLyrics(curLines) || this._isUnalignedPlainLyrics(curLines)) return false;
+
+          const dur = decoded.actualDurSec || latest?.actualDurSec || 195;
+          if (typeof this._refineVocalMelodyWithSyncedLyrics === 'function') {
+            try { this._refineVocalMelodyWithSyncedLyrics(decoded.vocalDspProfile, curLines); } catch (_) {}
+          }
+          const alreadyFull = Boolean(
+            latest?.isWhisperVerified &&
+            curLines.every(l => l && l._hasFullStftSyllables === true && Array.isArray(l.singstarSyllables) && l.singstarSyllables.length > 0)
+          );
+          const nextLines = alreadyFull
+            ? curLines
+            : this._alignSyllablesWithVocalProfile(key, curLines, decoded.vocalDspProfile, dur);
+
+          const isVerifiedSync = Boolean(
+            latest?.isWhisperVerified ||
+            latest?.isVocalVadLocked ||
+            (this.karaokeService && this.karaokeService.isWhisperVerifiedFor(key, dur)) ||
+            (curLines[0] && curLines[0]._vocalVadVerified === true)
+          );
+          const hasStft = Boolean(decoded.vocalDspProfile.hasStftViterbiMelody);
+          const updated = {
+            ...(latest || {
+              track,
+              key,
+              hasAcousticSyllables: true,
+              hasPlaceholderLyrics: false,
+              hasUnalignedPlainLyrics: false
+            }),
+            actualDurSec: dur,
+            dspContour: decoded.vocalDspProfile,
+            acousticLines: nextLines,
+            hasDspMelody: true,
+            hasStftViterbiMelody: hasStft,
+            isWhisperVerified: Boolean(latest?.isWhisperVerified || (this.karaokeService && this.karaokeService.isWhisperVerifiedFor(key, dur))),
+            isVocalVadLocked: Boolean(latest?.isVocalVadLocked || (curLines[0] && curLines[0]._vocalVadVerified === true)),
+            isFullySynced100: Boolean(isVerifiedSync && hasStft && nextLines.length >= 2)
+          };
+          this._putStudioAnalysisCache(key, updated);
+          this._syncCalibratedSyllablesBackToKaraoke(key, nextLines);
+          if (this.isActive && this.currentTrackKey === key) {
+            const effOff = Number(this.karaokeService?.timeOffsetSec || 0);
+            this._applyStudioAnalysisToStage(updated, effOff, false);
+          }
+          return true;
+        } catch (_) {
+          return false;
+        } finally {
+          if (this._bgDspKey === key) {
+            this._bgDspKey = '';
+            this._bgDspPromise = null;
           }
         }
-        if (!blob || blob.size < 40000) {
-          const stKar = this.karaokeService?.trackCalibrationState?.get(key);
-          if (stKar && stKar.audioBlob instanceof Blob && stKar.audioBlob.size >= 40000) {
-            blob = stKar.audioBlob;
-          }
-        }
-        if (!blob || blob.size < 40000) return false;
-
-        const decoded = await this._decodeAudioBlobSinglePass(track, key, blob, null, null, {
-          needPitchProfile: true,
-          needMono16k: false
-        });
-        if (!decoded || !decoded.vocalDspProfile || decoded.vocalDspProfile.voicedCount < 10) return false;
-
-        const latest = this.studioAnalysisCache.get(key);
-        const curLines = latest?.acousticLines || this.karaokeService?.cache?.get(key) || this.karaokeService?.currentLyrics || [];
-        if (!Array.isArray(curLines) || curLines.length === 0 || this._isPlaceholderLyrics(curLines)) return false;
-
-        const dur = decoded.actualDurSec || latest?.actualDurSec || 195;
-        const nextLines = (latest?.isWhisperVerified && curLines[0]?.singstarSyllables)
-          ? curLines
-          : this._alignSyllablesWithVocalProfile(key, curLines, decoded.vocalDspProfile, dur);
-        const updated = {
-          ...(latest || {
-            track,
-            key,
-            hasAcousticSyllables: true,
-            hasPlaceholderLyrics: false,
-            hasUnalignedPlainLyrics: false
-          }),
-          actualDurSec: dur,
-          dspContour: decoded.vocalDspProfile,
-          acousticLines: nextLines,
-          hasDspMelody: true
-        };
-        this._putStudioAnalysisCache(key, updated);
-        if (this.isActive && this.currentTrackKey === key) {
-          const effOff = Number(this.karaokeService?.timeOffsetSec || 0);
-          this._applyStudioAnalysisToStage(updated, effOff, false);
-        }
-        return true;
-      } catch (_) {
-        return false;
-      } finally {
-        if (this._bgDspKey === key) this._bgDspKey = '';
-      }
+      })();
+      this._bgDspPromise = bgTask;
+      return await bgTask;
     }
 
     onLyricsUpdated(track, lyricsLines, userOffsetSec = 0) {
@@ -15615,6 +16132,9 @@
       this.listenedSecondsOnCurrent = 0;
       this._playRequestId = 0;
       this._audioSrcOp = 0;
+      this._isAudioDucked = false;
+      this._lastAndroidMediaPushMs = 0;
+      this._lastAndroidMediaStateKey = '';
 
       this._bindAudioEvents();
       this._initMediaSession();
@@ -15854,7 +16374,25 @@
     _getMasterVolume() {
       // El volumen de la música ambiental del menú (beatstar_master_volume / beatstar_master_muted)
       // solo afecta a la música de fondo del menú y NUNCA debe bajar ni silenciar las canciones o previews.
-      return 0.92;
+      return this._isAudioDucked ? 0.25 : 0.92;
+    }
+
+    _applyDuckingState(ducked) {
+      this._isAudioDucked = Boolean(ducked);
+      const vol = this._getMasterVolume();
+      try { if (this.fullAudio) this.fullAudio.volume = vol; } catch (_) {}
+      try { if (this.previewAudio) this.previewAudio.volume = vol; } catch (_) {}
+      if (this.activeSourceType === 'yt_bridge') {
+        try { this._sendYtBridgeCommand('setVolume', [Math.round(vol * 100)]); } catch (_) {}
+      }
+    }
+
+    _resumeMasterFxIfSuspended() {
+      try {
+        if (this._masterFxBus && this._masterFxBus.ctx && this._masterFxBus.ctx.state === 'suspended') {
+          this._masterFxBus.ctx.resume().catch(() => {});
+        }
+      } catch (_) {}
     }
 
     _extractTrackYoutubeId(track) {
@@ -16467,7 +17005,7 @@
     async handleTrackEnded(opts = {}) {
       if (window.SpotifySuite && typeof window.SpotifySuite.consumeEndOfTrackSleepTimer === 'function') {
         if (window.SpotifySuite.consumeEndOfTrackSleepTimer()) {
-          this._stopBothChannelsImmediate();
+          this._stopBothChannelsImmediate({ stopNativeService: true });
           return;
         }
       }
@@ -16839,7 +17377,8 @@
         window.stopPreviewCandidateAudio(false);
       }
 
-      this._stopBothChannelsImmediate();
+      this._resumeMasterFxIfSuspended();
+      this._stopBothChannelsImmediate({ keepNativeSessionAlive: true });
 
       const miniEl = document.getElementById('spotifyMiniPlayer');
       if (miniEl) {
@@ -18043,6 +18582,7 @@
         }
         return;
       }
+      this._resumeMasterFxIfSuspended();
       if (typeof window.pauseMenuAmbientMusic === 'function') {
         window.pauseMenuAmbientMusic();
       }
@@ -18084,6 +18624,37 @@
       }
     }
 
+    pause() {
+      if (this.activeSourceType === 'yt_bridge') {
+        if (!this._ytBridgePaused) {
+          this._ytBridgePaused = true;
+          this._ytBridgeBaseSec = this.getCurrentSongTimeSec();
+          this._sendYtBridgeCommand('pauseVideo', []);
+        }
+        this.isPlayingFlag = false;
+        this._syncPlayPauseIcons(false);
+        if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
+          window.DiscoverHomeApp.syncActiveVideoclipPlayback('pause');
+        }
+        return;
+      }
+      const activeEl = this.getActiveAudioElement();
+      if (activeEl && !activeEl.paused) {
+        try { activeEl.pause(); } catch (_) {}
+      }
+      if (this.previewAudio && !this.previewAudio.paused) {
+        try { this.previewAudio.pause(); } catch (_) {}
+      }
+      if (this.fullAudio && !this.fullAudio.paused) {
+        try { this.fullAudio.pause(); } catch (_) {}
+      }
+      this.isPlayingFlag = false;
+      this._syncPlayPauseIcons(false);
+      if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
+        window.DiscoverHomeApp.syncActiveVideoclipPlayback('pause');
+      }
+    }
+
     togglePlayPause() {
       if (!this.currentTrack) {
         if (this.queue.length > 0) {
@@ -18093,23 +18664,9 @@
       }
       if (this.activeSourceType === 'yt_bridge') {
         if (!this._ytBridgePaused) {
-          this._ytBridgePaused = true;
-          this._ytBridgeBaseSec = this.getCurrentSongTimeSec();
-          this._sendYtBridgeCommand('pauseVideo', []);
-          this.isPlayingFlag = false;
-          this._syncPlayPauseIcons(false);
+          this.pause();
         } else {
-          if (typeof window.pauseMenuAmbientMusic === 'function') {
-            window.pauseMenuAmbientMusic();
-          }
-          this._ytBridgeStartWallMs = performance.now();
-          this._ytBridgePaused = false;
-          this._sendYtBridgeCommand('playVideo', []);
-          this.isPlayingFlag = true;
-          this._syncPlayPauseIcons(true);
-        }
-        if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
-          window.DiscoverHomeApp.syncActiveVideoclipPlayback(this.isPlayingFlag ? 'play' : 'pause');
+          this.play();
         }
         return;
       }
@@ -18124,13 +18681,9 @@
       }
 
       if (this.isPlaying()) {
-        activeEl.pause();
-        this.isPlayingFlag = false;
-        this._syncPlayPauseIcons(false);
-        if (window.DiscoverHomeApp && typeof window.DiscoverHomeApp.syncActiveVideoclipPlayback === 'function') {
-          window.DiscoverHomeApp.syncActiveVideoclipPlayback('pause');
-        }
+        this.pause();
       } else {
+        this._resumeMasterFxIfSuspended();
         if (typeof window.pauseMenuAmbientMusic === 'function') {
           window.pauseMenuAmbientMusic();
         }
@@ -18169,6 +18722,7 @@
 
       this._seekGuard = { targetSec: safeTarget, untilMs: Date.now() + 2600 };
       this._updatePlayerProgressUI(safeTarget, fullDur);
+      this._notifyAndroidMediaPlayback(true, { positionSec: safeTarget, durationSec: fullDur });
       if (this.karaokeService) {
         this.karaokeService.syncTime(safeTarget, { forceScroll: true, immediateLineIdx: opts.lineIdx });
       }
@@ -18301,7 +18855,7 @@
      * Cierra el mini-reproductor al deslizarlo hacia abajo y detiene la reproducción
      */
     closeMiniPlayerAndStop() {
-      this._stopBothChannelsImmediate();
+      this._stopBothChannelsImmediate({ stopNativeService: true });
       this.isLoadingTrack = false;
       this.pendingUserSeekSec = null;
       this._seekGuard = null;
@@ -18571,7 +19125,7 @@
       if (miniEl) miniEl.classList.add('hidden-player');
       const modalEl = document.getElementById('nowPlayingTurntableModal');
       if (modalEl) modalEl.classList.remove('open');
-      this._stopBothChannelsImmediate();
+      this._stopBothChannelsImmediate({ stopNativeService: true });
     }
 
     restoreAfterGameplay() {
@@ -18583,6 +19137,7 @@
         this.wasPlayingBeforeGame = false;
         const activeEl = this.getActiveAudioElement();
         if (activeEl) {
+          this._resumeMasterFxIfSuspended();
           if (typeof window.pauseMenuAmbientMusic === 'function') {
             window.pauseMenuAmbientMusic();
           }
@@ -18602,7 +19157,7 @@
       }
     }
 
-    _stopBothChannelsImmediate() {
+    _stopBothChannelsImmediate(opts = {}) {
       if (this._activeServerRaceCtrl) {
         try { this._activeServerRaceCtrl.abort(); } catch (_) {}
         this._activeServerRaceCtrl = null;
@@ -18611,14 +19166,20 @@
       try { this.fullAudio.pause(); } catch (_) {}
       this._stopYtAudioBridge();
       this.isPlayingFlag = false;
-      this._syncPlayPauseIcons(false);
+      const stopNative = Boolean(opts && opts.stopNativeService);
+      const keepAlive = Boolean(opts && opts.keepNativeSessionAlive);
+      if (stopNative) {
+        this._stopAndroidBackgroundPlayback();
+      }
+      this._syncPlayPauseIcons(false, { skipNativeSync: keepAlive || stopNative });
     }
 
     _initMediaSession() {
       if (!('mediaSession' in navigator)) return;
       try {
-        navigator.mediaSession.setActionHandler('play', () => this.togglePlayPause());
-        navigator.mediaSession.setActionHandler('pause', () => this.togglePlayPause());
+        navigator.mediaSession.setActionHandler('play', () => this.play());
+        navigator.mediaSession.setActionHandler('pause', () => this.pause());
+        navigator.mediaSession.setActionHandler('stop', () => this.pause());
         navigator.mediaSession.setActionHandler('previoustrack', () => this.prevTrack());
         navigator.mediaSession.setActionHandler('nexttrack', () => this.nextTrack());
         navigator.mediaSession.setActionHandler('seekto', (details) => {
@@ -18630,30 +19191,93 @@
     }
 
     _updateMediaSessionMetadata(track) {
-      if (!('mediaSession' in navigator) || typeof MediaMetadata === 'undefined' || !track) return;
-      try {
-        const cover = getBestTrackCover(track);
-        navigator.mediaSession.metadata = new MediaMetadata({
-          title: track.title || 'Piano Community',
-          artist: track.artist || 'Piano Community',
-          album: track.album || 'Piano Community',
-          artwork: [
-            { src: cover, sizes: '300x300', type: 'image/jpeg' },
-            { src: cover, sizes: '600x600', type: 'image/jpeg' }
-          ]
-        });
-      } catch (_) {}
+      if (!track) return;
+      if ('mediaSession' in navigator && typeof MediaMetadata !== 'undefined') {
+        try {
+          const cover = getBestTrackCover(track);
+          navigator.mediaSession.metadata = new MediaMetadata({
+            title: track.title || 'Piano Community',
+            artist: track.artist || 'Piano Community',
+            album: track.album || 'Piano Community',
+            artwork: [
+              { src: cover, sizes: '300x300', type: 'image/jpeg' },
+              { src: cover, sizes: '600x600', type: 'image/jpeg' }
+            ]
+          });
+        } catch (_) {}
+      }
+      this._notifyAndroidMediaPlayback(true, {
+        track,
+        playing: Boolean(this.isPlayingFlag || this.isLoadingTrack)
+      });
     }
 
     _updateMediaSessionPosition(cur, dur) {
-      if (!('mediaSession' in navigator) || typeof navigator.mediaSession.setPositionState !== 'function') return;
       if (!Number.isFinite(dur) || dur <= 0) return;
+      if ('mediaSession' in navigator && typeof navigator.mediaSession.setPositionState === 'function') {
+        try {
+          navigator.mediaSession.setPositionState({
+            duration: Math.max(1, dur),
+            playbackRate: this.playbackRate || 1.0,
+            position: Math.max(0, Math.min(dur, cur))
+          });
+        } catch (_) {}
+      }
+      this._notifyAndroidMediaPlayback(false, { positionSec: cur, durationSec: dur });
+    }
+
+    _notifyAndroidMediaPlayback(force = false, overrides = {}) {
+      const ov = (overrides && typeof overrides === 'object') ? overrides : {};
+      const track = ov.track || this.currentTrack || null;
+      const effectivePlaying = (typeof ov.playing === 'boolean')
+        ? ov.playing
+        : Boolean(this.isPlayingFlag || this.isPlaying());
       try {
-        navigator.mediaSession.setPositionState({
-          duration: Math.max(1, dur),
-          playbackRate: this.playbackRate || 1.0,
-          position: Math.max(0, Math.min(dur, cur))
-        });
+        if ('mediaSession' in navigator) {
+          navigator.mediaSession.playbackState = effectivePlaying ? 'playing' : 'paused';
+        }
+      } catch (_) {}
+
+      const nativeBridge = (typeof window !== 'undefined' && window.AndroidNative) ? window.AndroidNative : null;
+      if (!nativeBridge || typeof nativeBridge.updateMediaPlaybackState !== 'function') return;
+
+      const title = String((track && track.title) || 'Piano Community').trim() || 'Piano Community';
+      const artist = String((track && track.artist) || 'Piano Community').trim() || 'Piano Community';
+      const album = String((track && track.album) || 'Piano Community').trim() || 'Piano Community';
+      const durSec = Number.isFinite(Number(ov.durationSec))
+        ? Number(ov.durationSec)
+        : (track ? this.getTrackFullDurationSec(track) : 0);
+      const posSec = Number.isFinite(Number(ov.positionSec))
+        ? Number(ov.positionSec)
+        : this.getCurrentSongTimeSec();
+      const durMs = Math.max(0, Math.round((Number(durSec) || 0) * 1000));
+      const posMs = Math.max(0, Math.round((Number(posSec) || 0) * 1000));
+
+      const stateKey = `${effectivePlaying ? 1 : 0}|${title}|${artist}|${durMs}`;
+      const now = Date.now();
+      if (!force && stateKey === this._lastAndroidMediaStateKey && (now - (this._lastAndroidMediaPushMs || 0)) < 4000) {
+        return;
+      }
+      this._lastAndroidMediaPushMs = now;
+      this._lastAndroidMediaStateKey = stateKey;
+
+      try {
+        nativeBridge.updateMediaPlaybackState(Boolean(effectivePlaying), title, artist, album, durMs, posMs);
+      } catch (_) {}
+    }
+
+    _stopAndroidBackgroundPlayback() {
+      this._lastAndroidMediaStateKey = '';
+      this._lastAndroidMediaPushMs = 0;
+      try {
+        if ('mediaSession' in navigator) {
+          navigator.mediaSession.playbackState = 'none';
+        }
+      } catch (_) {}
+      try {
+        if (typeof window !== 'undefined' && window.AndroidNative && typeof window.AndroidNative.stopBackgroundPlayback === 'function') {
+          window.AndroidNative.stopBackgroundPlayback();
+        }
       } catch (_) {}
     }
 
@@ -18725,7 +19349,7 @@
       if (npDur) npDur.textContent = this._formatTime(safeDur);
     }
 
-    _syncPlayPauseIcons(playing) {
+    _syncPlayPauseIcons(playing, opts = {}) {
       const npVinyl = document.getElementById('npTurntableVinylDisc');
       if (npVinyl) npVinyl.classList.toggle('spinning', playing);
       const crateVinyl = document.getElementById('crateMainVinylDisc');
@@ -18736,6 +19360,10 @@
 
       const npBtn = document.getElementById('npPlayPauseMainBtn') || document.getElementById('npTurntablePlayPauseBtn');
       if (npBtn) npBtn.innerHTML = playing ? SVG_ICONS.pauseLarge : SVG_ICONS.playLarge;
+
+      if (!(opts && opts.skipNativeSync)) {
+        this._notifyAndroidMediaPlayback(true, { playing: Boolean(playing) });
+      }
     }
 
     _renderQueueListInModal() {
@@ -18933,6 +19561,35 @@
   window.SingStarVocalEngine = singstarEngine;
   window.DualStreamAudioEngine = dualStreamEngine;
   window.dualStreamEngine = dualStreamEngine;
+
+  window.onNativeMediaAction = function onNativeMediaAction(rawAction) {
+    try {
+      const action = String(rawAction || '').trim();
+      if (!action) return;
+      if (action === 'play') {
+        dualStreamEngine.play();
+      } else if (action === 'pause') {
+        dualStreamEngine.pause();
+      } else if (action === 'toggle') {
+        dualStreamEngine.togglePlayPause();
+      } else if (action === 'next') {
+        dualStreamEngine.nextTrack();
+      } else if (action === 'prev') {
+        dualStreamEngine.prevTrack();
+      } else if (action === 'stop') {
+        dualStreamEngine.pause();
+      } else if (action === 'duck') {
+        dualStreamEngine._applyDuckingState(true);
+      } else if (action === 'unduck') {
+        dualStreamEngine._applyDuckingState(false);
+      } else if (action.startsWith('seek:')) {
+        const ms = Number(action.slice(5));
+        if (Number.isFinite(ms) && ms >= 0) {
+          dualStreamEngine.seekToSeconds(ms / 1000);
+        }
+      }
+    } catch (_) {}
+  };
 
   const DiscoverHomeApp = {
     deck: [],

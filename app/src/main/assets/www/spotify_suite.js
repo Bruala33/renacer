@@ -801,7 +801,7 @@
       if (remainingMs <= 0) {
         this.cancelSleepTimer(false);
         if (engine) {
-          engine._stopBothChannelsImmediate();
+          engine._stopBothChannelsImmediate({ stopNativeService: true });
           const el = engine.getActiveAudioElement();
           if (el) el.volume = engine._getMasterVolume();
         }
