@@ -21,11 +21,13 @@
   <script src="./assets/vendor/tailwind.min.js"></script>
   <script defer src="./assets/vendor/jszip.min.js"></script>
   <script defer src="./assets/vendor/three.min.js"></script>
-  <!-- Google Fonts: Cormorant Garamond & Montserrat -->
+  <!-- Google Fonts: non-render-blocking for instant first paint -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./style.css?v=95.0">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet"></noscript>
+  <link rel="stylesheet" href="./style.css?v=111.0">
+  <link rel="stylesheet" href="./ear_arcade.css?v=111.0">
   <script>
     // ===================================================
     // SISTEMA DE INTERNACIONALIZACIÓN (i18n: ES / EN)
@@ -894,20 +896,30 @@
       };
     }
   </script>
-  <script type="module">
-    const libarchivePath = './assets/vendor/libarchive/libarchive.js';
-    import(libarchivePath).catch(() => import('./vendor/libarchive/libarchive.js')).then(({ Archive }) => {
-      window.Archive = Archive;
-      const workerUrl = new URL('./assets/vendor/libarchive/worker-bundle.js', window.location.href).href;
-      Archive.init({ workerUrl });
-      console.log('[Libarchive] WebAssembly worker bundle inicializado:', workerUrl);
-    }).catch(e => {
-      console.warn('[Libarchive] Inicialización de libarchive:', e);
-    });
+  <script>
+    // Carga perezosa de libarchive WASM: 0 bytes y 0 ms en el arranque hasta que el usuario abre un archivo .7z o .rar
+    window._libarchiveLoadPromise = null;
+    window.ensureLibarchiveReady = function() {
+      if (window.Archive) return Promise.resolve(window.Archive);
+      if (window._libarchiveLoadPromise) return window._libarchiveLoadPromise;
+      window._libarchiveLoadPromise = import('./assets/vendor/libarchive/libarchive.js')
+        .catch(() => import('./vendor/libarchive/libarchive.js'))
+        .then(({ Archive }) => {
+          window.Archive = Archive;
+          const workerUrl = new URL('./assets/vendor/libarchive/worker-bundle.js', window.location.href).href;
+          Archive.init({ workerUrl });
+          return Archive;
+        })
+        .catch((e) => {
+          window._libarchiveLoadPromise = null;
+          console.warn('[Libarchive] Inicialización de libarchive:', e);
+          return null;
+        });
+      return window._libarchiveLoadPromise;
+    };
   </script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Special+Elite&family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Outfit:wght@400;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Special+Elite&family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Outfit:wght@400;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,400&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Special+Elite&family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Outfit:wght@400;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,400&display=swap" rel="stylesheet"></noscript>
 </head>
 <body>
 
@@ -1361,17 +1373,6 @@
               </button>
             </div>
             <div class="flex items-center gap-2">
-              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openListeningStats()" class="btn-tune-algorithm-icon" title="Tu Resumen Musical y Estadísticas">
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
-                  <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
-                </svg>
-              </button>
-              <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openKaraokeForCurrent()" class="btn-tune-algorithm-icon" title="Ver letra en modo Karaoke">
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
-                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/>
-                </svg>
-              </button>
               <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.toggleTubeAmpPanel()" class="btn-tune-algorithm-icon" title="Preferencias musicales">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/>
@@ -1518,6 +1519,25 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-[#d4af37] flex-shrink-0"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
             <span data-i18n="slot_btn_daily_poker">Canción del Día</span>
           </button>
+        </div>
+
+        <!-- ACCESO COMPACTO: OIDO ARCADE -->
+        <div id="earArcadeHomeBanner" class="ea-home-banner" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openEarArcade()" role="button" tabindex="0" aria-label="Abrir Oido Arcade">
+          <div class="ea-home-left">
+            <div class="ea-home-vu" aria-hidden="true">
+              <span class="ea-home-bar"></span>
+              <span class="ea-home-bar"></span>
+              <span class="ea-home-bar"></span>
+              <span class="ea-home-bar"></span>
+            </div>
+            <span class="ea-home-title">Oído Arcade</span>
+          </div>
+          <div class="ea-home-right">
+            <span id="eaHomeBestPill" class="ea-home-best-pill">22 PRUEBAS</span>
+            <span class="ea-home-go" aria-hidden="true">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+            </span>
+          </div>
         </div>
 
         <!-- CARRUSEL: ESCUCHADO RECIENTEMENTE (ESTILO SPOTIFY) -->
@@ -2293,14 +2313,14 @@
       </div>
     </div>
 
-    <!-- Layer 10: Máquina Expendedora de Bolas 3D a Pantalla Completa (Solo Palanca 3D • 100 Claves) -->
+    <!-- Layer 10: Máquina Expendedora de Bolas 3D a Pantalla Completa (Solo Palanca 3D · 100 Claves) -->
     <div id="fxShopModal" class="modal-overlay !p-0">
       <div class="relative w-full h-full overflow-hidden select-none" style="background: radial-gradient(circle at 50% 42%, #3a1018 0%, #15060a 58%, #050204 100%);">
 
         <!-- Full-Screen Three.js 3D Canvas -->
         <canvas id="gachapon3DCanvas" class="w-full h-full block cursor-pointer"></canvas>
 
-        <!-- Compact Mobile-Safe Floating Top Bar (Always fits 100% width with prominent Salir button) -->
+        <!-- Compact Mobile-Safe Floating Top Bar -->
         <div class="absolute top-3 inset-x-3 flex items-center justify-between gap-2 z-20 pointer-events-none">
           <!-- Left: Always-Visible Prominent Exit Button -->
           <button onclick="closeFXShopModal()" class="pointer-events-auto shrink-0 px-3.5 py-2 rounded-full bg-black/80 hover:bg-black/95 backdrop-blur-md border border-white/30 text-white font-black text-xs flex items-center gap-1.5 shadow-xl transition active:scale-95 cursor-pointer">
@@ -2309,10 +2329,11 @@
           </button>
 
           <!-- Center: Ultra-Clean Claves Pill -->
-          <div id="gachaponWalletBar" class="pointer-events-auto shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-black/80 backdrop-blur-md border border-amber-400/45 shadow-xl text-xs font-mono">
-            <span class="text-amber-400 text-sm leading-none">𝄞</span>
+          <div id="gachaponWalletBar" class="pointer-events-auto shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-black/80 backdrop-blur-md border border-amber-400/50 shadow-xl text-xs font-mono">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
             <span id="shopClefsDisplay" class="text-amber-300 font-black">100</span>
-            <!-- Hidden counters to preserve JS DOM references without cluttering the mobile bar -->
+            <span class="text-[10px] font-bold text-amber-200/70 uppercase tracking-wider">Claves</span>
+            <!-- Hidden counters to preserve JS DOM references -->
             <span id="shopSilversDisplay" class="hidden">0</span>
             <span id="shopGoldsDisplay" class="hidden">0</span>
             <span id="shopPlatinumsDisplay" class="hidden">0</span>
@@ -2320,26 +2341,40 @@
 
           <!-- Right: Effects Baúl Button -->
           <button onclick="toggleGachaponEffectsDrawer(true)" class="pointer-events-auto shrink-0 px-3.5 py-2 rounded-full bg-black/80 hover:bg-black/95 backdrop-blur-md border border-amber-400/50 text-amber-200 font-black text-xs flex items-center gap-1.5 shadow-xl transition active:scale-95 cursor-pointer">
-            <span>✨</span>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
             <span>Efectos</span>
             <span id="gachaponCollectionProgressText" class="text-[10px] font-mono text-amber-400"></span>
           </button>
         </div>
 
+        <!-- Bottom Floating Las Vegas Brass Pull & Pity Hint Bar (Fades during animation) -->
+        <div id="gachaponBottomHint" class="absolute bottom-4 inset-x-3 z-20 flex flex-col items-center gap-1.5 pointer-events-none transition-opacity duration-300">
+          <div class="pointer-events-auto flex items-center gap-2.5 px-4 py-2 rounded-full bg-black/80 backdrop-blur-md border border-amber-400/45 shadow-[0_6px_28px_rgba(0,0,0,0.65)]">
+            <button onclick="pullGachaponCapsule()" class="flex items-center gap-2 text-xs font-black text-amber-200 hover:text-amber-100 tracking-wide transition active:scale-95 cursor-pointer">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fde047" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
+              <span>Tira de la palanca · 100 Claves</span>
+            </button>
+            <span id="gachaponPityPill" class="hidden px-2 py-0.5 rounded-full bg-fuchsia-500/20 border border-fuchsia-400/40 text-[10px] font-mono font-bold text-fuchsia-200">
+              0/45
+            </span>
+          </div>
+          <span class="text-[10px] font-semibold tracking-wider uppercase text-amber-100/55">Toca el cristal para agitar las bolas</span>
+        </div>
+
         <!-- Live Visual Capsule Prize Reveal (Shows exact Effect or Claves emerging from the opened ball) -->
-        <div id="gachaponRewardOverlay" class="hidden absolute inset-x-4 top-1/2 -translate-y-1/2 max-w-xs mx-auto z-30 p-4 rounded-3xl bg-black/90 border-2 border-amber-400/85 shadow-[0_0_55px_rgba(251,191,36,0.55)] backdrop-blur-xl space-y-3">
+        <div id="gachaponRewardOverlay" class="hidden absolute inset-x-4 top-1/2 -translate-y-1/2 max-w-xs mx-auto z-30 p-4 rounded-3xl bg-[#0d0612]/94 border-2 border-amber-400/85 shadow-[0_0_60px_rgba(251,191,36,0.48)] backdrop-blur-xl space-y-3">
           <div class="flex items-center justify-between gap-2">
             <span id="gachaponRewardRarityBadge" class="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest shadow">
-              ★ LEGENDARIO ★
+              LEGENDARIO
             </span>
             <span id="gachaponRewardNewTag" class="px-2 py-0.5 rounded bg-emerald-500/25 border border-emerald-400/50 text-emerald-300 text-[9px] font-black uppercase tracking-wider">
-              ¡NUEVO!
+              NUEVO
             </span>
           </div>
 
-          <!-- Live 60FPS Visual Showcase of the Exact Prize Inside the Opened Ball -->
-          <div class="relative w-full h-40 rounded-2xl overflow-hidden border border-amber-400/40 bg-[#07040c] shadow-inner flex items-center justify-center">
-            <canvas id="gachaponPrizeLiveCanvas" width="280" height="160" class="w-full h-full block"></canvas>
+          <!-- Live 60FPS High-DPI Visual Showcase of the Exact Prize Inside the Opened Ball -->
+          <div class="relative w-full h-44 rounded-2xl overflow-hidden border border-amber-400/40 bg-[#07040c] shadow-inner flex items-center justify-center">
+            <canvas id="gachaponPrizeLiveCanvas" width="280" height="176" class="w-full h-full block"></canvas>
           </div>
 
           <div class="text-center space-y-1">
@@ -2359,11 +2394,11 @@
           <div class="w-full max-w-md max-h-[86vh] rounded-3xl bg-[#12090d] border-2 border-amber-400/50 shadow-2xl flex flex-col overflow-hidden p-4 space-y-3">
             <div class="flex items-center justify-between border-b border-white/10 pb-2.5">
               <div class="flex items-center gap-2">
-                <span class="text-base">✨</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fde047" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                 <h3 class="text-sm font-black text-amber-200 uppercase tracking-wider font-serif">Mis Efectos y Teclas</h3>
               </div>
-              <button onclick="toggleGachaponEffectsDrawer(false)" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-black flex items-center justify-center cursor-pointer transition">
-                ✕
+              <button onclick="toggleGachaponEffectsDrawer(false)" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-black flex items-center justify-center cursor-pointer transition" aria-label="Cerrar">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
             <div id="fxShopCardsContainer" class="space-y-2.5 overflow-y-auto flex-1 pr-1">
@@ -5205,15 +5240,21 @@
           </button>
         </div>
 
-        <!-- Botón Central: Jugar al Piano -->
-        <div class="np-piano-cta-wrap w-full max-w-[340px] pt-1">
-          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.playPianoFromNowPlaying()" class="crate-play-piano-btn w-full" style="height: 48px;">
+        <!-- Botón Central: Jugar al Piano + Reto Oído Arcade -->
+        <div class="np-piano-cta-wrap w-full max-w-[340px] pt-1 flex items-center gap-2">
+          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.playPianoFromNowPlaying()" class="crate-play-piano-btn flex-1" style="height: 48px;">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <rect x="2" y="4" width="20" height="16" rx="2.5"/>
               <line x1="8" y1="4" x2="8" y2="14"/><line x1="12" y1="4" x2="12" y2="14"/><line x1="16" y1="4" x2="16" y2="14"/>
               <line x1="6" y1="14" x2="6" y2="20"/><line x1="10" y1="14" x2="10" y2="20"/><line x1="14" y1="14" x2="14" y2="20"/><line x1="18" y1="14" x2="18" y2="20"/>
             </svg>
             <span>Jugar al Piano</span>
+          </button>
+          <button type="button" onclick="window.DiscoverHomeApp && window.DiscoverHomeApp.openEarArcadeForCurrent()" class="px-3.5 rounded-2xl bg-gradient-to-b from-[#1e170e] to-[#110d08] border border-[#e5b869]/55 text-[#f6dfa0] font-extrabold text-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition flex-shrink-0" style="height: 48px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55);" title="Retar a tu oido con esta cancion">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="2 12 6 12 8.5 5 12 19 15.5 8 18 12 22 12"/>
+            </svg>
+            <span>Oido</span>
           </button>
         </div>
 
@@ -5991,15 +6032,16 @@
 
   </div> <!-- End of game-viewport -->
 
-  <script src="./parsers.js?v=80.0"></script>
-  <script src="./game.js?v=80.0"></script>
-  <script defer src="./slot_machine.js?v=80.0"></script>
-  <script defer src="./gachapon_3d.js?v=80.0"></script>
+  <script src="./parsers.js?v=112.0"></script>
+  <script src="./game.js?v=112.0"></script>
+  <script defer src="./slot_machine.js?v=112.0"></script>
+  <script defer src="./gachapon_3d.js?v=112.0"></script>
   <script defer src="./songs/comm_camilo_sesto/chart.js"></script>
   <script defer src="./songs/renacer/chart.js"></script>
-  <script src="./songs/catalog_top.js?v=80.0"></script>
-  <script src="./discover_home.js?v=95.0"></script>
-  <script src="./spotify_suite.js?v=95.0"></script>
+  <script src="./songs/catalog_top.js?v=112.0"></script>
+  <script src="./discover_home.js?v=112.0"></script>
+  <script src="./spotify_suite.js?v=112.0"></script>
+  <script src="./ear_arcade.js?v=112.0"></script>
   <script>
     let engine = null;
     let currentActiveBeatmap = null;
@@ -6435,6 +6477,17 @@
     function updateGachaponControlDeckUI() {
       const progEl = document.getElementById('gachaponCollectionProgressText');
       if (progEl) progEl.innerText = `(${unlockedEffects.length}/${KEY_EFFECTS.length})`;
+      const pityEl = document.getElementById('gachaponPityPill');
+      if (pityEl) {
+        const hasTrans = unlockedEffects.includes('astral_transcendence');
+        if (hasTrans) {
+          pityEl.classList.add('hidden');
+        } else {
+          const pulls = parseInt(localStorage.getItem('beatstar_gacha_pulls_since_transcendent') || '0', 10) || 0;
+          pityEl.innerText = `Garantía ${Math.min(45, pulls)}/45`;
+          pityEl.classList.remove('hidden');
+        }
+      }
     }
 
     window.toggleGachaponEffectsDrawer = function(show) {
@@ -6459,17 +6512,39 @@
       stopGachaponPrizePreview();
       const canvas = document.getElementById('gachaponPrizeLiveCanvas');
       if (!canvas) return;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const cssW = canvas.clientWidth || 280;
+      const cssH = canvas.clientHeight || 176;
+      canvas.width = Math.round(cssW * dpr);
+      canvas.height = Math.round(cssH * dpr);
       const ctx = canvas.getContext('2d');
-      const w = canvas.width;
-      const h = canvas.height;
+      const w = cssW;
+      const h = cssH;
       const startPerf = performance.now();
+
+      const previewRailCols = {
+        solar_inferno: ['#ff4500', '#fde047'],
+        cryo_blizzard: ['#0284c7', '#e0f2fe'],
+        cyber_neon: ['#ff007f', '#00f2fe'],
+        grand_fireworks: ['#ff0055', '#ffd700'],
+        zeus_lightning: ['#7c3aed', '#00f2fe'],
+        deep_cosmos: ['#a855f7', '#38bdf8'],
+        asteroid_impact: ['#ea580c', '#fde047'],
+        black_hole: ['#f97316', '#ec4899'],
+        dragon_fire: ['#10b981', '#fde047'],
+        aurora_borealis: ['#10b981', '#c084fc'],
+        supernova_burst: ['#ff007f', '#fde047'],
+        quantum_prism: ['#39ff14', '#00f2fe'],
+        astral_transcendence: ['#fde047', '#00f2fe']
+      };
+      const rCols = previewRailCols[reward.id] || ['#38bdf8', '#fde047'];
 
       const loop = (now) => {
         gachaponPrizePreviewRaf = requestAnimationFrame(loop);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.clearRect(0, 0, w, h);
 
-        // Fondo cósmico estilizado dentro de la bola abierta
-        const bgGrad = ctx.createRadialGradient(w * 0.5, h * 0.55, 6, w * 0.5, h * 0.55, w * 0.65);
+        const bgGrad = ctx.createRadialGradient(w * 0.5, h * 0.55, 6, w * 0.5, h * 0.55, w * 0.68);
         bgGrad.addColorStop(0.0, '#1e1035');
         bgGrad.addColorStop(0.6, '#0d061a');
         bgGrad.addColorStop(1.0, '#040208');
@@ -6477,48 +6552,62 @@
         ctx.fillRect(0, 0, w, h);
 
         if (reward.type === 'key_effect') {
-          // Dibujar mini-pista 3D blanca estilizada y el EFECTO EXACTO estallando en vivo
+          const tSec = (now - startPerf) * 0.001;
+          const cycle = ((now - startPerf) % 820) / 820;
+          const alpha = Math.max(0.06, 1.0 - Math.pow(cycle, 1.25));
+          const hitPulse = Math.max(0, 1.0 - cycle * 3.0);
+
+          // Mini 3D highway with effect-matched luminous rails
           ctx.save();
-          const tGrad = ctx.createLinearGradient(w * 0.5, 18, w * 0.5, h);
+          const tGrad = ctx.createLinearGradient(w * 0.5, 16, w * 0.5, h);
           tGrad.addColorStop(0.0, '#93c5fd');
-          tGrad.addColorStop(0.45, '#eff6ff');
+          tGrad.addColorStop(0.42, '#eff6ff');
           tGrad.addColorStop(1.0, '#ffffff');
           ctx.fillStyle = tGrad;
           ctx.beginPath();
-          ctx.moveTo(w * 0.34, 18);
-          ctx.lineTo(w * 0.66, 18);
-          ctx.lineTo(w * 0.86, h);
-          ctx.lineTo(w * 0.14, h);
+          ctx.moveTo(w * 0.35, 16);
+          ctx.lineTo(w * 0.65, 16);
+          ctx.lineTo(w * 0.87, h);
+          ctx.lineTo(w * 0.13, h);
           ctx.closePath();
           ctx.fill();
 
-          // Receptor Perfect+ en miniatura
+          // Glowing side rails colored for this exact effect
+          ctx.lineWidth = 4.5 + hitPulse * 2.5;
+          ctx.strokeStyle = rCols[0];
+          ctx.beginPath();
+          ctx.moveTo(w * 0.35, 16);
+          ctx.lineTo(w * 0.13, h);
+          ctx.moveTo(w * 0.65, 16);
+          ctx.lineTo(w * 0.87, h);
+          ctx.stroke();
+
+          ctx.lineWidth = 1.6;
+          ctx.strokeStyle = rCols[1];
+          ctx.stroke();
+
+          // Receptor Perfect+ bar pulsing in sync with the burst
           const hitY = h * 0.80;
           ctx.fillStyle = '#0f172a';
-          ctx.fillRect(w * 0.20, hitY - 10, w * 0.60, 20);
-          ctx.strokeStyle = '#38bdf8';
-          ctx.lineWidth = 1.6;
-          ctx.strokeRect(w * 0.20, hitY - 10, w * 0.60, 20);
+          ctx.fillRect(w * 0.19, hitY - 10, w * 0.62, 20);
+          ctx.strokeStyle = hitPulse > 0.2 ? rCols[1] : rCols[0];
+          ctx.lineWidth = 1.8 + hitPulse * 1.4;
+          ctx.strokeRect(w * 0.19, hitY - 10, w * 0.62, 20);
           ctx.restore();
 
-          // Si es el efecto Trascendental, dibujar también la Corona Astral en el horizonte y una Tecla Reliquia descendiendo
           if (reward.id === 'astral_transcendence') {
-            const tSec = (now - startPerf) * 0.001;
             ctx.save();
             ctx.translate(w * 0.5, 22);
-            ctx.rotate(tSec * 0.8);
-            ctx.strokeStyle = 'rgba(253, 224, 71, 0.85)';
+            ctx.rotate(tSec * 0.85);
+            ctx.strokeStyle = 'rgba(253, 224, 71, 0.88)';
             ctx.lineWidth = 1.4;
             ctx.strokeRect(-10, -10, 20, 20);
             ctx.rotate(Math.PI / 4);
-            ctx.strokeStyle = 'rgba(0, 242, 254, 0.85)';
+            ctx.strokeStyle = 'rgba(0, 242, 254, 0.88)';
             ctx.strokeRect(-10, -10, 20, 20);
             ctx.restore();
           }
 
-          // Ciclo continuo del efecto ganado (1.5s por explosión)
-          const cycle = ((now - startPerf) % 720) / 720;
-          const alpha = Math.max(0.08, 1.0 - Math.pow(cycle, 1.25));
           if (typeof BeatstarEngine !== 'undefined' && typeof BeatstarEngine.drawSingleEffectBurst === 'function') {
             BeatstarEngine.drawSingleEffectBurst(
               ctx,
@@ -6530,68 +6619,82 @@
                 seed: 12.4
               },
               now,
-              0.72
+              0.74
             );
           }
         } else {
-          // PREMIO DE CLAVES DE SOL (𝄞): Visualización directa de las Claves saliendo de la bola
+          // PREMIO DE CLAVES DE SOL: Medallón dorado giratorio estilo Las Vegas
           const tSec = (now - startPerf) * 0.001;
           const cx = w * 0.5;
-          const cy = h * 0.52;
+          const cy = h * 0.48;
 
-          // Rayos dorados giratorios
           ctx.save();
           ctx.translate(cx, cy);
-          ctx.rotate(tSec * 0.65);
-          for (let r = 0; r < 12; r++) {
+          ctx.rotate(tSec * 0.55);
+          for (let r = 0; r < 14; r++) {
             ctx.save();
-            ctx.rotate((r * Math.PI) / 6);
-            const rg = ctx.createLinearGradient(0, 0, 95, 0);
-            rg.addColorStop(0.0, 'rgba(251, 191, 36, 0.42)');
+            ctx.rotate((r * Math.PI * 2) / 14);
+            const rg = ctx.createLinearGradient(0, 0, 108, 0);
+            rg.addColorStop(0.0, 'rgba(253, 224, 71, 0.44)');
             rg.addColorStop(1.0, 'rgba(251, 191, 36, 0)');
             ctx.fillStyle = rg;
             ctx.beginPath();
-            ctx.moveTo(0, -6);
-            ctx.lineTo(95, 0);
-            ctx.lineTo(0, 6);
+            ctx.moveTo(0, -5);
+            ctx.lineTo(108, 0);
+            ctx.lineTo(0, 5);
             ctx.closePath();
             ctx.fill();
             ctx.restore();
           }
           ctx.restore();
 
-          // Claves de Sol satélite flotando alrededor
-          const orbitCount = 6;
-          for (let i = 0; i < orbitCount; i++) {
-            const ang = tSec * 1.8 + (i * Math.PI * 2) / orbitCount;
-            const ox = cx + Math.cos(ang) * 68;
-            const oy = cy + Math.sin(ang) * 36;
-            ctx.save();
-            ctx.translate(ox, oy);
-            ctx.fillStyle = '#fbbf24';
-            ctx.font = 'bold 20px "Cinzel", serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('𝄞', 0, 0);
-            ctx.restore();
+          // Orbiting golden star sparks
+          for (let i = 0; i < 8; i++) {
+            const ang = tSec * 1.9 + (i * Math.PI * 2) / 8;
+            const ox = cx + Math.cos(ang) * 76;
+            const oy = cy + Math.sin(ang) * 40;
+            const sr = 2.6 + Math.sin(tSec * 5 + i) * 1.1;
+            ctx.fillStyle = i % 2 === 0 ? '#fef08a' : '#f59e0b';
+            ctx.beginPath();
+            ctx.arc(ox, oy, sr, 0, Math.PI * 2);
+            ctx.fill();
           }
 
-          // Gran Clave de Sol 3D central y cantidad exacta ganada
-          const pulse = 1.0 + Math.sin(tSec * 5.0) * 0.08;
+          // Engraved Las Vegas Golden Coin Medallion
+          const pulse = 1.0 + Math.sin(tSec * 4.6) * 0.05;
           ctx.save();
-          ctx.translate(cx, cy - 6);
+          ctx.translate(cx, cy);
           ctx.scale(pulse, pulse);
+          const coinGrad = ctx.createRadialGradient(-10, -12, 4, 0, 0, 48);
+          coinGrad.addColorStop(0.0, '#fef9c3');
+          coinGrad.addColorStop(0.45, '#f59e0b');
+          coinGrad.addColorStop(0.88, '#92400e');
+          coinGrad.addColorStop(1.0, '#451a03');
+          ctx.fillStyle = coinGrad;
+          ctx.beginPath();
+          ctx.arc(0, 0, 46, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#fef08a';
+          ctx.lineWidth = 3;
+          ctx.stroke();
+
+          ctx.strokeStyle = 'rgba(254, 240, 138, 0.55)';
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.arc(0, 0, 38, 0, Math.PI * 2);
+          ctx.stroke();
+
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.font = '900 44px "Cinzel", Georgia, serif';
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-          ctx.fillText(`+${reward.clefs} 𝄞`, 2, 3);
-          ctx.fillStyle = '#fde047';
-          ctx.fillText(`+${reward.clefs} 𝄞`, 0, 0);
+          ctx.font = '900 30px "Cinzel", Georgia, serif';
+          ctx.fillStyle = 'rgba(28, 12, 2, 0.78)';
+          ctx.fillText(`+${reward.clefs}`, 1.5, 2.5);
+          ctx.fillStyle = '#fffbeb';
+          ctx.fillText(`+${reward.clefs}`, 0, 0);
           ctx.restore();
 
-          ctx.fillStyle = '#fef3c7';
-          ctx.font = 'bold 11px "Plus Jakarta Sans", sans-serif';
+          ctx.fillStyle = '#fde68a';
+          ctx.font = '800 11px "Plus Jakarta Sans", sans-serif';
           ctx.textAlign = 'center';
           ctx.fillText('CLAVES DE SOL', cx, h - 18);
         }
@@ -6615,6 +6718,11 @@
               stopGachaponPrizePreview();
               overlay.classList.add('hidden');
             }
+            const hint = document.getElementById('gachaponBottomHint');
+            if (hint) {
+              hint.style.opacity = state === 'IDLE' ? '1' : '0';
+              hint.style.pointerEvents = state === 'IDLE' ? 'auto' : 'none';
+            }
           },
           onRewardRevealed: (reward) => {
             showGachaponRewardOverlay(reward);
@@ -6632,12 +6740,12 @@
     // 0.20*50 (10) + 0.25*65 (16.25) + 0.25*80 (20) + 0.15*95 (14.25) + 0.10*115 (11.5) + 0.05*160 (8) = 80.0 Claves
     function rollClavesPrizeWithMean80() {
       const table = [
-        { clefs: 50,  w: 20, rarity: 'classic',   title: '+50 𝄞 Claves de Sol' },
-        { clefs: 65,  w: 25, rarity: 'classic',   title: '+65 𝄞 Claves de Sol' },
-        { clefs: 80,  w: 25, rarity: 'rare',      title: '+80 𝄞 Claves de Sol' },
-        { clefs: 95,  w: 15, rarity: 'rare',      title: '+95 𝄞 Claves de Sol' },
-        { clefs: 115, w: 10, rarity: 'epic',      title: '+115 𝄞 Claves de Sol' },
-        { clefs: 160, w: 5,  rarity: 'legendary', title: '+160 𝄞 ¡Bote de Claves!' }
+        { clefs: 50,  w: 20, rarity: 'classic',   title: '+50 Claves de Sol' },
+        { clefs: 65,  w: 25, rarity: 'classic',   title: '+65 Claves de Sol' },
+        { clefs: 80,  w: 25, rarity: 'rare',      title: '+80 Claves de Sol' },
+        { clefs: 95,  w: 15, rarity: 'rare',      title: '+95 Claves de Sol' },
+        { clefs: 115, w: 10, rarity: 'epic',      title: '+115 Claves de Sol' },
+        { clefs: 160, w: 5,  rarity: 'legendary', title: '+160 Bote de Claves' }
       ];
       let r = Math.random() * 100;
       let picked = table[2];
@@ -6756,10 +6864,14 @@
 
       const tiers = window.GACHAPON_RARITY_TIERS || {};
       const tier = tiers[reward.rarity] || tiers.rare || {
-        label: '★ PREMIO ★',
+        label: 'PREMIO',
+        cssColor: '#fbbf24',
         badgeBg: 'linear-gradient(135deg, #f59e0b, #d97706)',
         badgeText: '#000'
       };
+
+      overlay.style.borderColor = tier.cssColor || '#fbbf24';
+      overlay.style.boxShadow = `0 0 60px ${tier.cssColor || '#fbbf24'}66`;
 
       if (rarityBadge) {
         rarityBadge.innerText = tier.label;
@@ -6768,7 +6880,7 @@
       }
 
       if (newTag) {
-        newTag.innerText = reward.type === 'key_effect' ? '✨ ¡NUEVO EFECTO!' : `𝄞 +${reward.clefs} CLAVES`;
+        newTag.innerText = reward.type === 'key_effect' ? 'NUEVO EFECTO' : `+${reward.clefs} CLAVES`;
       }
 
       if (titleEl) titleEl.innerText = reward.title;
@@ -6778,11 +6890,21 @@
         let btns = '';
         if (reward.type === 'key_effect') {
           btns += `
-            <button onclick="equipKeyEffect('${reward.id}'); stopGachaponPrizePreview(); gachapon3DInstance && gachapon3DInstance.resetToIdle(); document.getElementById('gachaponRewardOverlay').classList.add('hidden');" class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 hover:brightness-110 text-stone-950 font-black text-xs transition active:scale-95 cursor-pointer shadow-md">
-              ⚡ Equipar
+            <button onclick="equipKeyEffect('${reward.id}'); stopGachaponPrizePreview(); gachapon3DInstance && gachapon3DInstance.resetToIdle(); document.getElementById('gachaponRewardOverlay').classList.add('hidden');" class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-500 hover:brightness-110 text-stone-950 font-black text-xs transition active:scale-95 cursor-pointer shadow-md flex items-center gap-1.5">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <span>Equipar</span>
             </button>
-            <button onclick="stopGachaponPrizePreview(); launchEffectDemo('${reward.id}')" class="px-3.5 py-2 rounded-xl bg-cyan-500/25 hover:bg-cyan-500/40 text-cyan-200 border border-cyan-400/50 font-black text-xs transition active:scale-95 cursor-pointer">
-              ▶ Probar
+            <button onclick="stopGachaponPrizePreview(); launchEffectDemo('${reward.id}')" class="px-3.5 py-2 rounded-xl bg-cyan-500/25 hover:bg-cyan-500/40 text-cyan-200 border border-cyan-400/50 font-black text-xs transition active:scale-95 cursor-pointer flex items-center gap-1.5">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+              <span>Probar</span>
+            </button>
+          `;
+        }
+        if (userClefs >= GACHAPON_PULL_COST) {
+          btns += `
+            <button onclick="stopGachaponPrizePreview(); pullGachaponCapsule();" class="px-3.5 py-2 rounded-xl bg-amber-500/25 hover:bg-amber-500/40 text-amber-200 border border-amber-400/60 font-black text-xs transition active:scale-95 cursor-pointer flex items-center gap-1.5">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              <span>Otra vez (100)</span>
             </button>
           `;
         }
@@ -6919,20 +7041,22 @@
         let actionBtnHtml = '';
         if (isActive) {
           actionBtnHtml = `
-            <button disabled class="px-3 py-1.5 rounded-xl bg-amber-500/20 text-amber-300 font-bold text-xs border border-amber-500/40 cursor-default">
-              ✓ Equipado
+            <button disabled class="px-3 py-1.5 rounded-xl bg-amber-500/20 text-amber-300 font-bold text-xs border border-amber-500/40 cursor-default flex items-center gap-1">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <span>Equipado</span>
             </button>
           `;
         } else if (isUnlocked) {
           actionBtnHtml = `
             <button onclick="equipKeyEffect('${effect.id}')" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 text-black font-black text-xs transition active:scale-95 cursor-pointer">
-              ⚡ Equipar
+              Equipar
             </button>
           `;
         } else {
           actionBtnHtml = `
-            <span class="px-2.5 py-1 rounded-lg bg-white/5 text-gray-400 font-bold text-[10px] border border-white/10">
-              🔒 En Máquina (100 𝄞)
+            <span class="px-2.5 py-1 rounded-lg bg-white/5 text-gray-400 font-bold text-[10px] border border-white/10 flex items-center gap-1">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <span>En Máquina (100 Claves)</span>
             </span>
           `;
         }
@@ -6950,14 +7074,16 @@
             <div class="space-y-2">
               <div class="flex items-center justify-between gap-1">
                 <p class="text-xs font-black text-white flex items-center gap-1.5">
-                  <span style="color:${tier.cssColor}">${isTranscendent ? '❖' : '●'}</span> ${effectName}
+                  <span class="inline-block w-2 h-2 rounded-full" style="background:${tier.cssColor}; box-shadow: 0 0 8px ${tier.cssColor};"></span>
+                  <span>${effectName}</span>
                 </p>
-                <span class="px-1.5 py-0.5 rounded bg-black/60 border border-white/15 text-[8px] font-black uppercase" style="${badgeExtraStyle}">${tier.label}</span>
+                <span class="px-1.5 py-0.5 rounded bg-black/60 border border-white/15 text-[8px] font-black uppercase tracking-wider" style="${badgeExtraStyle}">${tier.label}</span>
               </div>
               <p class="text-[10px] ${isTranscendent ? 'text-amber-100/95 font-medium' : 'text-gray-300'} leading-tight">${effectDesc}</p>
               <div class="flex items-center justify-end pt-1.5 border-t border-white/10 gap-2">
-                <button onclick="launchEffectDemo('${effect.id}')" class="px-3 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/35 text-cyan-300 font-black text-xs border border-cyan-400/40 transition active:scale-95 cursor-pointer flex items-center gap-1">
-                  <span>▶</span> Probar
+                <button onclick="launchEffectDemo('${effect.id}')" class="px-3 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/35 text-cyan-300 font-black text-xs border border-cyan-400/40 transition active:scale-95 cursor-pointer flex items-center gap-1.5">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+                  <span>Probar</span>
                 </button>
                 ${actionBtnHtml}
               </div>
@@ -8319,7 +8445,7 @@
                            host === 'appassets.androidplatform.net' ||
                            (window.location && window.location.protocol === 'file:');
       const base = isStaticOnly ? getApiBaseUrl() : '';
-      const targetUrl = `${base}/download/apk?v=89.0&local=1&t=${ts}`;
+      const targetUrl = `${base}/download/apk?v=111.0&t=${ts}`;
 
       if (window.AndroidNative && typeof window.AndroidNative.openBrowser === 'function') {
         const absUrl = targetUrl.startsWith('http') ? targetUrl : `${getApiBaseUrl()}${targetUrl}`;
@@ -10045,9 +10171,10 @@ window.switchMainTab = switchMainTab;
     function getMenuBgmAudio() {
       if (!menuBgmAudio) {
         // Direct relative path for universal support across Web, local file:// and Android WebView
+        // preload='none' evita descargar 4 MB de MP3 al abrir la web si el usuario está en silencio o bloqueado por autoplay
         menuBgmAudio = new Audio('./songs/renacer/audio.mp3');
         menuBgmAudio.loop = true;
-        menuBgmAudio.preload = 'auto';
+        menuBgmAudio.preload = 'none';
         menuBgmAudio.volume = 0.60;
 
         menuBgmAudio.addEventListener('play', () => {
@@ -18132,13 +18259,13 @@ function stopPianoCameraLoop() {
           throw new Error('no_client_itunes');
         })();
 
-        const serverInstantTask = (async () => {
+        // Lazy fallback al servidor (0 bytes Render salvo que iTunes cliente falle)
+        const serverInstantTask = async () => {
           const ctrl = new AbortController();
           const tid = setTimeout(() => ctrl.abort(), 1650);
           try {
             const vidParam = videoId ? `&videoId=${encodeURIComponent(videoId)}` : '';
-            const prewarmParam = prewarm ? '&prewarm=1' : '';
-            const srvResp = await fetch(`${baseUrl}/api/v1/audio/instant_preview?title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist)}${vidParam}${prewarmParam}`, { signal: ctrl.signal });
+            const srvResp = await fetch(`${baseUrl}/api/v1/audio/instant_preview?title=${encodeURIComponent(cleanTitle)}&artist=${encodeURIComponent(cleanArtist)}${vidParam}`, { signal: ctrl.signal });
             clearTimeout(tid);
             if (!srvResp.ok) throw new Error('srv_status');
             const srvData = await srvResp.json();
@@ -18163,14 +18290,21 @@ function stopPianoCameraLoop() {
             clearTimeout(tid);
           }
           throw new Error('no_srv_instant');
-        })();
+        };
 
         try {
-          const winner = await Promise.any([clientItunesTask, serverInstantTask]);
+          const winner = await clientItunesTask;
           if (winner && winner.url) {
             return saveCache(winner);
           }
-        } catch (_) {}
+        } catch (_) {
+          try {
+            const srvWinner = await serverInstantTask();
+            if (srvWinner && srvWinner.url) {
+              return saveCache(srvWinner);
+            }
+          } catch (__) {}
+        }
 
         // Guardar resultado negativo en caché para no volver a esperar 1.5s a iTunes/Deezer al tocar la miniatura de una canción exclusiva de YouTube
         return saveCache(srvNegativeResult || { url: '', noCdn: true, source: 'youtube_stream_only' });
@@ -25410,7 +25544,7 @@ function stopPianoCameraLoop() {
       }
     }
   </script>
-  <script src="./editor.js?v=1.0"></script>
+  <script defer src="./editor.js?v=111.0"></script>
   <script>
     // ==========================================
     // LEADERBOARD & SERVER SETTINGS

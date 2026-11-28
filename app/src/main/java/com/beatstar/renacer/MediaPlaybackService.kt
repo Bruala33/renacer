@@ -11,8 +11,6 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.graphics.BitmapFactory
-import android.media.AudioAttributes
-import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.MediaMetadata
 import android.media.session.MediaSession
@@ -52,9 +50,6 @@ class MediaPlaybackService : Service() {
     private var mediaSession: MediaSession? = null
     private var wakeLock: PowerManager.WakeLock? = null
     private var wifiLock: WifiManager.WifiLock? = null
-    private var audioManager: AudioManager? = null
-    private var audioFocusRequest: AudioFocusRequest? = null
-    private var hasAudioFocus: Boolean = false
     private var noisyReceiverRegistered: Boolean = false
 
     private var curPlaying: Boolean = false
@@ -72,30 +67,13 @@ class MediaPlaybackService : Service() {
         }
     }
 
-    private val audioFocusListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
-        when (focusChange) {
-            AudioManager.AUDIOFOCUS_LOSS -> {
-                hasAudioFocus = false
-                if (curPlaying) dispatchAction("pause")
-            }
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
-                if (curPlaying) dispatchAction("pause")
-            }
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-                if (curPlaying) dispatchAction("duck")
-            }
-            AudioManager.AUDIOFOCUS_GAIN -> {
-                hasAudioFocus = true
-                dispatchAction("unduck")
-            }
-        }
-    }
+    // Nota: NO solicitamos AudioManager.requestAudioFocus aquí porque el motor Chromium del WebView
+    // ya gestiona automáticamente AUDIOFOCUS_GAIN para <audio>/WebAudio. Pedir un segundo AudioFocus
+    // en este servicio provoca colisión de foco con el propio WebView y pausa la canción al instante.
 
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-
-        audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
 
         try {
             val pm = getSystemService(Context.POWER_SERVICE) as? PowerManager
@@ -161,7 +139,6 @@ class MediaPlaybackService : Service() {
                 curPlaying = true
                 isCurrentlyPlaying = true
                 acquirePlaybackLocks()
-                requestMediaAudioFocus()
                 updateMediaSession()
                 promoteOrUpdateNotification(asForeground = true)
             }
@@ -207,7 +184,6 @@ class MediaPlaybackService : Service() {
 
                 if (playing) {
                     acquirePlaybackLocks()
-                    requestMediaAudioFocus()
                     promoteOrUpdateNotification(asForeground = true)
                 } else {
                     releasePlaybackLocks()
@@ -234,7 +210,6 @@ class MediaPlaybackService : Service() {
         isForegroundRunning = false
         isCurrentlyPlaying = false
         releasePlaybackLocks()
-        abandonMediaAudioFocus()
         if (noisyReceiverRegistered) {
             try { unregisterReceiver(becomingNoisyReceiver) } catch (_: Exception) {}
             noisyReceiverRegistered = false
@@ -277,48 +252,6 @@ class MediaPlaybackService : Service() {
         try {
             wifiLock?.let { wfl -> if (wfl.isHeld) wfl.release() }
         } catch (_: Exception) {}
-    }
-
-    private fun requestMediaAudioFocus() {
-        val am = audioManager ?: return
-        if (hasAudioFocus) return
-        try {
-            val res = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val attrs = AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                    .build()
-                val req = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-                    .setAudioAttributes(attrs)
-                    .setAcceptsDelayedFocusGain(true)
-                    .setOnAudioFocusChangeListener(audioFocusListener)
-                    .build()
-                audioFocusRequest = req
-                am.requestAudioFocus(req)
-            } else {
-                @Suppress("DEPRECATION")
-                am.requestAudioFocus(
-                    audioFocusListener,
-                    AudioManager.STREAM_MUSIC,
-                    AudioManager.AUDIOFOCUS_GAIN
-                )
-            }
-            hasAudioFocus = (res == AudioManager.AUDIOFOCUS_REQUEST_GRANTED)
-        } catch (_: Exception) {}
-    }
-
-    private fun abandonMediaAudioFocus() {
-        val am = audioManager ?: return
-        if (!hasAudioFocus) return
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                audioFocusRequest?.let { am.abandonAudioFocusRequest(it) }
-            } else {
-                @Suppress("DEPRECATION")
-                am.abandonAudioFocus(audioFocusListener)
-            }
-        } catch (_: Exception) {}
-        hasAudioFocus = false
     }
 
     private fun updateMediaSession() {
@@ -484,7 +417,6 @@ class MediaPlaybackService : Service() {
         curPlaying = false
         isCurrentlyPlaying = false
         releasePlaybackLocks()
-        abandonMediaAudioFocus()
         try {
             if (isForegroundRunning) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {

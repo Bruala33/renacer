@@ -167,6 +167,9 @@
     },
 
     handleBackPress() {
+      if (window.EarArcade && typeof window.EarArcade.handleBackPress === 'function' && window.EarArcade.handleBackPress()) {
+        return true;
+      }
       const sheetClosers = [
         ['shareCardModal', () => this.closeShareCard()],
         ['sleepTimerModal', () => this.closeSleepTimer()],

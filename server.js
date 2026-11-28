@@ -154,6 +154,7 @@ const SCORES_FILE = path.join(__dirname, 'app', 'uploads', 'leaderboard_scores.j
 const RATINGS_FILE = path.join(__dirname, 'app', 'uploads', 'chart_ratings.json');
 const GITHUB_LEADERBOARD_FILE = path.join(__dirname, 'leaderboard.json');
 const DAILY_POKER_STATE_FILE = path.join(__dirname, 'app', 'uploads', 'daily_poker_state.json');
+const EAR_ARCADE_DAILY_STATE_FILE = path.join(__dirname, 'app', 'uploads', 'ear_arcade_daily_state.json');
 const PLAYER_PROFILES_FILE = path.join(__dirname, 'app', 'uploads', 'player_profiles.json');
 
 // GitHub API Persistence Configuration
@@ -173,6 +174,7 @@ const chartRatings = new Map();
 const followedCreators = new Set();
 const players = new Map();
 const dailyPokerStateByDay = new Map();
+const earArcadeDailyByDay = new Map();
 const playerProfilesByCode = new Map(); // recoveryCode -> profileObj
 const playerProfileCodeByName = new Map(); // lowerNickname -> recoveryCode
 
@@ -771,6 +773,20 @@ function buildConsolidatedLeaderboardJson() {
     profilesObj[keyName] = prof;
   }
 
+  // 4B. Reto Diario Oído Arcade (últimos 14 días, top 100 jugadores/día)
+  const earArcadeDailyObj = {};
+  const recentEarDayKeys = Array.from(earArcadeDailyByDay.keys()).sort().slice(-14);
+  for (const dKey of recentEarDayKeys) {
+    const st = earArcadeDailyByDay.get(dKey);
+    if (st && typeof st === 'object') {
+      earArcadeDailyObj[dKey] = {
+        dayKey: st.dayKey || dKey,
+        themeTitle: st.themeTitle || 'Reto Diario',
+        rankings: (Array.isArray(st.rankings) ? st.rankings : []).slice(0, 100)
+      };
+    }
+  }
+
   return {
     songs: songsObj,
     global: globalList,
@@ -781,6 +797,7 @@ function buildConsolidatedLeaderboardJson() {
     },
     weekly_history: weeklyHistoryObj,
     daily_poker: dailyPokerObj,
+    ear_arcade_daily: earArcadeDailyObj,
     referrals: referralsObj,
     player_profiles: profilesObj
   };
@@ -1070,6 +1087,33 @@ function applyLeaderboardJson(data) {
     }
   }
 
+  // Restaurar estado persistente de Reto Diario Oído Arcade
+  if (data.ear_arcade_daily && typeof data.ear_arcade_daily === 'object') {
+    for (const [dKey, savedDay] of Object.entries(data.ear_arcade_daily)) {
+      if (!savedDay || typeof savedDay !== 'object') continue;
+      const incoming = (Array.isArray(savedDay.rankings) ? savedDay.rankings : []).filter(r => {
+        const nm = String(r.player_name || '').trim().toLowerCase();
+        return nm && nm !== 'test' && nm !== 'tester' && nm !== 'prueba' && nm !== 'dummy';
+      });
+      const existing = earArcadeDailyByDay.get(dKey);
+      const mergedMap = new Map();
+      const allRows = [...(existing?.rankings || []), ...incoming];
+      for (const r of allRows) {
+        const pKey = String(r.player_id || r.player_name || '').trim().toLowerCase();
+        if (!pKey) continue;
+        if (!mergedMap.has(pKey)) mergedMap.set(pKey, r);
+      }
+      const sorted = Array.from(mergedMap.values()).sort(
+        (a, b) => (b.score || 0) - (a.score || 0) || (b.hits || 0) - (a.hits || 0) || (a.avgTimeMs || 99999) - (b.avgTimeMs || 99999) || (a.timestamp || 0) - (b.timestamp || 0)
+      );
+      earArcadeDailyByDay.set(dKey, {
+        dayKey: dKey,
+        themeTitle: savedDay.themeTitle || existing?.themeTitle || 'Reto Diario',
+        rankings: sorted.slice(0, 100)
+      });
+    }
+  }
+
   // Restaurar perfiles completos de jugadores guardados en GitHub (indexados por Nombre de Usuario o por Código RNC)
   if (data.player_profiles && typeof data.player_profiles === 'object') {
     for (const [rawKey, savedProf] of Object.entries(data.player_profiles)) {
@@ -1143,6 +1187,44 @@ function loadDailyPokerStateFromDisk() {
     }
   } catch (err) {
     console.warn('[Server] Could not load daily poker state from disk:', err.message);
+  }
+}
+
+function saveEarArcadeDailyStateToDisk() {
+  try {
+    fs.mkdirSync(path.dirname(EAR_ARCADE_DAILY_STATE_FILE), { recursive: true });
+    const obj = {};
+    const keys = Array.from(earArcadeDailyByDay.keys()).sort().slice(-14);
+    for (const k of keys) {
+      obj[k] = earArcadeDailyByDay.get(k);
+    }
+    fs.writeFileSync(EAR_ARCADE_DAILY_STATE_FILE, JSON.stringify(obj, null, 2), 'utf-8');
+  } catch (err) {
+    console.warn('[Server] Could not save ear arcade daily state to disk:', err.message);
+  }
+}
+
+function loadEarArcadeDailyStateFromDisk() {
+  try {
+    if (fs.existsSync(EAR_ARCADE_DAILY_STATE_FILE)) {
+      const raw = fs.readFileSync(EAR_ARCADE_DAILY_STATE_FILE, 'utf-8');
+      const obj = JSON.parse(raw);
+      for (const [k, v] of Object.entries(obj || {})) {
+        if (!v || typeof v !== 'object') continue;
+        const rows = (Array.isArray(v.rankings) ? v.rankings : []).filter(r => {
+          const nm = String(r.player_name || '').trim().toLowerCase();
+          return nm && nm !== 'test' && nm !== 'tester' && nm !== 'prueba' && nm !== 'dummy';
+        });
+        earArcadeDailyByDay.set(k, {
+          dayKey: v.dayKey || k,
+          themeTitle: v.themeTitle || 'Reto Diario',
+          rankings: rows
+        });
+      }
+      console.log(`[Server] Loaded persistent ear arcade daily state for ${earArcadeDailyByDay.size} days.`);
+    }
+  } catch (err) {
+    console.warn('[Server] Could not load ear arcade daily state from disk:', err.message);
   }
 }
 
@@ -1316,6 +1398,7 @@ seedCommunityCharts();
 loadScoresFromDisk();
 loadRatingsFromDisk();
 loadDailyPokerStateFromDisk();
+loadEarArcadeDailyStateFromDisk();
 loadPlayerProfilesFromDisk();
 loadLeaderboardFromGithub().catch(() => {});
 
@@ -1715,12 +1798,17 @@ app.all(['/download/apk', '/api/v1/app/download_apk', '/PianoCommunity.apk', '/s
     });
     const { apkPath, stat } = validApks[0];
 
-    // En Render, solo redirigir a GitHub CDN si el APK remoto coincide exactamente en tamaño con el APK más reciente local
-    if (process.env.RENDER && !req.query.local) {
+    // En Render, redirigir SIEMPRE a GitHub CDN para ahorrar 30-94 MB de cuota Render por cada descarga de APK
+    if (process.env.RENDER && !req.query.force_render_apk) {
       const verifiedCdnUrl = await getVerifiedGithubCdnApkUrl(stat.size);
       if (verifiedCdnUrl) {
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
         return res.redirect(302, verifiedCdnUrl);
+      }
+      // Si el probe no confirmó tamaño exacto por latencia, redirigir igualmente al raw oficial de GitHub para proteger la cuota de 5 GB
+      if (!req.query.local) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+        return res.redirect(302, `https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}/app/static/PianoCommunity.apk`);
       }
     }
 
@@ -2171,6 +2259,221 @@ app.post('/api/v1/daily-poker/submit', (req, res) => {
     totalWin: potWin,
     potClefs: Math.max(DAILY_POKER_BASE_POT, Number(state.potClefs) || DAILY_POKER_BASE_POT),
     rankings: state.rankings.slice(0, 50).map((r, i) => ({ ...r, rank: i + 1 }))
+  });
+});
+
+// ==========================================
+// 3C. RETO DIARIO OÍDO ARCADE (5 RONDAS COMPARTIDAS · CIERRE 00:00 · PREMIOS EN CLAVES)
+// ==========================================
+const EAR_ARCADE_DAILY_TZ = 'Europe/Madrid';
+const EAR_ARCADE_DAILY_PAYTABLE = [
+  { minRank: 1,  maxRank: 1,   clefs: 350, tier: 'CORONA DE ORO',       short: '#1' },
+  { minRank: 2,  maxRank: 2,   clefs: 240, tier: 'PLATA IMPERIAL',      short: '#2' },
+  { minRank: 3,  maxRank: 3,   clefs: 175, tier: 'BRONCE VEGAS',        short: '#3' },
+  { minRank: 4,  maxRank: 5,   clefs: 120, tier: 'MESA VIP TOP 5',      short: '#4-5' },
+  { minRank: 6,  maxRank: 10,  clefs: 80,  tier: 'SALA DE HONOR',       short: '#6-10' },
+  { minRank: 11, maxRank: 9999, clefs: 45, tier: 'FICHA PARTICIPACIÓN', short: '#11+' }
+];
+
+function getEarArcadeDayKey(dateObj = new Date()) {
+  try {
+    const fmt = new Intl.DateTimeFormat('en-CA', {
+      timeZone: EAR_ARCADE_DAILY_TZ,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+    const parts = fmt.formatToParts(dateObj);
+    const y = parts.find(p => p.type === 'year')?.value;
+    const m = parts.find(p => p.type === 'month')?.value;
+    const d = parts.find(p => p.type === 'day')?.value;
+    if (y && m && d) return `${y}-${m}-${d}`;
+  } catch (_) {}
+  return dateObj.toISOString().slice(0, 10);
+}
+
+function getNextEarArcadeMidnightMs(nowMs = Date.now()) {
+  const curKey = getEarArcadeDayKey(new Date(nowMs));
+  // Binary search exact millisecond when Europe/Madrid crosses into next day (handles DST automatically)
+  let lo = nowMs;
+  let hi = nowMs + 26 * 3600 * 1000;
+  for (let i = 0; i < 24; i++) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (getEarArcadeDayKey(new Date(mid)) === curKey) lo = mid;
+    else hi = mid;
+  }
+  return hi;
+}
+
+function normalizeEarDailyKey(rawDay) {
+  if (typeof rawDay === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawDay.trim())) {
+    return rawDay.trim();
+  }
+  return getEarArcadeDayKey(new Date());
+}
+
+function computeEarArcadeDailyPrize(rank) {
+  const r = Number(rank) || 0;
+  if (r <= 0) return { clefs: 0, tier: 'SIN PARTICIPACIÓN', short: '--' };
+  const row = EAR_ARCADE_DAILY_PAYTABLE.find(p => r >= p.minRank && r <= p.maxRank)
+    || EAR_ARCADE_DAILY_PAYTABLE[EAR_ARCADE_DAILY_PAYTABLE.length - 1];
+  return { clefs: row.clefs, tier: row.tier, short: row.short };
+}
+
+function sortEarArcadeDailyRankings(list) {
+  return (Array.isArray(list) ? list : [])
+    .filter(r => r && !isDummyPokerPlayerName(r.player_name))
+    .sort((a, b) =>
+      (b.score || 0) - (a.score || 0)
+      || (b.hits || 0) - (a.hits || 0)
+      || (a.avgTimeMs || 99999) - (b.avgTimeMs || 99999)
+      || (a.timestamp || 0) - (b.timestamp || 0)
+    );
+}
+
+function getOrCreateEarArcadeDailyState(rawDayKey, themeTitle = '') {
+  const dayKey = normalizeEarDailyKey(rawDayKey);
+  let state = earArcadeDailyByDay.get(dayKey);
+  if (!state) {
+    state = {
+      dayKey,
+      themeTitle: String(themeTitle || 'Reto Diario').slice(0, 48),
+      rankings: []
+    };
+    earArcadeDailyByDay.set(dayKey, state);
+  } else if (themeTitle && (!state.themeTitle || state.themeTitle === 'Reto Diario')) {
+    state.themeTitle = String(themeTitle).slice(0, 48);
+  }
+  state.rankings = sortEarArcadeDailyRankings(state.rankings);
+  return state;
+}
+
+function findEarDailyPlayerIndex(rankings, playerId, playerName) {
+  const pid = String(playerId || '').trim();
+  const pname = String(playerName || '').trim().toLowerCase();
+  return (rankings || []).findIndex(r => {
+    if (pid && r.player_id && r.player_id === pid) return true;
+    if (pname && pname !== 'jugador' && String(r.player_name || '').trim().toLowerCase() === pname) return true;
+    return false;
+  });
+}
+
+app.get('/api/v1/ear-arcade/daily', (req, res) => {
+  const todayKey = getEarArcadeDayKey(new Date());
+  const requestedDay = req.query?.day ? normalizeEarDailyKey(String(req.query.day)) : todayKey;
+  const playerId = String(req.query?.player_id || '').trim().slice(0, 64);
+  const playerName = String(req.query?.player_name || '').trim().slice(0, 32);
+
+  const state = getOrCreateEarArcadeDailyState(requestedDay);
+  const totalPlayers = state.rankings.length;
+  const decorated = state.rankings.slice(0, 100).map((r, idx) => {
+    const rank = idx + 1;
+    const prize = computeEarArcadeDailyPrize(rank);
+    return { ...r, rank, prizeClefs: prize.clefs, prizeTier: prize.tier };
+  });
+
+  let myEntry = null;
+  if (playerId || playerName) {
+    const idx = findEarDailyPlayerIndex(state.rankings, playerId, playerName);
+    if (idx >= 0) {
+      const rank = idx + 1;
+      const prize = computeEarArcadeDailyPrize(rank);
+      myEntry = { ...state.rankings[idx], rank, prizeClefs: prize.clefs, prizeTier: prize.tier };
+    }
+  }
+
+  const nowMs = Date.now();
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.json({
+    success: true,
+    dayKey: requestedDay,
+    todayKey,
+    isClosed: requestedDay < todayKey,
+    serverNowMs: nowMs,
+    nextResetMs: getNextEarArcadeMidnightMs(nowMs),
+    themeTitle: state.themeTitle || 'Reto Diario',
+    paytable: EAR_ARCADE_DAILY_PAYTABLE,
+    totalPlayers,
+    myEntry,
+    rankings: decorated
+  });
+});
+
+app.post('/api/v1/ear-arcade/daily/submit', (req, res) => {
+  const todayKey = getEarArcadeDayKey(new Date());
+  const requestedDay = req.body?.dayKey ? normalizeEarDailyKey(String(req.body.dayKey)) : todayKey;
+
+  if (requestedDay !== todayKey) {
+    return res.status(409).json({
+      success: false,
+      error: 'day_closed',
+      todayKey,
+      dayKey: requestedDay
+    });
+  }
+
+  const rawPlayerId = String(req.body?.player_id || '').trim().slice(0, 64);
+  const rawName = String(req.body?.player_name || req.body?.nickname || 'Jugador').trim().slice(0, 28) || 'Jugador';
+  const score = Math.max(0, Math.min(25000, Math.round(Number(req.body?.score) || 0)));
+  const hits = Math.max(0, Math.min(5, Math.round(Number(req.body?.hits) || 0)));
+  const totalRounds = Math.max(1, Math.min(5, Math.round(Number(req.body?.totalRounds) || 5)));
+  const avgTimeMs = Math.max(200, Math.min(60000, Math.round(Number(req.body?.avgTimeMs) || 8000)));
+  const grade = String(req.body?.grade || 'B').trim().slice(0, 4);
+  const themeTitle = String(req.body?.themeTitle || 'Reto Diario').trim().slice(0, 48);
+
+  const state = getOrCreateEarArcadeDailyState(todayKey, themeTitle);
+  let alreadyPlayed = false;
+
+  if (!isDummyPokerPlayerName(rawName)) {
+    const existingIdx = findEarDailyPlayerIndex(state.rankings, rawPlayerId, rawName);
+    if (existingIdx >= 0) {
+      alreadyPlayed = true;
+    } else {
+      state.rankings.push({
+        player_id: rawPlayerId || undefined,
+        player_name: rawName,
+        score,
+        hits,
+        totalRounds,
+        avgTimeMs,
+        grade,
+        timestamp: Date.now()
+      });
+      state.rankings = sortEarArcadeDailyRankings(state.rankings).slice(0, 150);
+      saveEarArcadeDailyStateToDisk();
+      syncLeaderboardToGithub().catch(() => {});
+    }
+  }
+
+  const finalIdx = findEarDailyPlayerIndex(state.rankings, rawPlayerId, rawName);
+  const rank = finalIdx >= 0 ? (finalIdx + 1) : (state.rankings.length + 1);
+  const prize = computeEarArcadeDailyPrize(rank);
+  const decorated = state.rankings.slice(0, 100).map((r, idx) => {
+    const rk = idx + 1;
+    const pr = computeEarArcadeDailyPrize(rk);
+    return { ...r, rank: rk, prizeClefs: pr.clefs, prizeTier: pr.tier };
+  });
+  const myEntry = finalIdx >= 0
+    ? { ...state.rankings[finalIdx], rank, prizeClefs: prize.clefs, prizeTier: prize.tier }
+    : { player_id: rawPlayerId, player_name: rawName, score, hits, totalRounds, avgTimeMs, grade, rank, prizeClefs: prize.clefs, prizeTier: prize.tier };
+
+  const nowMs = Date.now();
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.json({
+    success: true,
+    alreadyPlayed,
+    dayKey: todayKey,
+    todayKey,
+    serverNowMs: nowMs,
+    nextResetMs: getNextEarArcadeMidnightMs(nowMs),
+    themeTitle: state.themeTitle,
+    paytable: EAR_ARCADE_DAILY_PAYTABLE,
+    rank,
+    totalPlayers: state.rankings.length,
+    estimatedPrizeClefs: prize.clefs,
+    prizeTier: prize.tier,
+    myEntry,
+    rankings: decorated
   });
 });
 
@@ -7367,6 +7670,11 @@ app.get('/api/v1/audio/extract', async (req, res) => {
 
     const isShortPreviewCdn = /(mzstatic\.com|itunes\.apple\.com|cdns-preview|dzcdn\.net)/i.test(directAudioUrl);
     if (directAudioUrl && /^https?:\/\//i.test(directAudioUrl) && !isShortPreviewCdn) {
+      // Zero-egress: redirigir directamente a la URL de audio origen en lugar de retransmitir megabytes por Render
+      if (!req.query.proxy) {
+        res.setHeader('Cache-Control', 'public, max-age=180');
+        return res.redirect(302, directAudioUrl);
+      }
       liveBranches.push((async () => {
         const l = await startRemoteLiveAudioStream(cacheKey, directAudioUrl, 'audio/mpeg', {
           'X-Song-Title': encodeURIComponent(resolvedMeta.title),
@@ -7385,6 +7693,12 @@ app.get('/api/v1/audio/extract', async (req, res) => {
         const minScScore = resolvedMeta.videoId ? 74 : 68;
         const scProg = await resolveSoundCloudProgressiveStreamServer(searchQuery, rawTitle, rawArtist, scTrackId, minScScore);
         if (!scProg || !scProg.streamUrl) throw new Error('sc_prog_none');
+        // Zero-egress: devolver 302 al CDN directo de SoundCloud (~350 bytes) en vez de consumir 4 MB en Render
+        if (!req.query.proxy && /^https?:\/\//i.test(scProg.streamUrl)) {
+          if (claimed) throw new Error('already_claimed');
+          claimed = true;
+          return { redirectUrl: scProg.streamUrl };
+        }
         const l = await startRemoteLiveAudioStream(cacheKey, scProg.streamUrl, scProg.contentType || 'audio/mpeg', {
           'X-Song-Title': encodeURIComponent(rawTitle || scProg.title || resolvedMeta.title),
           'X-Song-Artist': encodeURIComponent(rawArtist || scProg.artist || resolvedMeta.artist),
@@ -7444,6 +7758,10 @@ app.get('/api/v1/audio/extract', async (req, res) => {
       try {
         const winnerLive = await Promise.any(liveBranches);
         if (winnerLive && !res.headersSent) {
+          if (winnerLive.redirectUrl) {
+            res.setHeader('Cache-Control', 'public, max-age=180');
+            return res.redirect(302, winnerLive.redirectUrl);
+          }
           return attachToLiveStream(req, res, winnerLive);
         }
       } catch (_) {
@@ -7669,16 +7987,9 @@ app.get('/api/v1/audio/extract', async (req, res) => {
             const mp3File = files.find(f => f && f.name && /\.mp3$/i.test(f.name) && (!f.size || (parseInt(f.size, 10) > 800000 && parseInt(f.size, 10) < 22000000)));
             if (mp3File) {
               const mp3Url = `https://archive.org/download/${encodeURIComponent(doc.identifier)}/${encodeURIComponent(mp3File.name)}`;
-              const dl = await fetchAudioBufferSafe(mp3Url, 6500);
-              if (dl && dl.buffer && dl.buffer.length >= 350000) {
-                res.setHeader('Content-Type', 'audio/mpeg');
-                res.setHeader('Access-Control-Expose-Headers', 'X-Song-Title, X-Song-Artist, X-Song-Cover, X-Audio-Source');
-                res.setHeader('X-Song-Title', encodeURIComponent(doc.title || resolvedMeta.title));
-                res.setHeader('X-Song-Artist', encodeURIComponent(Array.isArray(doc.creator) ? doc.creator[0] : (doc.creator || resolvedMeta.artist)));
-                res.setHeader('X-Song-Cover', encodeURIComponent(resolvedMeta.thumbnail || ''));
-                res.setHeader('X-Audio-Source', encodeURIComponent('Internet Archive Audio'));
-                return res.send(dl.buffer);
-              }
+              // Zero-egress: redirigir al MP3 en Internet Archive en lugar de descargarlo y servirlo desde Render
+              res.setHeader('Cache-Control', 'public, max-age=600');
+              return res.redirect(302, mp3Url);
             }
           }
         }
@@ -7999,54 +8310,15 @@ async function fetchLiveChartTracksById(chartId) {
   return { def, tracks };
 }
 
-// Pre-warm charts and ALL user playlist YouTube tracks asynchronously in the background without blocking any request
-setTimeout(() => {
-  LIVE_CHART_PLAYLIST_DEFS.slice(0, 4).forEach((def, idx) => {
-    setTimeout(() => { fetchLiveChartTracksById(def.id).catch(() => {}); }, idx * 900);
-  });
-  try {
-    const ytIdsToWarm = new Set([
-      'a4YfyblzE7g', 'RYYnXrTBFq4', 'QGR1FMta87c', 'XL4GeI4K1Xs',
-      'mmELyTiDEAw', 'kU-Z94uTPuo', '8i2peB3MEpA', 'F8oXB7zLwxk',
-      'IYoKjx_sR3c', 'YeWmWUjIZKg', '7J0xFQqAMHI', 'jMgOWiuVQ0s',
-      'hUxt4QhapJc', 'l3zCFXb4xSg'
-    ]);
-    const profiles = (typeof playerProfilesByCode !== 'undefined' && playerProfilesByCode instanceof Map)
-      ? Array.from(playerProfilesByCode.values())
-      : [];
-    for (const prof of profiles) {
-      const lists = Array.isArray(prof?.playlists) ? prof.playlists : [];
-      for (const pl of lists) {
-        const trs = Array.isArray(pl?.tracks) ? pl.tracks : [];
-        for (const t of trs) {
-          const rawId = String(t?.videoId || t?.id || '').replace(/^magic_yt_|^yt_/, '').trim();
-          if (/^[A-Za-z0-9_-]{11}$/.test(rawId)) {
-            ytIdsToWarm.add(rawId);
-          } else {
-            const mThumb = String(t?.thumbnail || '').match(/(?:\/vi\/|\/vi_webp\/)([A-Za-z0-9_-]{11})(?:\/|$)/);
-            if (mThumb && mThumb[1]) ytIdsToWarm.add(mThumb[1]);
-          }
-        }
-      }
-    }
-    const allVids = Array.from(ytIdsToWarm).slice(0, 32);
-    allVids.forEach((vid, idx) => {
-      const batchDelay = 400 + Math.floor(idx / 4) * 2800 + (idx % 4) * 250;
-      setTimeout(() => {
-        extractYouTubeFullAudioViaNotubeServer(vid).catch(() => {});
-      }, batchDelay);
-    });
-  } catch (_) {}
-}, 800);
+// Pre-calentamiento pasivo DESACTIVADO para proteger al 100% la cuota gratuita de 5 GB en Render
+// (antes descargaba 32 MP3 completos en cada despertar del servidor y consumía gigabytes en días).
 
 app.get('/api/v1/charts/top-playlists', (req, res) => {
   try {
+    res.setHeader('Cache-Control', 'public, max-age=1800, stale-while-revalidate=3600');
     const cards = LIVE_CHART_PLAYLIST_DEFS.map((def) => {
       const cached = liveChartTracksCache.get(def.id);
       const sampleTracks = cached ? cached.tracks.slice(0, 4) : [];
-      if (!cached) {
-        fetchLiveChartTracksById(def.id).catch(() => {});
-      }
       return {
         id: def.id,
         title: def.title,
@@ -8069,6 +8341,7 @@ app.get('/api/v1/charts/top-playlist-tracks', async (req, res) => {
   const id = String(req.query.id || '').trim();
   try {
     const { def, tracks } = await fetchLiveChartTracksById(id);
+    res.setHeader('Cache-Control', 'public, max-age=1800, stale-while-revalidate=3600');
     res.json({
       id: def.id,
       title: def.title,
@@ -8242,10 +8515,15 @@ setImmediate(() => {
   const coreAssets = [
     'index.html',
     'style.css',
+    'ear_arcade.css',
     'parsers.js',
     'game.js',
     'discover_home.js',
+    'spotify_suite.js',
+    'ear_arcade.js',
+    'editor.js',
     'songs/catalog_top.js',
+    'release_tags_map.json',
     'slot_machine.js',
     'gachapon_3d.js',
     'assets/vendor/tailwind.min.js',
@@ -8271,16 +8549,16 @@ const staticCacheHeaders = (res, filePath) => {
   const lower = filePath.toLowerCase();
   if (lower.endsWith('.wasm')) {
     res.setHeader('Content-Type', 'application/wasm');
-    res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
   } else if (lower.endsWith('.onnx')) {
     res.setHeader('Content-Type', 'application/octet-stream');
-    res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
   } else if (lower.endsWith('.css') || lower.endsWith('.js') || lower.endsWith('.mjs') || lower.endsWith('.html')) {
     res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
   } else if (lower.endsWith('.mp3') || lower.endsWith('.ogg') || lower.endsWith('.wav') || lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.webp') || lower.endsWith('.woff2') || lower.endsWith('.ttf')) {
-    res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
   } else {
-    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.setHeader('Cache-Control', 'public, max-age=604800');
   }
 };
 

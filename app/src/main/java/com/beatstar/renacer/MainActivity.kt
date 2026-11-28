@@ -387,7 +387,7 @@ class MainActivity : AppCompatActivity() {
             allowUniversalAccessFromFileURLs = true
             loadWithOverviewMode = true
             useWideViewPort = true
-            cacheMode = WebSettings.LOAD_NO_CACHE
+            cacheMode = WebSettings.LOAD_DEFAULT
             @Suppress("DEPRECATION")
             setRenderPriority(WebSettings.RenderPriority.HIGH)
             javaScriptCanOpenWindowsAutomatically = true
@@ -560,8 +560,13 @@ class MainActivity : AppCompatActivity() {
         }
 
         setContentView(webView)
-        webView.clearCache(true)
-        webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html?v=95.0")
+        val cachePrefs = getSharedPreferences("renacer_webview_cache", Context.MODE_PRIVATE)
+        val currentAssetEpoch = "v112.0"
+        if (cachePrefs.getString("asset_epoch", "") != currentAssetEpoch) {
+            webView.clearCache(true)
+            cachePrefs.edit().putString("asset_epoch", currentAssetEpoch).apply()
+        }
+        webView.loadUrl("https://appassets.androidplatform.net/assets/www/index.html?v=112.0")
         hideSystemUI()
     }
 
@@ -1157,6 +1162,17 @@ class MainActivity : AppCompatActivity() {
                 startNativeVocalMicEngine()
             } else {
                 nativeMicState = "denied"
+            }
+        } else if (requestCode == NOTIFICATION_PERMISSION_REQUEST_CODE) {
+            val granted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
+            if (granted && (backgroundAudioPlaying || MediaPlaybackService.isCurrentlyPlaying)) {
+                try {
+                    val intent = Intent(this, MediaPlaybackService::class.java).apply {
+                        action = MediaPlaybackService.ACTION_UPDATE_STATE
+                        putExtra(MediaPlaybackService.EXTRA_PLAYING, true)
+                    }
+                    ContextCompat.startForegroundService(this, intent)
+                } catch (_: Exception) {}
             }
         }
     }

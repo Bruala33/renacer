@@ -1335,6 +1335,12 @@ class ArchiveHelper {
       else if (window.VisualLogger && typeof window.VisualLogger.step === 'function') window.VisualLogger.step(step, title, detail, st);
     };
 
+    if (typeof Archive === 'undefined' && typeof window.ensureLibarchiveReady === 'function') {
+      try {
+        await window.ensureLibarchiveReady();
+      } catch (_) {}
+    }
+
     if (typeof Archive === 'undefined') {
       log(4, 'Módulo libarchive no encontrado', 'window.Archive no está inicializado en la página.', 'error');
       throw new Error('libarchive.js / WebAssembly no está disponible en el cliente.');

@@ -10174,6 +10174,24 @@ body {
   border-color: rgba(212, 175, 55, 0.5);
 }
 
+/* Rendering & Startup Fluency Optimizations */
+.discover-carousel-section,
+.discover-live-charts-section,
+#tabLibrarySection,
+#tabSearchSection,
+#tabEditorSection {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 260px;
+}
+
+button,
+[role="button"],
+a {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+
 
 
 

@@ -446,8 +446,8 @@
           throw new Error('no_itunes');
         })();
 
-        // Tarea 2: Servidor (/api/v1/audio/instant_preview que cruza Deezer Public API + iTunes API solo para carátula y metadatos)
-        const serverDeezerItunesTask = (async () => {
+        // Tarea 2: Servidor (/api/v1/audio/instant_preview) — lazy fallback (0 bytes Render salvo que iTunes cliente falle)
+        const serverDeezerItunesTask = async () => {
           const ctrl = new AbortController();
           const tid = setTimeout(() => ctrl.abort(), 1800);
           try {
@@ -474,23 +474,32 @@
             clearTimeout(tid);
           }
           throw new Error('no_srv');
-        })();
+        };
 
+        // Cliente-primero (0 bytes en Render): consultar iTunes Search API directa y solo usar el servidor como respaldo si falla
+        let winner = null;
         try {
-          const winner = await Promise.any([itunesClientTask, serverDeezerItunesTask]);
-          if (winner) {
-            this.metaCache.set(key, winner);
-            if (this.metaCache.size % 10 === 0) this._savePersistedCache();
-            this._applyEnrichedToTrack(track, winner);
-            if (window._resolvedSongArtworkMap && winner.artworkUrl600) {
-              const normTA = typeof window.normalizeSearchText === 'function'
-                ? `${window.normalizeSearchText(rawTitle)}__${window.normalizeSearchText(rawArtist)}`
-                : key;
-              window._resolvedSongArtworkMap.set(normTA, winner.artworkUrl600);
-            }
-            return winner;
+          winner = await itunesClientTask;
+        } catch (_) {
+          try {
+            winner = await serverDeezerItunesTask();
+          } catch (__) {
+            winner = null;
           }
-        } catch (_) {}
+        }
+
+        if (winner) {
+          this.metaCache.set(key, winner);
+          if (this.metaCache.size % 10 === 0) this._savePersistedCache();
+          this._applyEnrichedToTrack(track, winner);
+          if (window._resolvedSongArtworkMap && winner.artworkUrl600) {
+            const normTA = typeof window.normalizeSearchText === 'function'
+              ? `${window.normalizeSearchText(rawTitle)}__${window.normalizeSearchText(rawArtist)}`
+              : key;
+            window._resolvedSongArtworkMap.set(normTA, winner.artworkUrl600);
+          }
+          return winner;
+        }
 
         return null;
       })();
@@ -17656,27 +17665,28 @@
                 .catch(() => '')
             : Promise.resolve(''));
 
+      // Estrategia Cero-Cuota Render: competir primero únicamente con fuentes directas de cliente (0 bytes Render).
+      // Solo si TODAS las fuentes directas fallan se recurre a /api/v1/audio/extract como último respaldo.
       const progressiveExtractUrl = this._buildServerExtractStreamUrl(track);
       const srvRaceCtrl = new AbortController();
       this._activeServerRaceCtrl = srvRaceCtrl;
-      const serverStreamRace = progressiveExtractUrl
-        ? (async () => {
-            const tid = setTimeout(() => srvRaceCtrl.abort(), 14000);
-            try {
-              const resp = await fetch(progressiveExtractUrl, { signal: srvRaceCtrl.signal });
-              clearTimeout(tid);
-              if (!resp || !resp.ok) throw new Error('server_stream_http');
-              const cType = String(resp.headers.get('content-type') || '').toLowerCase();
-              if (!cType.startsWith('audio/') && !cType.includes('octet-stream')) {
-                throw new Error('server_stream_ctype');
-              }
-              return { mode: 'server_stream', url: progressiveExtractUrl, resp };
-            } catch (err) {
-              clearTimeout(tid);
-              throw err;
-            }
-          })()
-        : Promise.reject(new Error('no_server_url'));
+      const runServerFallback = async () => {
+        if (!progressiveExtractUrl) throw new Error('no_server_url');
+        const tid = setTimeout(() => srvRaceCtrl.abort(), 14000);
+        try {
+          const resp = await fetch(progressiveExtractUrl, { signal: srvRaceCtrl.signal });
+          clearTimeout(tid);
+          if (!resp || !resp.ok) throw new Error('server_stream_http');
+          const cType = String(resp.headers.get('content-type') || '').toLowerCase();
+          if (!cType.startsWith('audio/') && !cType.includes('octet-stream')) {
+            throw new Error('server_stream_ctype');
+          }
+          return { mode: 'server_stream', url: progressiveExtractUrl, resp };
+        } catch (err) {
+          clearTimeout(tid);
+          throw err;
+        }
+      };
 
       const soundCloudProgRace = (typeof window.resolveSoundCloudProgressiveUrlClient === 'function' && cleanTitle4)
         ? (async () => {
@@ -17712,7 +17722,7 @@
         const vid = await fastVidPromise;
         if (!vid || reqId !== this._playRequestId) throw new Error('no_yt_vid');
         await new Promise((resolve) => {
-          fastBridgeTid = setTimeout(resolve, 3400);
+          fastBridgeTid = setTimeout(resolve, 2600);
         });
         if (reqId !== this._playRequestId) throw new Error('stale_req');
         return { mode: 'yt_bridge', videoId: vid };
@@ -17720,7 +17730,12 @@
 
       let winner = null;
       try {
-        winner = await Promise.any([serverStreamRace, soundCloudProgRace, clientBlobRace, ytBridgeFastStarter]);
+        try {
+          winner = await Promise.any([soundCloudProgRace, clientBlobRace, ytBridgeFastStarter]);
+        } catch (_) {
+          if (reqId !== this._playRequestId) return false;
+          winner = await runServerFallback();
+        }
         if (reqId !== this._playRequestId) {
           try { srvRaceCtrl.abort(); } catch (_) {}
           return false;
@@ -18343,7 +18358,8 @@
       const existing = !videoIdOnly ? this._getCachedFullBlobForTrack(track) : null;
       if (existing && existing.size >= 80000) return existing;
 
-      const excludeServer = Boolean(options && options.excludeServer);
+      // Por defecto excluir Render en precargas en segundo plano para mantener consumo 0 MB en Render
+      const excludeServer = options && options.allowServer === true ? false : true;
       if (!this._inflightFullPreloads) this._inflightFullPreloads = new Map();
       const baseKey = String(track.id || `${track.title}__${track.artist}`);
       const key = videoIdOnly
@@ -19624,29 +19640,19 @@
       this.isInitialized = true;
       this._syncDialsUI();
       this.rebuildCrateDeck(false);
-      // Pre-calentar todas las canciones de las playlists guardadas del usuario en segundo plano
-      setTimeout(async () => {
-        try {
-          if (typeof window.IndexedDBStorage !== 'undefined' && typeof window.IndexedDBStorage.getAllPlaylists === 'function') {
-            const pls = await window.IndexedDBStorage.getAllPlaylists().catch(() => []) || [];
-            const allPlTracks = [];
-            for (const p of pls) {
-              if (Array.isArray(p?.tracks)) allPlTracks.push(...p.tracks);
-            }
-            if (allPlTracks.length > 0) {
-              dualStreamEngine.warmTracks(allPlTracks.slice(0, 30));
-            }
-          }
-        } catch (_) {}
-      }, 600);
-      // Diferir carruseles secundarios un frame para que la entrada a Descubrir sea instantánea
+      // Diferir carruseles secundarios tras el primer pintado para arranque instantáneo y fluido
       requestAnimationFrame(() => {
         this.refreshCarousels();
-        this.renderLiveTopPlaylistsGrid();
         dualStreamEngine._syncRepeatButtonUI();
-        if (window.SpotifySuite && typeof window.SpotifySuite.init === 'function') {
-          window.SpotifySuite.init();
-        }
+        const deferIdle = typeof window.requestIdleCallback === 'function'
+          ? (cb) => window.requestIdleCallback(cb, { timeout: 600 })
+          : (cb) => setTimeout(cb, 80);
+        deferIdle(() => {
+          this.renderLiveTopPlaylistsGrid();
+          if (window.SpotifySuite && typeof window.SpotifySuite.init === 'function') {
+            window.SpotifySuite.init();
+          }
+        });
       });
     },
 
@@ -19788,8 +19794,6 @@
       const active = this.getActiveCrateTrack();
       if (active) {
         dnaEngine.bloomFilter.markSeen(active.id, active.artist);
-        dualStreamEngine.warmTracks([active]);
-        dualStreamEngine.prewarmUpcomingCards(this.deck.slice(0, 3));
         if (!dualStreamEngine.currentTrack) {
           dualStreamEngine.currentTrack = active;
           dualStreamEngine.queue = [...this.deck];
@@ -19800,10 +19804,17 @@
         }
         if (autoPlayFirst) {
           dualStreamEngine.playTrack(active);
+          setTimeout(() => dualStreamEngine.prewarmUpcomingCards(this.deck.slice(1, 3)), 900);
         } else {
           this._ensureRealCoverForTrack(active, 'crateMainCoverImg');
           const next = this.deck[this.deckIndex + 1];
           if (next) this._ensureRealCoverForTrack(next, 'crateNextCoverImg');
+          // Diferir prewarm para no competir con el arranque inicial de la app
+          setTimeout(() => {
+            if (!window.isGameLoadingOrActive) {
+              dualStreamEngine.prewarmUpcomingCards(this.deck.slice(0, 2));
+            }
+          }, 1400);
         }
       }
     },
@@ -19907,8 +19918,8 @@
         ? window.searchYouTubeVideoclipClient(cleanTitle, cleanArtist, Number(track.durationSec) || 0).catch(() => [])
         : Promise.resolve([]);
 
-      // 2. Búsqueda de Videoclip Oficial en servidor (/api/v1/video/resolve)
-      const srvMvTask = (async () => {
+      // 2. Búsqueda de Videoclip Oficial en servidor (/api/v1/video/resolve) — lazy fallback solo si el cliente no encuentra nada
+      const srvMvTask = async () => {
         try {
           const baseUrl = typeof window.getApiBaseUrl === 'function' ? window.getApiBaseUrl() : '';
           const durParam = (Number(track.durationSec) > 45) ? `&durationSec=${Math.round(Number(track.durationSec))}` : '';
@@ -19922,7 +19933,7 @@
           if (resp.ok) return await resp.json();
         } catch (_) {}
         return null;
-      })();
+      };
 
       // 3. Respaldo iTunes Music Video API (.m4v / .mp4) exigiendo coincidencia real de título Y artista
       const itunesMvTask = (async () => {
@@ -19960,7 +19971,13 @@
         return '';
       })();
 
-      const [ytList, srvData, itunesStreamUrl] = await Promise.all([ytMvClientTask, srvMvTask, itunesMvTask]);
+      // Cliente-primero (0 bytes Render): consultar YouTube cliente + iTunes Music Video y solo llamar a Render si ambos fallan
+      const [ytList, itunesStreamUrl] = await Promise.all([ytMvClientTask, itunesMvTask]);
+      const hasClientHit = Boolean(
+        itunesStreamUrl ||
+        (Array.isArray(ytList) && ytList[0] && /^[a-zA-Z0-9_-]{11}$/.test(String(ytList[0].videoId || '')))
+      );
+      const srvData = hasClientHit ? null : await srvMvTask();
 
       const videoStreamUrl = itunesStreamUrl || (srvData && srvData.videoStreamUrl) || '';
       let resolvedVid = '';
@@ -21023,6 +21040,13 @@
           <span class="sp-opt-label font-extrabold text-[#f3e5ab]">Jugar canción al Piano</span>
         </button>
 
+        <button type="button" class="sp-opt-row" onclick="window.DiscoverHomeApp.handleTrackOptionAction('open_ear_arcade')">
+          <span class="sp-opt-icon" style="color:#38bdf8;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 12 6 12 8.5 5 12 19 15.5 8 18 12 22 12"/></svg>
+          </span>
+          <span class="sp-opt-label font-extrabold text-[#bae6fd]">Reto de Oido Arcade con esta cancion</span>
+        </button>
+
         <button type="button" class="sp-opt-row" onclick="window.DiscoverHomeApp.handleTrackOptionAction('share')">
           <span class="sp-opt-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
@@ -21175,6 +21199,9 @@
       if (action === 'play_piano') {
         this.closePlaylistTracksModal();
         this.launchPianoGameForTrack(tr);
+      } else if (action === 'open_ear_arcade') {
+        this.closePlaylistTracksModal();
+        this.openEarArcade(tr);
       } else if (action === 'share') {
         const shareText = `${tr.title} - ${tr.artist}`;
         if (navigator.share) {
@@ -21872,6 +21899,19 @@
         return;
       }
 
+      // Revisar caché persistente local (6 horas) para evitar peticiones redundantes a Render al iniciar
+      try {
+        const rawCached = localStorage.getItem('beatstar_top_playlists_cache_v1');
+        if (rawCached) {
+          const parsed = JSON.parse(rawCached);
+          if (parsed && Array.isArray(parsed.playlists) && parsed.playlists.length > 0 && (Date.now() - Number(parsed.ts || 0)) < 6 * 3600 * 1000) {
+            this._liveChartsCatalogCache = parsed.playlists;
+            renderCards(parsed.playlists);
+            return;
+          }
+        }
+      } catch (_) {}
+
       renderCards(defaultCharts);
 
       try {
@@ -21881,6 +21921,7 @@
           const data = await resp.json();
           if (Array.isArray(data?.playlists) && data.playlists.length > 0) {
             this._liveChartsCatalogCache = data.playlists;
+            try { localStorage.setItem('beatstar_top_playlists_cache_v1', JSON.stringify({ ts: Date.now(), playlists: data.playlists })); } catch (_) {}
             const input = document.getElementById('discoverPlaylistSearchInput');
             if (!input || !input.value.trim()) {
               renderCards(data.playlists);
@@ -21898,29 +21939,29 @@
 
       let tracks = [];
       let resolvedTitle = chartTitle;
+      const cacheKey = `beatstar_top_chart_tracks_v1_${chartId}`;
 
+      // 0. Caché local (3 horas) -> 0ms y 0 bytes de Render
       try {
-        const ctrl = new AbortController();
-        const tid = setTimeout(() => ctrl.abort(), 4500);
-        const resp = await fetch(`${baseUrl}/api/v1/charts/top-playlist-tracks?id=${encodeURIComponent(chartId)}`, {
-          signal: ctrl.signal
-        });
-        clearTimeout(tid);
-        if (resp.ok) {
-          const data = await resp.json();
-          if (Array.isArray(data?.tracks) && data.tracks.length > 0) {
-            tracks = data.tracks;
-            if (data.title) resolvedTitle = data.title;
+        const cachedRaw = localStorage.getItem(cacheKey);
+        if (cachedRaw) {
+          const parsed = JSON.parse(cachedRaw);
+          if (parsed && Array.isArray(parsed.tracks) && parsed.tracks.length > 0 && (Date.now() - Number(parsed.ts || 0)) < 3 * 3600 * 1000) {
+            tracks = parsed.tracks;
+            if (parsed.title) resolvedTitle = parsed.title;
           }
         }
       } catch (_) {}
 
-      // Fallback directo en cliente (0 bytes de Render) vía Apple Music RSS / iTunes Search cuando el backend no responde
-      if (tracks.length === 0) {
+      // 1. Directo en cliente (0 bytes de Render) vía Apple Music RSS para Top España / Global
+      if (tracks.length === 0 && (chartId.includes('es') || chartId.includes('global') || chartId.includes('us') || chartId.includes('top50'))) {
         try {
           const country = chartId.includes('es') ? 'es' : 'us';
           const rssUrl = `https://itunes.apple.com/${country}/rss/topsongs/limit=50/json`;
-          const r = await fetch(rssUrl);
+          const ctrlRss = new AbortController();
+          const tidRss = setTimeout(() => ctrlRss.abort(), 2800);
+          const r = await fetch(rssUrl, { signal: ctrlRss.signal });
+          clearTimeout(tidRss);
           if (r.ok) {
             const d = await r.json();
             const entries = d?.feed?.entry || [];
@@ -21941,6 +21982,29 @@
                 source: 'live_chart'
               };
             });
+            if (tracks.length > 0) {
+              try { localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), title: resolvedTitle, tracks })); } catch (_) {}
+            }
+          }
+        } catch (_) {}
+      }
+
+      // 2. Respaldo servidor si el chart es específico o Apple RSS falló
+      if (tracks.length === 0) {
+        try {
+          const ctrl = new AbortController();
+          const tid = setTimeout(() => ctrl.abort(), 4500);
+          const resp = await fetch(`${baseUrl}/api/v1/charts/top-playlist-tracks?id=${encodeURIComponent(chartId)}`, {
+            signal: ctrl.signal
+          });
+          clearTimeout(tid);
+          if (resp.ok) {
+            const data = await resp.json();
+            if (Array.isArray(data?.tracks) && data.tracks.length > 0) {
+              tracks = data.tracks;
+              if (data.title) resolvedTitle = data.title;
+              try { localStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), title: resolvedTitle, tracks: tracks.slice(0, 80) })); } catch (_) {}
+            }
           }
         } catch (_) {}
       }
@@ -23136,6 +23200,17 @@
       if (window.SpotifySuite && typeof window.SpotifySuite.openShareCard === 'function') {
         window.SpotifySuite.openShareCard(tr);
       }
+    },
+
+    openEarArcade(seedTrack = null) {
+      if (window.EarArcade && typeof window.EarArcade.open === 'function') {
+        window.EarArcade.open(seedTrack);
+      }
+    },
+
+    openEarArcadeForCurrent() {
+      const tr = dualStreamEngine.currentTrack || this.getActiveCrateTrack() || null;
+      this.openEarArcade(tr);
     },
 
     renderCarousels() {
